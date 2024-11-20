@@ -4,9 +4,12 @@
 #include <unistd.h>
 
 #include "structures.h"
+#include "dictionary.h"
 
 #define N 50
 #define M 10
+
+struct nlist *dict;
 
 
 // Leer matrices desde fichero
@@ -30,13 +33,24 @@ void read_mat_file(char input_file[]){
         if (line[0] == '%') continue;
 
         // Process line token by token
-        for (tok = strtok(line, ";"); tok && *tok; tok = strtok(NULL, ";\n"))
+        for (tok = strtok(line, ","); tok && *tok; tok = strtok(NULL, ",\n"))
         {
-            
+            // If it is a constant
+            if (islower(tok[0]))
+            {
+
+            }
+            else
+            {
+
+            }
+
+            if ((dict = lookup("E")) != NULL)
+            printf("%s\n",tok); // Check
         }
 
-        printf("Retrieved line of length %zu:\n", read);
-        printf("%s", line);
+        printf("Retrieved line of length %zu:\n", read); // Check
+        // printf("%s", line); // Check
     }
 
     fclose(stream);
