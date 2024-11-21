@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include "structures.h"
 #include "dictionary.h"
@@ -13,12 +14,14 @@ struct nlist *dict;
 
 
 // Leer matrices desde fichero
-void read_mat_file(char input_file[]){
+void read_mat_file(char input_file[], L1** mat){
     FILE *stream;
     char * line = NULL;
-    const char* tok;
-    size_t len=0;
+    char* tok;
+    size_t len=0, last_mat_element = 0;
     ssize_t read;
+    int value_const;
+    int last_const;
 
     // Abrir fichero y verificar acceso
     stream = fopen(input_file, "r");
@@ -38,7 +41,14 @@ void read_mat_file(char input_file[]){
             // If it is a constant
             if (islower(tok[0]))
             {
-
+                // If constant already exists, get the corresponding int value
+                if ((dict = lookup(tok)) != NULL){
+                    value_const = atoi(dict->defn);
+                // Constant does not exist, put new int value
+                } else {
+                    value_const = last_const;
+                    last_const++;
+                }
             }
             else
             {
@@ -64,8 +74,8 @@ void read_unif_mat_file();
 void process_files();
 
 int main (int argc, char *argv[]){
-    read_mat_file("benchmark/test00.csv");
     L1** mat = constr_mat_vacia(N,M);
+    read_mat_file("benchmark/test00.csv",mat);
     free_L1_mat(N,M,mat);
     printf("Main Completed, argument count %d, program name %s\n",argc, argv[0]);
     return 0;

@@ -66,3 +66,42 @@ void read_mat_file(char input_file[]){
     ...
 }
 ```
+
+### change_variables.sh  
+Este script procesa los ficheros csv de una carpeta y los deja en otra. Los procesa sustituyendo los carácteres en minúscula por valores integers, manteniendo consistencia (si 'a' se cambia por 1, lo hace en todo el fichero). Procesa los carácteres en mayúscula haciendo que cada variable dentro de una línea tome el mismo string, y las variables entre filas, aunque inicialmente sean el mismo carácter, se cambian por strings distintos.  
+
+por comodidad, y por ahora, no procesa los resultados de unificar y los unificadores incluídos en los benchmarks.  
+  
+Uso:  
+'./change_variables.sh <carpeta_benchmakrs_original> <carpeta_benchmakrs_cambiado>'  
+
+Ejemplo original:  
+```  
+%%% BEGIN: Matrix M1 %%%
+a,b,a,a,a,b,C,a,a,a
+a,a,a,b,A,a,a,A,b,A
+B,a,b,a,A,b,B,b,a,b
+b,a,C,a,b,A,b,b,b,a
+%%% END: Matrix M1 %%%
+%%% BEGIN: Matrix M2 %%%
+a,E,a,a,a,a,b,E,b,b
+G,a,A,b,b,a,a,E,a,G
+F,G,E,E,a,a,a,a,G,E
+E,A,b,a,a,a,H,a,a,b
+%%% END: Matrix M2 %%%
+```  
+
+Ejemplo cambiado:  
+```  
+%%% BEGIN: Matrix M1 %%%
+1,2,1,1,1,2,C1,1,1,1
+1,1,1,2,A1,1,1,A1,2,A1
+B1,1,2,1,A2,2,B1,2,1,2
+2,1,C2,1,2,A3,2,2,2,1
+%%% END: Matrix M1 %%%
+%%% BEGIN: Matrix M2 %%%
+1,E1,1,1,1,1,2,E1,2,2
+G1,1,A4,2,2,1,1,E2,1,G1
+F1,G2,E3,E3,1,1,1,1,G2,E3
+E4,A5,2,1,1,1,H1,1,1,2
+```  
