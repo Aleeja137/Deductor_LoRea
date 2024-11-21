@@ -32,27 +32,22 @@ void read_mat_file(char input_file[], L1** mat){
     // Procesar fichero línea a línea
     while((read = getline(&line, &len, stream)) != -1) 
     {
-        // Skip line if comment // Revise full: Igual me interesa leer estas líneas para sacar info de la matrx (dimensiones?)
+        // Saltarme líneas de comentario // Revise full: Igual me interesa leer estas líneas para sacar info de la matrx (dimensiones?)
         if (line[0] == '%') continue;
 
-        // Process line token by token
+        // Procesar línea token a token
         for (tok = strtok(line, ","); tok && *tok; tok = strtok(NULL, ",\n"))
         {
-            // If it is a constant
-            if (islower(tok[0]))
+            // Si es constante
+            if (isdigit(tok[0]))
             {
-                // If constant already exists, get the corresponding int value
-                if ((dict = lookup(tok)) != NULL){
-                    value_const = atoi(dict->defn);
-                // Constant does not exist, put new int value
-                } else {
-                    value_const = last_const;
-                    last_const++;
-                }
+                // Crear nodo L1 con ese valor int
+                // Improv full: viendo que las constantes se repiten mucho, podría usar el diccionario para que todas las mismas constantes apunten al mismo L1 (más espacio de diccionario, mayor tiempo procesamiento de lectura de matriz, pero menos memoria de programa). Para ver cómo, ver el siguiente else
             }
             else
             {
-
+                // If the variable does not exist in the dictionary, create a L1 with 0 for value. Add entry to dictionary with the string with the memory address (https://stackoverflow.com/questions/73711419/how-to-convert-variables-address-to-string-variable-in-c)
+                // If the variable exists in the dictionary, point to the L1, taking the address from the dictionary (https://stackoverflow.com/questions/15081863/string-to-address-c)
             }
 
             if ((dict = lookup("E")) != NULL)
