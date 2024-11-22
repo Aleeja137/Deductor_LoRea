@@ -67,7 +67,7 @@ void free_L2(L2* node){
     if (!node)      return;
     if (node->head) free_L3(node->head);
     if (node->tail) free_L3(node->tail);
-    if (node->me)   free_L1(node->me);
+    // if (node->me)   free_L1(node->me);
     free(node);
 }
 
