@@ -134,12 +134,12 @@ L3* copy_L3(L3* node) {
 }
 
 L1** copy_mat(size_t n, size_t m, L1** mat) {
-    printf("n = %zu, m = %zu\n", n, m); // Check
-    printf("Check interno 1\n"); // Check
+    // printf("n = %zu, m = %zu\n", n, m); // Check
+    // printf("Check interno 1\n"); // Check
     L1** mat2 = (L1**) malloc(n * m * sizeof(L1*));
-    printf("Check interno 2\n"); // Check
+    // printf("Check interno 2\n"); // Check
     if (!mat2) return NULL; // Allocation failure
-    printf("Check interno 3\n"); // Check
+    // printf("Check interno 3\n"); // Check
     
     for (size_t i = 0; i < n * m; i++) {
         mat2[i] = copy_L1(mat[i]);

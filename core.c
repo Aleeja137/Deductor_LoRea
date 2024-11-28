@@ -258,9 +258,9 @@ char** unify_matrices(L1 **m0, L1 **m1, int nrow, int ncol){
 	for (i=0; i<nrow; i++)
 	for (j=0; j<nrow; j++)
 	{
-		printf("Check 1!!\n"); // Check
+		// printf("Check 1!!\n"); // Check
 		L1 **tmp_m0 = copy_mat(1,ncol,&m0[i*ncol]);
-		printf("Check 2!!\n"); // Check
+		// printf("Check 2!!\n"); // Check
 		L1 **tmp_m1 = copy_mat(1,ncol,&m1[j*ncol]);
 		printf("Unifying rows %d and %d\n",i,j); // Check
 		char *unifier=strdup("");
