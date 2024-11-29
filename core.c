@@ -285,8 +285,10 @@ int main(int argc, char *argv[])
 {
 	L1 **mat0 = constr_mat_vacia(N, M);
 	L1 **mat1 = constr_mat_vacia(N, M);
-	read_mat_file("benchmark_test/test00.csv", mat0);
-	read_mat_file("benchmark_test/test01.csv", mat1);
+	read_mat_file("falla1.csv", mat0);
+	read_mat_file("falla2.csv", mat1);
+	// read_mat_file("correcto1.csv", mat0);
+	// read_mat_file("correcto2.csv", mat1);
 	// printf("read_mat_file completed :)\n");
 	// printf("Mat 0 from benchmark_test/test00.csv\n");
 	// print_mat(mat0, N, M);
