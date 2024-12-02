@@ -4,8 +4,8 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <stdint.h>
+#include <assert.h>
 
-#include "structures.h"
 #include "dictionary.h"
 
 // #define N 50
@@ -15,79 +15,69 @@
 
 struct nlist *dict;
 
-// Declaración funciones
-void update_pointers(L1 *a, L1 *b);
-
-// Leer matriz desde fichero
-void read_mat_file(char input_file[], L1 **mat)
+// Read matrix from file
+void read_mat_file(char input_file[], int *mat, int m)
 {
 	FILE *stream;
 	char *line = NULL;
 	char *tok;
-	size_t len = 0, last_mat_element = 0;
+	size_t len = 0; 
 	ssize_t read;
 
-	// Abrir fichero y verificar acceso
+    int start_elem = 1;
+    // int start_unif = 1+m;
+    int line_len = 1+m+1+(m*2)+2;
+    int row = 0, col = 0;
+
+	// Open the file and check access
 	stream = fopen(input_file, "r");
 	if (stream == NULL)
 	{
 		fprintf(stderr, "Error opening file %s, exiting\n", input_file);
 		exit(EXIT_FAILURE);
 	}
-	// else printf("File %s opened correctly :) \n", input_file); // Check
 
 	// setrlimit // Improv full: Se podría hacer esto para limitar posibles errores en el fichero de lectura y que no explote la memoria (?)
-	// Procesar fichero línea a línea
+	// Process the file line by line
 	while ((read = getline(&line, &len, stream)) != -1)
 	{
-		// Saltarme líneas de comentario // Revise full: Igual me interesa leer estas líneas para sacar info de la matrx (dimensiones?)
+		// Skip comment lines // Revise: Igual me interesa leer estas líneas para sacar info de la matrx (dimensiones?)
 		if (line[0] == '%')
 			continue;
 
-		// Procesar línea token a token
+		// Process line token by token
+        mat[row*line_len] = m; // Add the number of elements in line
+        mat[row*line_len+line_len-2] = row; // Add row index
 		for (tok = strtok(line, ","); tok && *tok; tok = strtok(NULL, ",\n"))
 		{
-			// Si es constante
+			// If a constant
 			if (isdigit(tok[0]))
 			{
-				// Crear nodo L1 con ese valor int
-				mat[last_mat_element] = create_L1(atoi(tok), NULL, tok);
-				last_mat_element++;
-				// printf("const mat[%lu]: %d for char %s\n",last_mat_element-1, mat[last_mat_element-1]->val,tok); // Check
-				// printf("Const: %s\n",tok); // Check
-				// Improv full: viendo que las constantes se repiten mucho, podría usar el diccionario para que todas las mismas constantes apunten al mismo L1 (más espacio de diccionario, mayor tiempo procesamiento de lectura de matriz, pero menos memoria de programa). Para ver cómo, ver el siguiente else
-			}
+                int index = (row*line_len) + start_elem + col;
+				mat[index] = atoi(tok);
+            }
 			else
 			{
-				// printf("Var: %s\n",tok); // Check
-				// If the variable does not exist in the dictionary, create a L1 with 0 for value. Add entry to dictionary with the string with the memory address (https://stackoverflow.com/questions/73711419/how-to-convert-variables-address-to-string-variable-in-c)
+				// If variable not in dictionary, put a 0 and add index to dictionary
 				if ((dict = lookup(tok)) == NULL)
 				{
-					L1 *temp_L1 = create_L1(0, NULL, tok);
-					L2 *temp_L2 = create_L2(0, NULL, NULL, temp_L1);
-					temp_L1->info = temp_L2;
-					mat[last_mat_element] = temp_L1;
-					last_mat_element++;
-					// 17 porque son 2 caracteres por byte + el char de fin de línea
-					char addr[17]; // Improv: el tamaño se puede reducir?
-					sprintf(addr, "%p", temp_L1);
-					// printf("Addr: %s\n", addr); // Check
-					install(tok, addr);
-					// printf("Character %s stored in %s\n",tok,addr); // Check
+                    int index = (row*line_len)+start_elem+col;
+					mat[index] = 0;
+                    install(tok, col);
 				}
-				// If the variable exists in the dictionary, point to the L1, taking the address from the dictionary (https://stackoverflow.com/questions/15081863/string-to-address-c)
+				// If variable IN dictionary, take the index as value
 				else
 				{
-					char *addr = dict->defn;
-					L1 *temp_L1;
-					sscanf(addr, "%p", &temp_L1);
-					mat[last_mat_element] = temp_L1;
-					last_mat_element++;
-					// printf("Character %s taken from %s\n",tok,addr); // Check
+                    int index = (row*line_len)+start_elem+col;
+					mat[index] = -(dict->defn);
 				}
-				// printf("var mat[%lu]: %d for char %s\n",last_mat_element-1, mat[last_mat_element-1]->val,tok); // Check
 			}
+            col++;
 		}
+        // After processing the line, free dictionary
+        clear(); // Improve: Quizá en lugar de liberar/reservar memoria línea a línea es mejor simplemente dejar que el diccionario crezca
+        row++;
+        col=0;
 	}
 
 	fclose(stream);
@@ -95,209 +85,158 @@ void read_mat_file(char input_file[], L1 **mat)
 		free(line);
 }
 
-// Imprime matriz con chars, solo conviene usarla con matrices pequeñas
-void print_mat(L1 **mat, int n, int m)
+// Prints the matrix elements, not the metadata nor the unifiers
+void print_mat_values(int *mat, int n, int m)
 {
-
-	int i, j;
+    int i, j;
+    int start_elem = 1;
+    // int start_unif = 1+m;
+    int line_len = 1+m+1+(m*2)+2;
+    
 	for (i = 0; i < n; i++)
 	{
 		printf("[");
 		for (j = 0; j < m; j++)
-			printf("%s ", mat[i * m + j]->name);
+			printf("%d ", mat[i*line_len+start_elem+j]);
 		printf("]\n");
 	}
 }
 
-// Unifica dos elementos
-char* unify_a_b(L1 *a, L1 *b, char *unifier){
-
-	// printf("a.val %d, a.name %s\n",a->val,a->name); // Check
-	// printf("b.val %d, b.name %s\n",b->val,b->name); // Check
-
-	// A es constante (o variable inicializada a constante)
-	if (a->val > 0 && b->val > 0 && a->val!=b->val)
-	// {printf("Check opt 1\n"); // Check
-		return NULL;
-	// } // Check
-	if (a->val > 0 && b->val <= 0) 
-	// {printf("Check opt 2\n");// Check
-		return unify_a_b(b,a,unifier);
-	// }// Check
-
-	// A es variable sin inicializar
-	if (a->val == 0 && b->val > 0)
+void print_mat_metadata(int *mat, int n, int m)
+{
+    int i, j;
+    // int start_elem = 1;
+    int start_unif = 1+m;
+    int line_len = 1+m+1+(m*2)+2;
+    
+	for (i = 0; i < n; i++)
 	{
-		// printf("Check opt 3\n"); // Check
-		a->val = b->val;
-		if (a->info == NULL) 
-		// {printf("Created L2\n");  // Check
-			a->info = create_L2(b->val, NULL, NULL, a);
-		// } // Check
-		else 
-		// {printf("Assigned L2 value\n"); // Check
-			a->info->val = b->val;
-		// } // Check
-		char *this_unification=strdup(a->name);
-		// printf("First concat, this_unification = %s\n",this_unification); // Check
-		strcat(this_unification,"<-");
-		// printf("Second concat, this_unification = %s\n",this_unification); // Check
-		strcat(this_unification,b->name);
-		// printf("Third concat, this_unification = %s\n",this_unification); // Check
-		if (strlen(unifier) != 0)
-		{
-			char * tmp_unifier = strdup(unifier);
-			strcat(tmp_unifier,",");
-			// printf("Len %zu\n",strlen(unifier)); // Check
-			// printf("Fourth concat, unifier = %s\n",tmp_unifier); // Check
-			strcat(tmp_unifier,this_unification);
-			// printf("Done concat, unifier = %s\n",tmp_unifier); // Check
-			return tmp_unifier; // omega.append(a<-b)
-		}
-		else return this_unification;
-		
+		printf("[");
+        printf("m: %d, nelem : %d, unifier: { ",mat[i*line_len],mat[i*line_len+start_unif]);
+		for (j = 0; j < mat[i*line_len+start_unif]; j+=2)
+			printf("%d<-%d ", mat[i*line_len+start_unif+1+j],mat[i*line_len+start_unif+1+j+1]);
+		printf("}, rowA: %d, rowB: %d ]\n",mat[i*line_len+line_len-2],mat[i*line_len+line_len-1]);
 	}
-
-	if (a->val == 0 && b->val <= 0)
-	{
-		// printf("Check opt 4\n"); // Check
-		update_pointers(a,b);
-		char *this_unification=strdup(a->name);
-		strcat(this_unification,"<-");
-		strcat(this_unification,b->name);
-		if (strlen(unifier) != 0)
-		{
-			char * tmp_unifier = strdup(unifier);
-			strcat(tmp_unifier,",");
-			// printf("Len %zu\n",strlen(unifier)); // Check
-			// printf("Fourth concat, unifier = %s\n",tmp_unifier); // Check
-			strcat(tmp_unifier,this_unification);
-			// printf("Done concat, unifier = %s\n",tmp_unifier); // Check
-			return tmp_unifier; // omega.append(a<-b)
-		}
-		else return this_unification;
-	}
-
-	// printf("Check opt 5\n"); // Check
-	return unifier;
 }
 
-// Actualiza variables para hacer la sustitución a<-b
-void update_pointers(L1 *a, L1 *b){
-	// Si la info de variable está vacía, crearla
-	if (b->info == NULL)
-	// { // Check
-		// printf("%s.info era NULL\n",b->name); // Check
-		b->info = create_L2(0,NULL,NULL,b);
-	// } // Check
-	// Añadir x al final de la lista de variable info
-	if (b->info->tail == NULL)
+// Unify two elements from different rows
+int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, int indexUnifier){
+
+    // Make sure both rows have same number of elements
+    int m = row_a[0];
+    assert(row_a[0]==row_b[0]); 
+
+    // Get elements (+m is added to second row, might be reversed from recursive calls)
+    int a, b, real_indexA = indexA+1, real_indexB = indexB+1;
+    if (real_indexA >= m) real_indexA = real_indexA-m; 
+    if (real_indexB >= m) real_indexB = real_indexB-m;
+    a = row_a[real_indexA];
+    b = row_b[real_indexB];
+
+    printf("a: %d, indexA: %d, real_indexA: %d\n",a,indexA,real_indexA); // Check
+    printf("b: %d, indexB: %d, real_indexB: %d\n",b,indexB,real_indexB); // Check
+
+    // A is constant (or variable initialized to constant)
+	if (a>0 && b > 0 && a!=b) // B is constant too
+		return -1;
+	if (a>0 && b <= 0)        // B is variable
+		return unifier_a_b(row_b,indexB,row_a,indexA,unifier,indexUnifier);
+
+	// A is unitialized variable
+	if (a == 0 && b > 0) // B is constant
 	{
-		// printf("%s.info.tail era NULL, añadiendo un L3 con %s\n",b->name, a->name); // Check
-		b->info->head = create_L3(a,NULL);
-		b->info->tail = b->info->head;			
-	}
-	else
-	{
-		// printf("%s.info.tail No era NULL, añadiendo un L3 con %s al final\n",b->name, a->name); // Check
-		b->info->tail->next = create_L3(a,NULL);
-		b->info->tail = b->info->tail->next;
+        // Unify
+		// row_a[real_indexA] = b;
+
+        // Update unifier (a<-b)
+        unifier[1+indexUnifier]   = indexA;
+        unifier[1+indexUnifier+1] = indexB; 
 	}
 
-	// Guardar entry y añadir variable info de x al 
-	// final de variable info de y
-	L3 *entry = b->info->tail;
-	if (a->info->head != NULL)
+	if (a == 0 && b <= 0) // B is variable
 	{
-		// printf("%s.info tenía elementos, añadirlos al final de la lista de %s.info\n",a->name, b->name); // Check
-		// printf("'Dueño' del %s.info: %s\n",a->name, a->info->me->name); // Check
-		b->info->tail->next = a->info->head;
-		b->info->tail = a->info->tail;
+        // Unify
+        // row_a[real_indexA] = b;
+
+        // Update unifier (a<-b)
+        unifier[1+indexUnifier]   = indexA;
+        unifier[1+indexUnifier+1] = indexB;
+        unifier[0]+=2;
 	}
 
-	// Recorrer todas las variables y que su variable info 
-	// apunte a variable info de y
-	L3 *current = entry;
-	while (current != NULL)
-	{
-		// printf("current: %s, cambiando a %s.info\n",current->var->name, b->name); // Check
-		// Liberar el variable info de x (todas las variables
-		// sustituídas por x usan ese variable info)
-		if (current->next == NULL)
-		// { // Check
-		// 	printf("liberado el %s.info\n",a->name); // Check
-			free_L2(current->var->info);
-		// } // Check
-		current->var->info = b->info;
-		current = current->next;
-	}
-
-	// printf("---\n %s L2 addr: %p\n",a->name,a->info); // Check
-	// printf(" %s L2 addr: %p\n---\n",b->name, b->info); // Check
+	return 0;
 }
 
-char* unify_rows(L1 **m0, L1 **m1, int ncol){
-	int i;
-	char *unifier = "";
-
-	for (i=0; i<ncol; i++)
-	{
-		// printf("Unifying %s and %s\n",m0[i]->name, m1[i]->name); // Check
-		unifier = unify_a_b(m0[i],m1[i],unifier);
-		if (unifier == NULL) return NULL;
-	}
-
-	return unifier;
-}
-
-char** unify_matrices(L1 **m0, L1 **m1, int nrow, int ncol){
-
-	int i, j, last_unifier = 0;
-	char **unifier_lst = NULL;
-
-	for (i=0; i<nrow; i++)
-	for (j=0; j<nrow; j++)
-	{
-		// printf("Check 1!!\n"); // Check
-		L1 **tmp_m0 = copy_mat(1,ncol,&m0[i*ncol]);
-		// printf("Check 2!!\n"); // Check
-		L1 **tmp_m1 = copy_mat(1,ncol,&m1[j*ncol]);
-		printf("Unifying rows %d and %d\n",i,j); // Check
-		char *unifier=strdup("");
-		unifier = unify_rows(tmp_m0,tmp_m1,ncol);
-		printf("Unfier for rows %d and %d is %s\n",i,j,unifier); // Check
-		if (unifier != NULL) 
-		{
-			unifier_lst = (char **) realloc(unifier_lst,(last_unifier+1)*sizeof(char *));
-			unifier_lst[last_unifier] = strdup(unifier);
-			last_unifier++;
-		}
-	}
-	return unifier_lst;
-}
-
-// Leer matriz unificada desde cero y sus unificadores
-void read_unif_mat_file();
-// Procesar ficheros, sólo uno, un directorio, etc
-void process_files();
+// char* unify_rows(L1 **m0, L1 **m1, int ncol)
+// char** unify_matrices(L1 **m0, L1 **m1, int nrow, int ncol)
+// void read_unif_mat_file();
+// void process_files();
 
 int main(int argc, char *argv[])
 {
-	L1 **mat0 = constr_mat_vacia(N, M);
-	L1 **mat1 = constr_mat_vacia(N, M);
-	read_mat_file("falla1.csv", mat0);
-	read_mat_file("falla2.csv", mat1);
-	// read_mat_file("correcto1.csv", mat0);
-	// read_mat_file("correcto2.csv", mat1);
-	// printf("read_mat_file completed :)\n");
-	// printf("Mat 0 from benchmark_test/test00.csv\n");
-	// print_mat(mat0, N, M);
-	// printf("Mat 1 from benchmark_test/test01.csv\n");
-	// print_mat(mat1, N, M);
+    /* Una matriz es un conjunto de líneas
+    Cada línea tiene la siguiente info:
+    m: número de elementos, m elementos, x: número de elementos en el unificador, x parejas de elementos (unificador), rowA: índice de la matriz A, rowB, índice de la matriz B
+    De esta manera, cada fila tiene información sobre la fila, la fila, información sobre el unificador y el unificador
+    */
+
+    // Comprobar que el diccionario de string-int funciona
+    printf("\n ---Insertando elementos al diccionario---\n");
+    install("a", 1);
+    install("c", 3);
+    install("c", 4);
+    if ((dict = lookup("a")) != NULL) printf("Encontrada key %s con valor %i\n",dict->name,dict->defn);
+    else printf("No se encontró la key\n");
+
+    if ((dict = lookup("c")) != NULL) printf("Encontrada key %s con valor %i\n",dict->name,dict->defn);
+    else printf("No se encontró la key\n");
+
+    clear(); printf(" ------Limpiando diccionario------\n");
+    if ((dict = lookup("c")) != NULL) printf("Encontrada key %s con valor %i\n",dict->name,dict->defn);
+    else printf("No se encontró la key c\n");
+
+    printf(" ---Insertando elementos al diccionario---\n");
+    install("a", 1);
+    if ((dict = lookup("a")) != NULL) printf("Encontrada key %s con valor %i\n",dict->name,dict->defn);
+    else printf("No se encontró la key\n\n");
+
+    // Para desarrollo, trabajaré con tamaños N y M fijos y previamente conocidos  
+    char *csv_file_1 = "correcto1.csv";
+    char *csv_file_2 = "correcto2.csv";
+    int n0, n1, m0, m1;
+    n0=n1=N;
+    m0=m1=M;
+
+    printf("Number of elements per row: %d\n",1+m0+1+2*m0+2);
+    printf("Number of elements for all: %d\n",n0*(1+m0+1+2*m0+2));
+    int *mat0 = (int*) calloc(n0*(1+m0+1+2*m0+2),sizeof(int));
+    int *mat1 = (int*) calloc(n1*(1+m1+1+2*m1+2),sizeof(int));
+
+	read_mat_file(csv_file_1, mat0, m0);
+	read_mat_file(csv_file_2, mat1, m1);
+	printf("read_mat_file completed :)\n");
+
+	printf("\nValues and metadata from %s\n",csv_file_1);
+    print_mat_values(mat0,n0,m0);
+    print_mat_metadata(mat0,n0,m0);
+
+    printf("\nValues and metadata from %s\n",csv_file_2);
+    print_mat_values(mat1,n1,m1);
+    print_mat_metadata(mat1,n1,m1);
+    printf("----------------\n");
 
 	// char *unifier = "";
 	// unifier = unify_a_b(mat0[2],mat1[2],unifier);
 	// printf("Unifier: %s\n",unifier);
+    int row = 0, col = 2, i;
+    int *unifier = &mat0[1+M];
+    unifier[0] = 2*col;
+    for (i=0; i<2*col; i++) unifier[1+i] = i;
+
+    printf("Testing unifier of row %d col %d from files %s y %s:\n",row, col, csv_file_1,csv_file_2);
+    int code = unifier_a_b(&mat0[row],col,&mat0[row],col+M,unifier,col*2);
+    printf("Code: %d\n",code);
+    print_mat_metadata(mat0,n0,m0);
 
 	// // update_pointers(mat0[2], mat1[2]);
 	// printf("---\nmat0[2] L2 addr: %p\n",mat0[2]->info);
@@ -308,10 +247,10 @@ int main(int argc, char *argv[])
 	// char *unifier = unify_rows(mat0,mat1,M);
 	// printf("Unifier: %s\n",unifier);
 	
-	unify_matrices(mat0,mat1,N,M);
+	// unify_matrices(mat0,mat1,N,M);
 	
 
 	// free_L1_mat(N,M,mat); // Improve: Cómo detecto si una posición de memoria se ha liberado?
-	printf("Main Completed, argument count %d, program name %s\n", argc, argv[0]);
+	printf("\nMain Completed, argument count %d, program name %s\n", argc, argv[0]);
 	return 0;
 }
