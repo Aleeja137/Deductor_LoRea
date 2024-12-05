@@ -5,7 +5,7 @@
 struct nlist { /* table entry: */
     struct nlist *next; /* next entry in chain */
     char *name; /* defined name */
-    char *defn; /* replacement text */
+    int defn; /* replacement value */
 };
 
 #define HASHSIZE 101
@@ -31,20 +31,33 @@ struct nlist *lookup(char *s)
 }
 
 /* install: put (name, defn) in hashtab */
-struct nlist *install(char *name, char *defn)
+struct nlist *install(char *name, int defn)
 {
     struct nlist *np;
     unsigned hashval;
-    if ((np = lookup(name)) == NULL) { /* not found */
+    if ((np = lookup(name)) == NULL) { 
         np = (struct nlist *) malloc(sizeof(*np));
         if (np == NULL || (np->name = strdup(name)) == NULL)
           return NULL;
         hashval = hash(name);
         np->next = hashtab[hashval];
         hashtab[hashval] = np;
-    } else /* already there */
-        free((void *) np->defn); /*free previous defn */
-    if ((np->defn = strdup(defn)) == NULL)
-       return NULL;
+    }
+    np->defn = defn; 
     return np;
+}
+
+/* clear: free dictionary */
+void clear() {
+    struct nlist *current, *temp;
+    for (int i = 0; i < HASHSIZE; i++) {
+        current = hashtab[i];
+        while (current != NULL) {
+            temp = current->next;
+            free(current->name);  
+            free(current);        
+            current = temp;
+        }
+        hashtab[i] = NULL; 
+    }
 }
