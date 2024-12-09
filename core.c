@@ -129,8 +129,8 @@ int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, in
 
     // Get elements (+m is added to second row, might be reversed from recursive calls)
     int a, b, real_indexA = indexA+1, real_indexB = indexB+1;
-    if (real_indexA >= m) real_indexA = real_indexA-m; 
-    if (real_indexB >= m) real_indexB = real_indexB-m;
+    if (indexA >= m) real_indexA = real_indexA-m; 
+    if (indexB >= m) real_indexB = real_indexB-m;
     a = row_a[real_indexA];
     b = row_b[real_indexB];
 
@@ -202,31 +202,40 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         lst[i] = create_L2_empty();
     }
 
-    // For each element pair, get indexes for (x<-y)
+    // For each element pair, get indexes and perform (x<-y)
     for (i=0; i<2*m; i+=2)
     {
         int x = unifier[1+i];
         int y = unifier[1+i+1];
         int val_y;
+        int val_x; // Check
 
+        if (x == y && x == 0) continue;
+        printf("Initial (x<-y): (%d<-%d)\n",x,y); // Check
         // If an element is a repeated variable, get the real indexes
         if (x < m && row_a[1+x] < 0) // x belongs to row_a and is a repeated variable
             x = -row_a[1+x];
         else if (x > m && row_b[1+x-m] < 0) // x belongs to row_b and is a repeated variable
-            x = -row_b[1+x]+m;
+            x = -row_b[1+x-m]+m;
         
         if (y < m && row_a[1+y] < 0) // y belongs to row_a and is a repeated variable
             y = -row_a[1+y];
-        else if (x > m && row_b[1+y-m] < 0) // x belongs to row_b and is a repeated variable
-            y = -row_b[1+y]+m; 
+        else if (y > m && row_b[1+y-m] < 0)// x belongs to row_b and is a repeated variable
+            y = -row_b[1+y-m]+m; 
 
-        // Get the values of y
+        // Get the value of y
         if (y > m) val_y = row_b[1+y-m];
         else val_y = row_a[1+y];
-        
+
+        // Get the value of x just for checking  // Check
+        if (x > m) val_x = row_b[1+x-m];  // Check
+        else val_x = row_a[1+x];  // Check
+        printf("Real (x<-y): (%d<-%d), with values (%d<-%d)\n",x,y,val_x,val_y); // Check
+
         // Wanna do (x <- y), check the count of x
         if (lst[x].count == 0) // If zero, add the substitution on y 
         {
+            printf("X was not substituted before, x: %d\n",x); // Check
             lst[x].count = 1;
             lst[x].by    = y;
             lst[x].ind   = x;
@@ -244,48 +253,88 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         }
         else // If not zero, it means (x <- z) was done before. Check z
         {
+            printf("X was substituted before by z: %d, x: %d with count %d\n",lst[x].by,x,lst[x].count); // Check
             int z = lst[x].by; 
             int val_z;
             if (z > m) val_z=row_b[1+z-m];
             else val_z=row_a[1+z];
 
+            if (z==y) continue; // It is the same substitution
+            printf("Real z: %d, with value: %d\n",z,val_z); // Check
             
             if (val_z > 0) // z is constant
             { 
-                if (val_y > 0 && val_z != val_y) {return -1;} // y is constant
+                if (val_y > 0 && val_z != val_y) {return -1; printf("Check, not unifiable :(\n");} // y is constant
                 else if (val_y == 0) // y is variable, add y<-z
                 {
+                    printf("Z constant, Y variable, do (y<-z): (%d<-%d), with values (%d<-%d)\n",y,z,val_y,val_z); // Check
                     lst[y].count ++; // Revise: Puede y tener un count != 0 ?
                     lst[y].by  = z;
                     lst[y].ind = y;
                     
-                    if (lst[z].head)
+                    L3* tmp;
+                    if (lst[y].head == NULL) 
                     {
-                        L3* tmp = create_L3(y,lst[z].head);
-                        lst[z].head = tmp;
+                        tmp = create_L3(y,lst[z].head);
+                        if (lst[z].head == NULL)
+                        {
+                            lst[z].head = lst[z].tail = tmp;
+                        }
+                        else
+                        {
+                            lst[z].head = tmp;
+                        }
                     }
                     else
                     {
-                        L3* tmp = create_L3(y,NULL);
-                        lst[z].head = lst[z].tail = tmp;
+                        tmp = create_L3(y,lst[y].head);
+                        if (lst[z].head == NULL)
+                        {
+                            lst[z].head = tmp;
+                            lst[z].tail = lst[y].tail;
+                        }
+                        else
+                        {
+                            lst[z].head = tmp;
+                            lst[y].tail = lst[z].head;
+                        }
                     }
                 }
             }
             else // z is variable, add z <- y
             {
+                printf("Z variable, Y don't care, do (z<-y): (%d<-%d), with values (%d<-%d)\n",z,y,val_z,val_y); // Check
                 lst[z].count ++; // Revise: Puede z tener un count != 0 ?
                 lst[z].by  = y;
                 lst[z].ind = z;
                 
-                if (lst[y].head)
+
+                L3* tmp;
+                if (lst[z].head == NULL) 
                 {
-                    L3* tmp = create_L3(z,lst[y].head);
-                    lst[y].head = tmp;
+                    tmp = create_L3(z,lst[y].head);
+                    if (lst[y].head == NULL)
+                    {
+                        lst[y].head = lst[y].tail = tmp;
+                    }
+                    else
+                    {
+                        lst[y].head = tmp;
+                    }
                 }
                 else
                 {
-                    L3* tmp = create_L3(z,NULL);
-                    lst[y].head = lst[y].tail = tmp;
+                    tmp = create_L3(z,lst[z].head);
+                    if (lst[y].head == NULL)
+                    {
+                        lst[y].head = tmp;
+                        lst[y].tail = lst[z].tail;
+                    }
+                    else
+                    {
+                        lst[y].head = tmp;
+                        lst[z].tail = lst[y].head;
+                    }
                 }
             }
         }
@@ -293,11 +342,14 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         n_substitutions++;
     }
 
+    printf("-----------\n"); // Check
+    int last_unifier = 0;
     // For each element, add the substitutions to the unifier
-    for (i=0; i<2*m; i+=2)
+    for (i=0; i<2*m; i++)
     {
         int y = i;
         int x;
+        // printf("Info about y: %d, count %d, by %d, ind %d, head %p\n",y,lst[y].count,lst[y].by,lst[y].ind,lst[y].head); // Check
         if (lst[y].count == 0 && lst[y].head)
         {
             // Get substitutions (x <- y)
@@ -305,15 +357,17 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
             while (current != NULL)
             {
                 x = current->ind;
-                unifier[1+i]   = x;
-                unifier[1+i+1] = y;
+                unifier[1+last_unifier]   = x;
+                unifier[1+last_unifier+1] = y;
                 current = current->next;
+                printf("(x<-y): (%d<-%d) \n",x,y); // Check
                 n_substitutions++;
+                last_unifier+=2;
             }
         }
     }
     unifier[0] = n_substitutions;
-
+    printf("-----------\n"); // Check
     return 0;
 }
 
@@ -391,9 +445,24 @@ int main(int argc, char *argv[])
     int row = 0;
     int *unifier = &mat0[1+M]; // Store the unifier in rowA (left row to be unified)
     int code = unifier_rows(&mat0[row_size * row], &mat1[row_size * row], unifier);
-    if (code == 0) code = correct_unifier(&mat0[row_size * row], &mat1[row_size * row], unifier);
-    printf("Code: %d\n",code);
-    print_mat_metadata(mat0,n0,m0);
+    if (code == 0) 
+    {
+        print_mat_metadata(mat0,n0,m0);
+        code = correct_unifier(&mat0[row_size * row], &mat1[row_size * row], unifier);
+
+    }
+    else 
+    {
+        printf("Could not unify rows before processing\n");
+    }
+    if (code == 0) 
+    {
+        print_mat_metadata(mat0,n0,m0);
+    }
+    else 
+    {
+        printf("Could not unify rows\n");
+    }
 
 	// // update_pointers(mat0[2], mat1[2]);
 	// printf("---\nmat0[2] L2 addr: %p\n",mat0[2]->info);
