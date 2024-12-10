@@ -11,13 +11,52 @@
 
 // #define N 50
 // #define M 10
-#define N 4
+#define N 3
 #define M 6
 
 struct nlist *dict;
 
+// Read matrix parameters
+int read_parameters(char input_file[], int *n, int *m){
+
+    FILE *stream;
+	// Open the file and check access
+	stream = fopen(input_file, "r");
+	if (stream == NULL)
+	{
+		fprintf(stderr, "Error opening file %s, exiting\n", input_file);
+		exit(EXIT_FAILURE);
+	}
+
+	char *line = NULL;
+	size_t len = 0; 
+
+    getline(&line, &len, stream);
+    
+    char *endptr, *e;
+    long int num;
+    int index;
+
+    e = strchr(line, '(');
+    index = (int)(e - line); // Improv: If values too big, could overflow int
+
+    num = strtol(&line[index+1], &endptr, 10);
+    if (endptr == line) fprintf(stderr, "Could not read matrix dimensions\n");
+    *n = num;
+
+    e = strchr(&line[index+1], ',');
+    index += (int)(e - &line[index+1]) + 1;
+
+    num = strtol(&line[index+1], &endptr, 10);
+    if (endptr == line) fprintf(stderr, "Could not read matrix dimensions\n");
+    *m = num;
+
+    fclose(stream);
+    return -1;
+}
+
 // Read matrix from file
-void read_mat_file(char input_file[], int *mat, int m)
+void read_mat_file(char input_file[], int *mat, int n, int m)
 {
 	FILE *stream;
 	char *line = NULL;
@@ -40,7 +79,7 @@ void read_mat_file(char input_file[], int *mat, int m)
 
 	// setrlimit // Improv full: Se podría hacer esto para limitar posibles errores en el fichero de lectura y que no explote la memoria (?)
 	// Process the file line by line
-	while ((read = getline(&line, &len, stream)) != -1)
+	while ((read = getline(&line, &len, stream)) != -1 && row < n)
 	{
 		// Skip comment lines // Revise: Igual me interesa leer estas líneas para sacar info de la matrx (dimensiones?)
 		if (line[0] == '%')
@@ -103,6 +142,7 @@ void print_mat_values(int *mat, int n, int m)
 	}
 }
 
+// Prints metadata from a matrix, usefull for testing the unifier in early stages
 void print_mat_metadata(int *mat, int n, int m)
 {
     int i, j;
@@ -120,6 +160,21 @@ void print_mat_metadata(int *mat, int n, int m)
 	}
 }
 
+// Prints the unifier
+void print_unifier(int *unifier, int m){
+    int i;
+    int n_elem = unifier[0];
+    int rowA = unifier[1+2*m];
+    int rowB = unifier[1+2*m+1];
+    
+    printf("%d elements: [",n_elem);
+	for (i = 0; i < n_elem; i+=2)
+	{
+        printf("%d<-%d ", unifier[1+i],unifier[1+i+1]);
+	}
+    printf("],\trowA: %d, rowB: %d\n",rowA, rowB);
+}
+
 // Unify two elements from different rows
 int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, int indexUnifier){
 
@@ -134,8 +189,8 @@ int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, in
     a = row_a[real_indexA];
     b = row_b[real_indexB];
 
-    printf("a: %d, indexA: %d, real_indexA: %d\n",a,indexA,real_indexA); // Check
-    printf("b: %d, indexB: %d, real_indexB: %d\n",b,indexB,real_indexB); // Check
+    // printf("a: %d, indexA: %d, real_indexA: %d\n",a,indexA,real_indexA); // Check
+    // printf("b: %d, indexB: %d, real_indexB: %d\n",b,indexB,real_indexB); // Check
 
     // A is constant (or variable initialized to constant)
 	if (a>0 && b > 0 && a!=b) // B is constant too
@@ -150,7 +205,7 @@ int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, in
         unifier[1+indexUnifier]   = indexA;
         unifier[1+indexUnifier+1] = indexB; 
         unifier[0]+=2;
-        printf("1. Unifier %d<-%d\n",indexA,indexB); // Check
+        // printf("1. Unifier %d<-%d\n",indexA,indexB); // Check
 	}
 	else if (a == 0 && b <= 0) // B is variable
 	{
@@ -158,7 +213,7 @@ int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, in
         unifier[1+indexUnifier]   = indexA;
         unifier[1+indexUnifier+1] = indexB;
         unifier[0]+=2;
-        printf("2. Unifier %d<-%d\n",indexA,indexB); // Check
+        // printf("2. Unifier %d<-%d\n",indexA,indexB); // Check
 	}
 
     // A is variable initialized to other variable
@@ -167,7 +222,7 @@ int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, in
         unifier[1+indexUnifier]   = indexA;
         unifier[1+indexUnifier+1] = indexB;
         unifier[0]+=2;
-        printf("3. Unifier %d<-%d\n",-a,indexB); // Check
+        // printf("3. Unifier %d<-%d\n",-a,indexB); // Check
     }
 
 	return 0;
@@ -176,22 +231,24 @@ int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, in
 // Unifier must be pointing to row_a's unifier
 int unifier_rows(int *row_a, int *row_b, int *unifier){
     int i, result;
+    // printf("row_a[0]: %d, row_b[0]: %d\n",row_a[0],row_b[0]); // Check
     assert(row_a[0]==row_b[0]);
     int m = row_a[0];
 
 	for (i=0; i<m; i++)
 	{
+        unifier[0] = 0;
         // The unifier function handles the entire row including metadata, so pointers do not need to be modified
 		result = unifier_a_b(row_a, i, row_b, i+m, unifier, 2*i);
         // printf("indexed for unifier are %d and %d\n", 1+2*i, 1+2*i+1); // Check
-        printf("Unified row %d col %d, result is %d<-%d, n_elem unifier %d\n\n",row_a[1+m+1+2*m],i,unifier[1+2*i],unifier[1+2*i+1],unifier[0]); // Check
+        // printf("Unified row %d col %d, result is %d<-%d, CODE %d, n_elem unifier %d\n\n",row_a[1+m+1+2*m],i,unifier[1+2*i],unifier[1+2*i+1],result,unifier[0]); // Check
 		if (result != 0) return result;
 	}
 
 	return 0;
 }
 
-// Unifier must be pointing to row_a's unifier
+// Correct/reduce/verify the unifier, unifier pointer must be pointing to row_a's unifier
 int correct_unifier(int *row_a, int *row_b, int *unifier){
     int m = row_a[0];
     assert(row_a[0]==row_b[0]);
@@ -208,10 +265,10 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         int x = unifier[1+i];
         int y = unifier[1+i+1];
         int val_y;
-        int val_x; // Check
+        // int val_x; // Check
 
         if (x == y && x == 0) continue;
-        printf("Initial (x<-y): (%d<-%d)\n",x,y); // Check
+        // printf("Initial (x<-y): (%d<-%d)\n",x,y); // Check
         // If an element is a repeated variable, get the real indexes
         if (x < m && row_a[1+x] < 0) // x belongs to row_a and is a repeated variable
             x = -row_a[1+x];
@@ -228,14 +285,14 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         else val_y = row_a[1+y];
 
         // Get the value of x just for checking  // Check
-        if (x > m) val_x = row_b[1+x-m];  // Check
-        else val_x = row_a[1+x];  // Check
-        printf("Real (x<-y): (%d<-%d), with values (%d<-%d)\n",x,y,val_x,val_y); // Check
+        // if (x > m) val_x = row_b[1+x-m];  // Check
+        // else val_x = row_a[1+x];  // Check
+        // printf("Real (x<-y): (%d<-%d), with values (%d<-%d)\n",x,y,val_x,val_y); // Check
 
         // Wanna do (x <- y), check the count of x
         if (lst[x].count == 0) // If zero, add the substitution on y 
         {
-            printf("X was not substituted before, x: %d\n",x); // Check
+            // printf("X was not substituted before, x: %d\n",x); // Check
             lst[x].count = 1;
             lst[x].by    = y;
             lst[x].ind   = x;
@@ -253,21 +310,21 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         }
         else // If not zero, it means (x <- z) was done before. Check z
         {
-            printf("X was substituted before by z: %d, x: %d with count %d\n",lst[x].by,x,lst[x].count); // Check
+            // printf("X was substituted before by z: %d, x: %d with count %d\n",lst[x].by,x,lst[x].count); // Check
             int z = lst[x].by; 
             int val_z;
             if (z > m) val_z=row_b[1+z-m];
             else val_z=row_a[1+z];
 
             if (z==y) continue; // It is the same substitution
-            printf("Real z: %d, with value: %d\n",z,val_z); // Check
+            // printf("Real z: %d, with value: %d\n",z,val_z); // Check
             
             if (val_z > 0) // z is constant
             { 
                 if (val_y > 0 && val_z != val_y) {return -1; printf("Check, not unifiable :(\n");} // y is constant
                 else if (val_y == 0) // y is variable, add y<-z
                 {
-                    printf("Z constant, Y variable, do (y<-z): (%d<-%d), with values (%d<-%d)\n",y,z,val_y,val_z); // Check
+                    // printf("Z constant, Y variable, do (y<-z): (%d<-%d), with values (%d<-%d)\n",y,z,val_y,val_z); // Check
                     lst[y].count ++; // Revise: Puede y tener un count != 0 ?
                     lst[y].by  = z;
                     lst[y].ind = y;
@@ -303,7 +360,7 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
             }
             else // z is variable, add z <- y
             {
-                printf("Z variable, Y don't care, do (z<-y): (%d<-%d), with values (%d<-%d)\n",z,y,val_z,val_y); // Check
+                // printf("Z variable, Y don't care, do (z<-y): (%d<-%d), with values (%d<-%d)\n",z,y,val_z,val_y); // Check
                 lst[z].count ++; // Revise: Puede z tener un count != 0 ?
                 lst[z].by  = y;
                 lst[z].ind = z;
@@ -342,7 +399,7 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         n_substitutions++;
     }
 
-    printf("-----------\n"); // Check
+    // printf("-----------\n"); // Check
     int last_unifier = 0;
     // For each element, add the substitutions to the unifier
     for (i=0; i<2*m; i++)
@@ -360,18 +417,55 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
                 unifier[1+last_unifier]   = x;
                 unifier[1+last_unifier+1] = y;
                 current = current->next;
-                printf("(x<-y): (%d<-%d) \n",x,y); // Check
+                // printf("(x<-y): (%d<-%d) \n",x,y); // Check
                 n_substitutions++;
                 last_unifier+=2;
             }
         }
     }
     unifier[0] = n_substitutions;
-    printf("-----------\n"); // Check
+    // printf("-----------\n"); // Check
     return 0;
 }
 
-// char** unify_matrices(L1 **m0, L1 **m1, int nrow, int ncol)
+// Return the unifiers for two given matrices. Must have same width, and unifiers must be initialized to n0*n1
+int unifier_matrices(int *mat0, int *mat1, int n0, int n1, int *unifiers){
+
+    int i, j, m, row_size, unifier_size, code, last_unifier;
+    int *unifier;
+
+    m = mat0[0];
+    last_unifier = 0;
+    row_size = 1+m+1+(2*m)+2;
+    unifier_size = 1+(2*m)+2;
+
+    for (i=0; i<n0; i++)
+    {
+        for (j=0; j<n1; j++)
+        {
+            unifier = &mat0[row_size*i + 1 + m]; 
+            memset(unifier,0,unifier_size*sizeof(int));  // Revise full: This should be unnecessary, but it isn't, check why (not urgent)
+            code = unifier_rows(&mat0[row_size * i], &mat1[row_size * j], unifier);
+            if (code != 0) continue; // Rows cannot be unified
+
+            code = correct_unifier(&mat0[row_size * i], &mat1[row_size * j], unifier);
+            if (code != 0) continue; // Rows cannot be unified
+            
+            // printf("Unifier rows %d and %d\n",i,j); // Check
+            unifier[1+2*m]   = i;
+            unifier[1+2*m+1] = j;
+            memcpy(&unifiers[last_unifier*unifier_size],unifier,unifier_size*sizeof(int));
+            // print_mat_metadata(mat0,N,M); // Check
+            last_unifier++;
+        }
+    }
+
+    // Free the extra space
+    unifiers = realloc(unifiers,last_unifier*unifier_size*sizeof(int));
+
+    return last_unifier;
+}
+
 // void read_unif_mat_file();
 // void process_files();
 
@@ -408,27 +502,33 @@ int main(int argc, char *argv[])
     char *csv_file_1 = "correcto1.csv";
     char *csv_file_2 = "correcto2.csv";
     int n0, n1, m0, m1;
-    n0=n1=N;
-    m0=m1=M;
+    read_parameters(csv_file_1,&n0,&m0);
+    read_parameters(csv_file_2,&n1,&m1);
+    assert(m0==m1);
     int row_size = 1+m0+1+(2*m0)+2;
 
     printf("Number of elements per row: %d\n",row_size);
-    printf("Number of elements for all: %d\n",n0*(row_size));
+    printf("Number of elements for mat0: %d\n",n0*(row_size));
+    printf("Number of elements for mat1: %d\n",n1*(row_size));
+
     int *mat0 = (int*) malloc(n0*row_size*sizeof(int));
     int *mat1 = (int*) malloc(n1*row_size*sizeof(int));
 
-	read_mat_file(csv_file_1, mat0, m0);
-	read_mat_file(csv_file_2, mat1, m1);
+	read_mat_file(csv_file_1, mat0, n0, m0);
+	read_mat_file(csv_file_2, mat1, n1, m1);
+
 	printf("read_mat_file completed :)\n");
+    printf("Dimensions for mat0 are (%d,%d)\n",n0,m0);
+    printf("Dimensions for mat0 are (%d,%d)\n",n1,m1);
 
-	printf("\nValues and metadata from %s\n",csv_file_1);
+	// printf("\nValues and metadata from %s\n",csv_file_1);
     print_mat_values(mat0,n0,m0);
-    print_mat_metadata(mat0,n0,m0);
+    // print_mat_metadata(mat0,n0,m0);
 
-    printf("\nValues and metadata from %s\n",csv_file_2);
-    print_mat_values(mat1,n1,m1);
-    print_mat_metadata(mat1,n1,m1);
-    printf("----------------\n");
+    // printf("\nValues and metadata from %s\n",csv_file_2);
+    // print_mat_values(mat1,n1,m1);
+    // print_mat_metadata(mat1,n1,m1);
+    // printf("----------------\n");
 
     // Check that the unifier for two elements works -------------
     // int row = 0, col = 2, i;
@@ -442,41 +542,44 @@ int main(int argc, char *argv[])
     // print_mat_metadata(mat0,n0,m0);
 
     // Check that unifier for two rows works ----------------
-    int row = 0;
-    int *unifier = &mat0[1+M]; // Store the unifier in rowA (left row to be unified)
-    int code = unifier_rows(&mat0[row_size * row], &mat1[row_size * row], unifier);
-    if (code == 0) 
-    {
-        print_mat_metadata(mat0,n0,m0);
-        code = correct_unifier(&mat0[row_size * row], &mat1[row_size * row], unifier);
+    // int row = 0;
+    // int *unifier = &mat0[1+M]; // Store the unifier in rowA (left row to be unified)
+    // int code = unifier_rows(&mat0[row_size * row], &mat1[row_size * row], unifier);
+    // if (code == 0) 
+    // {
+    //     print_mat_metadata(mat0,n0,m0);
+    //     code = correct_unifier(&mat0[row_size * row], &mat1[row_size * row], unifier);
 
-    }
-    else 
-    {
-        printf("Could not unify rows before processing\n");
-    }
-    if (code == 0) 
-    {
-        print_mat_metadata(mat0,n0,m0);
-    }
-    else 
-    {
-        printf("Could not unify rows\n");
-    }
+    // }
+    // else 
+    // {
+    //     printf("Could not unify rows before processing\n");
+    // }
+    // if (code == 0) 
+    // {
+    //     print_mat_metadata(mat0,n0,m0);
+    // }
+    // else 
+    // {
+    //     printf("Could not unify rows\n");
+    // }
 
-	// // update_pointers(mat0[2], mat1[2]);
-	// printf("---\nmat0[2] L2 addr: %p\n",mat0[2]->info);
-	// printf("mat1[2] L2 addr: %p\n---\n",mat0[2]->info);
-	// printf("mat0[2] L2 name: %s\n",mat0[2]->info->me->name);
-	// printf("mat1[2] L2 name: %s\n",mat0[2]->info->me->name);
 
 	// char *unifier = unify_rows(mat0,mat1,M);
 	// printf("Unifier: %s\n",unifier);
 	
 	// unify_matrices(mat0,mat1,N,M);
-	
+	int i,*unifiers = NULL, unif_count, unifier_size = 1+(2*m0)+2;
+    unifiers = (int*) malloc (n0*n1*unifier_size*sizeof(int));
+    unif_count = unifier_matrices(mat0, mat1, n0, n1, unifiers);
+    printf("unif_count: %d\n",unif_count);
+    for (i=0; i<unif_count; i++)
+    {
+        print_unifier(&unifiers[i*unifier_size],M);
+    }
 
-	// free_L1_mat(N,M,mat); // Improve: Cómo detecto si una posición de memoria se ha liberado?
+    free(mat0);
+    free(mat1);
 	printf("\nMain Completed, argument count %d, program name %s\n", argc, argv[0]);
 	return 0;
 }
