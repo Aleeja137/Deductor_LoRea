@@ -221,7 +221,7 @@ int unifier_rows(int *row_a, int *row_b, int *unifier){
 }
 
 // Correct/reduce/verify the unifier, unifier pointer must be pointing to row_a's unifier
-int correct_unifier(int *row_a, int *row_b, int *unifier){
+int correct_unifier2(int *row_a, int *row_b, int *unifier){
     int m = row_a[0];
     assert(row_a[0]==row_b[0]);
     
@@ -251,9 +251,9 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         else if (y > m && row_b[y-m] < 0)// x belongs to row_b and is a repeated variable
             y = -row_b[y-m]+m; 
 
-        if (lst[x-1].count != 0) x = lst[x-1].by;
-        if (lst[y-1].count != 0) y = lst[y-1].by;
-        if (x==y) continue;
+        if (lst[x-1].count != 0) x = lst[x-1].by;  // Temporal fix
+        if (lst[y-1].count != 0) y = lst[y-1].by;  // Temporal fix
+        if (x==y) continue; 
 
         // Get the value of y
         if (y > m) val_y = row_b[y-m];
@@ -289,6 +289,7 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         {
             // printf("X was substituted before by z: %d, x: %d with count %d\n",lst[x].by,x,lst[x].count); // Check
             int z = lst[x-1].by; 
+            if (lst[z-1].count != 0) z = lst[z-1].by; // Temporal fix
             int val_z;
             if (z > m) val_z=row_b[z-m];
             else val_z=row_a[z];
@@ -330,7 +331,8 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
                         else
                         {
                             lst[z-1].head = tmp;
-                            lst[y-1].tail = lst[z-1].head;
+                            lst[y-1].tail->next = lst[z-1].head;
+                            lst[y-1].head = lst[y-1].tail = NULL;
                         }
                     }
                 }
@@ -370,6 +372,140 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
                         lst[z-1].tail = lst[y-1].head;
                     }
                 }
+            }
+        }
+    }
+
+    // printf("-----------\n"); // Check
+    int last_unifier = 0;
+    // For each element, add the substitutions to the unifier
+    for (i=0; i<2*m; i++)
+    {
+        int y = i;
+        int x;
+        // printf("Info about y: %d, count %d, by %d, ind %d, head %p\n",y,lst[y].count,lst[y].by,lst[y].ind,lst[y].head); // Check
+        if (lst[y].count == 0 && lst[y].head)
+        {
+            // Get substitutions (x <- y)
+            L3* current = lst[y].head;
+            while (current != NULL)
+            {
+                x = current->ind;
+                unifier[1+last_unifier]   = x;
+                unifier[1+last_unifier+1] = y+1;
+                current = current->next;
+                // printf("(x<-y): (%d<-%d) \n",x,y); // Check
+                n_substitutions++;
+                last_unifier+=2;
+            }
+        }
+    }
+    unifier[0] = n_substitutions;
+    // printf("-----------\n"); // Check
+    return 0;
+}
+
+int correct_unifier(int *row_a, int *row_b, int *unifier){
+    int m = row_a[0];
+    assert(row_a[0]==row_b[0]);
+    
+    int i, n_substitutions = 0;
+    L2 *lst = (L2*) malloc (2*m*sizeof(L2));
+    for (i=0;i<2*m;i++){
+        lst[i] = create_L2_empty();
+    }
+
+    // For each element pair, get indexes and perform (x<-y)
+    for (i=0; i<2*m; i+=2)
+    {
+        int x = unifier[1+i]; 
+        int y = unifier[1+i+1];
+        int val_y;
+        int val_x; 
+
+        if (x == y && x == 0) continue; // Empty case
+
+        // If any of the two elements is a repeated variable, get read index
+        if (x <= m && row_a[x] < 0)
+            x = -row_a[x];
+        else if (x > m && row_b[x-m] < 0) 
+            x = -row_b[x-m]+m;
+        if (y <= m && row_a[y] < 0) 
+            y = -row_a[y];
+        else if (y > m && row_b[y-m] < 0)
+            y = -row_b[y-m]+m; 
+
+        // If any of them was substituted before, get the corresponding elements
+        if (lst[x-1].count > 0) x = lst[x-1].by;
+        if (lst[y-1].count > 0) y = lst[y-1].by;
+        if (x==y) continue; 
+
+        // No need to get real index, the substitution is done for the real index
+
+        // Get the value of x and y
+        if (y > m) val_y = row_b[y-m];
+        else val_y = row_a[y];
+        if (x > m) val_x = row_b[x-m];
+        else val_x = row_a[x];
+
+        // If both constants 
+        if (val_x > 0 && val_y > 0 && val_x!=val_y) return -1;
+        else if (val_x > 0 && val_y > 0) continue;
+
+        if (val_x > 0 && val_y == 0) // (y<-x)
+        {   
+            // make the replacement on y
+            lst[y-1].count = 1;
+            lst[y-1].by    = x;
+            lst[y-1].ind   = y;
+
+            // Update all variables replaced by y to be replaced by x
+            L3 *current = lst[y-1].head;
+            while (current != NULL)
+            {
+                lst[current->ind-1].by = x;
+                current = current->next;
+            }
+
+            // Add the replacement list of y, and y itself, to replacement list of x
+            if (lst[x-1].head)
+            {
+                lst[x-1].tail->next = create_L3(y,lst[y-1].head);
+                if (lst[y-1].head) lst[x-1].tail = lst[y-1].tail;
+            }
+            else
+            {
+                lst[x-1].head = create_L3(y,lst[y-1].head);
+                lst[x-1].tail = lst[x-1].head;
+                if (lst[y-1].head) lst[x-1].tail = lst[y-1].tail;
+            } 
+        }
+        else // (x<-y)
+        {
+            // make the replacement on x
+            lst[x-1].count = 1;
+            lst[x-1].by    = y;
+            lst[x-1].ind   = x;
+
+            // Update all variables replaced by y to be replaced by x
+            L3 *current = lst[x-1].head;
+            while (current != NULL)
+            {
+                lst[current->ind-1].by = y;
+                current = current->next;
+            }
+
+            // Add the replacement list of y, and y itself, to replacement list of x
+            if (lst[y-1].head)
+            {
+                lst[y-1].tail->next = create_L3(x,lst[x-1].head);
+                if (lst[x-1].head) lst[y-1].tail = lst[x-1].tail;
+            }
+            else
+            {
+                lst[y-1].head = create_L3(x,lst[x-1].head);
+                lst[y-1].tail = lst[y-1].head;
+                if (lst[x-1].head) lst[y-1].tail = lst[x-1].tail;
             }
         }
     }
