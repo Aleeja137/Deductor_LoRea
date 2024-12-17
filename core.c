@@ -17,111 +17,96 @@
 
 struct nlist *dict;
 
-// Read matrix parameters
-int read_parameters(char input_file[], int *n, int *m){
 
-    FILE *stream;
-	// Open the file and check access
-	stream = fopen(input_file, "r");
-	if (stream == NULL)
-	{
-		fprintf(stderr, "Error opening file %s, exiting\n", input_file);
-		exit(EXIT_FAILURE);
-	}
-
-	char *line = NULL;
-	size_t len = 0; 
-
-    getline(&line, &len, stream);
-    
+void read_matrix_dimensions(FILE *stream, int *n, int *m) {
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
     char *endptr, *e;
     long int num;
-    int index;
 
-    e = strchr(line, '(');
-    index = (int)(e - line); // Improv: If values too big, could overflow int
+    while ((read = getline(&line, &len, stream)) != -1) {
+        if (strstr(line, "BEGIN") != NULL) {
+            e = strchr(line, '(');
+            if (!e) break;
 
-    num = strtol(&line[index+1], &endptr, 10);
-    if (endptr == line) fprintf(stderr, "Could not read matrix dimensions\n");
-    *n = num;
+            num = strtol(e + 1, &endptr, 10);
+            if (endptr == e + 1) {
+                fprintf(stderr, "Could not read matrix dimensions\n");
+                exit(EXIT_FAILURE);
+            }
+            *n = num;
 
-    e = strchr(&line[index+1], ',');
-    index += (int)(e - &line[index+1]) + 1;
+            e = strchr(endptr, ',');
+            if (!e) break;
 
-    num = strtol(&line[index+1], &endptr, 10);
-    if (endptr == line) fprintf(stderr, "Could not read matrix dimensions\n");
-    *m = num;
+            num = strtol(e + 1, &endptr, 10);
+            if (endptr == e + 1) {
+                fprintf(stderr, "Could not read matrix dimensions\n");
+                exit(EXIT_FAILURE);
+            }
+            *m = num;
+            break;
+        }
+    }
+    free(line);
+}
+
+void read_matrix(FILE *stream, int **matrix, int n, int m) {
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    int row = 0, col, line_len = 1 + m + 1 + (m * 2) + 2;
+    *matrix = (int *)malloc(n * line_len * sizeof(int));
+
+    while ((read = getline(&line, &len, stream)) != -1 && row < n) {
+        if (strstr(line, "END") != NULL)
+            break;
+
+        (*matrix)[row * line_len] = m;               // Number of elements in the line
+        (*matrix)[row * line_len + line_len - 2] = row; // Row index
+
+        col = 1; // Start indexing columns from 1
+        char *tok = strtok(line, ",");
+        while (tok) {
+            int index = (row * line_len) + col;
+            if (isdigit(tok[0])) {
+                (*matrix)[index] = atoi(tok);
+            } else {
+                if (lookup(tok) == NULL) {
+                    (*matrix)[index] = 0;
+                    install(tok, col);
+                } else {
+                    (*matrix)[index] = -(lookup(tok)->defn);
+                }
+            }
+            tok = strtok(NULL, ",\n");
+            col++;
+        }
+        clear(); // Reset dictionary
+        row++;
+    }
+    free(line);
+}
+
+void read_mat_file(char input_file[], int **mat1, int **mat2, int *n1, int *n2, int *m1, int *m2) {
+    FILE *stream = fopen(input_file, "r");
+    if (!stream) {
+        fprintf(stderr, "Error opening file %s, exiting\n", input_file);
+        exit(EXIT_FAILURE);
+    }
+
+    // Read first matrix
+    read_matrix_dimensions(stream, n1, m1);
+    read_matrix(stream, mat1, *n1, *m1);
+
+    // Read second matrix
+    read_matrix_dimensions(stream, n2, m2);
+    read_matrix(stream, mat2, *n2, *m2);
 
     fclose(stream);
-    return -1;
 }
 
-// Read matrix from file
-void read_mat_file(char input_file[], int *mat, int n, int m){
-	FILE *stream;
-	char *line = NULL;
-	char *tok;
-	size_t len = 0; 
-	ssize_t read;
-
-    int line_len = 1+m+1+(m*2)+2;
-    int row = 0, col = 1; // Start indexing of columns from 1
-
-	// Open the file and check access
-	stream = fopen(input_file, "r");
-	if (stream == NULL)
-	{
-		fprintf(stderr, "Error opening file %s, exiting\n", input_file);
-		exit(EXIT_FAILURE);
-	}
-
-	// setrlimit // Improv full: Se podría hacer esto para limitar posibles errores en el fichero de lectura y que no explote la memoria (?)
-	// Process the file line by line
-	while ((read = getline(&line, &len, stream)) != -1 && row < n)
-	{
-		// Skip comment lines // Revise: Igual me interesa leer estas líneas para sacar info de la matrx (dimensiones?)
-		if (line[0] == '%')
-			continue;
-
-		// Process line token by token
-        mat[row*line_len] = m; // Add the number of elements in line
-        mat[row*line_len+line_len-2] = row; // Add row index
-		for (tok = strtok(line, ","); tok && *tok; tok = strtok(NULL, ",\n"))
-		{
-			// If a constant
-			if (isdigit(tok[0]))
-			{
-                int index = (row*line_len) + col;
-				mat[index] = atoi(tok);
-            }
-			else
-			{
-				// If variable not in dictionary, put a 0 and add index to dictionary
-				if ((dict = lookup(tok)) == NULL)
-				{
-                    int index = (row*line_len) + col;
-					mat[index] = 0;
-                    install(tok, col);
-				}
-				// If variable IN dictionary, take the index as value
-				else
-				{
-                    int index = (row*line_len) + col;
-					mat[index] = -(dict->defn);
-				}
-			}
-            col++;
-		}
-        // After processing the line, free dictionary
-        clear(); // Improve: Quizá en lugar de liberar/reservar memoria línea a línea es mejor simplemente dejar que el diccionario crezca
-        row++;
-        col=1; // Start indexing of columns from 1
-	}
-
-	fclose(stream);
-	if (line)
-		free(line);
-}
 
 // Prints the matrix elements, not the metadata nor the unifiers
 void print_mat_values(int *mat, int n, int m){
@@ -269,7 +254,7 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         if (x > m) val_x = row_b[x-m];  // Check
         else val_x = row_a[x];  // Check
 
-        if (val_x > 0 && val_y > 0 && val_x!=val_y) {printf("Not unificable\n"); return -1;}
+        if (val_x > 0 && val_y > 0 && val_x!=val_y) return -1;
         // printf("Real (x<-y): (%d<-%d), with values (%d<-%d)\n",x,y,val_x,val_y); // Check
 
         // Wanna do (x <- y), check the count of x
@@ -424,7 +409,7 @@ int unifier_matrices(int *mat0, int *mat1, int n0, int n1, int *unifiers){
     {
         for (j=0; j<n1; j++)
         {
-            printf("Trying rows A:%d and B:%d \n",i,j);
+            // printf("Trying rows A:%d and B:%d \n",i,j); // Check
             unifier = &mat0[row_size*i + 1 + m]; 
             memset(unifier,0,unifier_size*sizeof(int));  // Revise full: This should be unnecessary, but it isn't, check why (not urgent)
             code = unifier_rows(&mat0[row_size * i], &mat1[row_size * j], unifier);
@@ -485,35 +470,59 @@ int main(int argc, char *argv[])
     // For development, I will work with set and known sizes N and M
     // char *csv_file_1 = "correcto1.csv";
     // char *csv_file_2 = "correcto2.csv";
-    char *csv_file_1 = "benchmark_test/test03.csv";
-    char *csv_file_2 = "benchmark_test/test04.csv";
-    int n0, n1, m0, m1;
-    read_parameters(csv_file_1,&n0,&m0);
-    read_parameters(csv_file_2,&n1,&m1);
-    assert(m0==m1);
-    int row_size = 1+m0+1+(2*m0)+2;
-    printf("size of int %ld\n",sizeof(int)*8);
-    printf("Number of elements per row: %d\n",row_size);
-    printf("Number of elements for mat0: %d\n",n0*(row_size));
-    printf("Number of elements for mat1: %d\n",n1*(row_size));
+    // ----------------------------------------------------------------------------------------------------------
+    // char *csv_file_1 = "benchmark_test/test03.csv";
+    // char *csv_file_2 = "benchmark_test/test04.csv";
+    // int n0, n1, m0, m1;
+    // read_parameters(csv_file_1,&n0,&m0);
+    // read_parameters(csv_file_2,&n1,&m1);
+    // assert(m0==m1);
+    // int row_size = 1+m0+1+(2*m0)+2;
+    // printf("size of int %ld\n",sizeof(int)*8);
+    // printf("Number of elements per row: %d\n",row_size);
+    // printf("Number of elements for mat0: %d\n",n0*(row_size));
+    // printf("Number of elements for mat1: %d\n",n1*(row_size));
 
-    int *mat0 = (int*) malloc(n0*row_size*sizeof(int));
-    int *mat1 = (int*) malloc(n1*row_size*sizeof(int));
+    // int *mat0 = (int*) malloc(n0*row_size*sizeof(int));
+    // int *mat1 = (int*) malloc(n1*row_size*sizeof(int));
 
-	read_mat_file(csv_file_1, mat0, n0, m0);
+	// read_mat_file(csv_file_1, mat0, n0, m0);
 
+	// printf("read_mat_file completed :)\n");
+    // printf("Dimensions for mat0 are (%d,%d)\n",n0,m0);
+
+	// printf("\nValues and metadata from %s\n",csv_file_1);
+    // print_mat_values(mat0,n0,m0);
+    // // print_mat_metadata(mat0,n0,m0);
+
+	// read_mat_file(csv_file_2, mat1, n1, m1);
+	// printf("read_mat_file completed :)\n");
+    // printf("Dimensions for mat1 are (%d,%d)\n",n1,m1);
+    // printf("\nValues and metadata from %s\n",csv_file_2);
+    // print_mat_values(mat1,n1,m1);
+    // ----------------------------------------------------------------------------------------------------------
+
+    char *csv_file = "benchmark/Set1_changed/test01.csv";
+    int *mat0=NULL, *mat1=NULL, n0,n1,m0,m1;
+
+    read_mat_file(csv_file, &mat0, &mat1, &n0,&n1,&m0,&m1);
 	printf("read_mat_file completed :)\n");
-    printf("Dimensions for mat0 are (%d,%d)\n",n0,m0);
 
-	printf("\nValues and metadata from %s\n",csv_file_1);
+    // if (mat0==NULL) printf("M1 is NULL!\n");
+    // else printf("M1 is NOT NULL\n");
+    // if (mat1==NULL) printf("M2 is NULL!\n");
+    // else printf("M2 is NOT NULL\n");
+    
+    printf("Dimensions for M1 are (%d,%d) and for M2 are (%d,%d)\n",n0,m0,n1,m1);
+
+	printf("\nValues and metadata for M1 from %s\n",csv_file);
     print_mat_values(mat0,n0,m0);
-    // print_mat_metadata(mat0,n0,m0);
 
-	read_mat_file(csv_file_2, mat1, n1, m1);
-	printf("read_mat_file completed :)\n");
-    printf("Dimensions for mat1 are (%d,%d)\n",n1,m1);
-    printf("\nValues and metadata from %s\n",csv_file_2);
+    printf("\nValues and metadata for M2 from %s\n",csv_file);
     print_mat_values(mat1,n1,m1);
+    // ----------------------------------------------------------------------------------------------------------
+
+
     // print_mat_metadata(mat1,n1,m1);
     // printf("----------------\n");
 
