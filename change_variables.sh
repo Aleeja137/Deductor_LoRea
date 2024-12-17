@@ -22,7 +22,7 @@ for file in "$benchmark_src"/*.csv; do
     ## Para cada archivo, tener un diccionario de constantes
     declare -A constantes_fichero
 
-    ## Para casa archivo, tener un diccionario de variables usadas ya
+    ## Para cada archivo, tener un diccionario de variables usadas ya
     declare -A variables_fichero
 
     # Para cada archivo, recorrerlo línea a línea
@@ -35,8 +35,8 @@ for file in "$benchmark_src"/*.csv; do
         declare -A variables_linea
         touch "$benchmark_dst"/"$file_stripped"
 
-        # Para cada línea, si o es línea de comentario o vacía, recorrer elemento a elemento
-        if [[ "$line" =~ "," ]]; then
+        # Para cada línea, si no es línea de comentario o vacía, recorrer elemento a elemento
+        if [[ -n "$line" && ! "$line" =~ "BEGIN" && ! "$line" =~ "END" ]]; then
             IFS=',' read -ra tokens <<< "$line"
 
             for i in "${!tokens[@]}"; do

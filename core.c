@@ -57,16 +57,13 @@ int read_parameters(char input_file[], int *n, int *m){
 }
 
 // Read matrix from file
-void read_mat_file(char input_file[], int *mat, int n, int m)
-{
+void read_mat_file(char input_file[], int *mat, int n, int m){
 	FILE *stream;
 	char *line = NULL;
 	char *tok;
 	size_t len = 0; 
 	ssize_t read;
 
-    int start_elem = 1;
-    // int start_unif = 1+m;
     int line_len = 1+m+1+(m*2)+2;
     int row = 0, col = 1; // Start indexing of columns from 1
 
@@ -127,8 +124,7 @@ void read_mat_file(char input_file[], int *mat, int n, int m)
 }
 
 // Prints the matrix elements, not the metadata nor the unifiers
-void print_mat_values(int *mat, int n, int m)
-{
+void print_mat_values(int *mat, int n, int m){
     int i, j;
     int start_elem = 1;
     // int start_unif = 1+m;
@@ -144,8 +140,7 @@ void print_mat_values(int *mat, int n, int m)
 }
 
 // Prints metadata from a matrix, usefull for testing the unifier in early stages
-void print_mat_metadata(int *mat, int n, int m)
-{
+void print_mat_metadata(int *mat, int n, int m){
     int i, j;
     // int start_elem = 1;
     int start_unif = 1+m;
@@ -173,7 +168,7 @@ void print_unifier(int *unifier, int m){
 	{
         printf("%d<-%d ", unifier[1+i],unifier[1+i+1]);
 	}
-    printf("],\t\t\trowA: %d, rowB: %d\n",rowA, rowB);
+    printf("],\t\t\trowA: %d, rowB: %d\n",rowA+1, rowB+1);
 }
 
 // Unify two elements from different rows
@@ -262,6 +257,10 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         else if (y > m && row_b[y-m] < 0)// x belongs to row_b and is a repeated variable
             y = -row_b[y-m]+m; 
 
+        if (lst[x-1].count != 0) x = lst[x-1].by;
+        if (lst[y-1].count != 0) y = lst[y-1].by;
+        if (x==y) continue;
+
         // Get the value of y
         if (y > m) val_y = row_b[y-m];
         else val_y = row_a[y];
@@ -269,6 +268,8 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         // Get the value of x just for checking  // Check
         if (x > m) val_x = row_b[x-m];  // Check
         else val_x = row_a[x];  // Check
+
+        if (val_x > 0 && val_y > 0 && val_x!=val_y) {printf("Not unificable\n"); return -1;}
         // printf("Real (x<-y): (%d<-%d), with values (%d<-%d)\n",x,y,val_x,val_y); // Check
 
         // Wanna do (x <- y), check the count of x
@@ -303,7 +304,7 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
             
             if (val_z > 0) // z is constant
             { 
-                if (val_y > 0 && val_z != val_y) {return -1; printf("Check, not unifiable :(\n");} // y is constant
+                if (val_y > 0 && val_z != val_y) return -1; // y is constant
                 else if (val_y == 0) // y is variable, add y<-z
                 {
                     // printf("Z constant, Y variable, do (y<-z): (%d<-%d), with values (%d<-%d)\n",y,z,val_y,val_z); // Check
@@ -423,6 +424,7 @@ int unifier_matrices(int *mat0, int *mat1, int n0, int n1, int *unifiers){
     {
         for (j=0; j<n1; j++)
         {
+            printf("Trying rows A:%d and B:%d \n",i,j);
             unifier = &mat0[row_size*i + 1 + m]; 
             memset(unifier,0,unifier_size*sizeof(int));  // Revise full: This should be unnecessary, but it isn't, check why (not urgent)
             code = unifier_rows(&mat0[row_size * i], &mat1[row_size * j], unifier);
@@ -481,8 +483,10 @@ int main(int argc, char *argv[])
     // else printf("Key not found\n\n");
 
     // For development, I will work with set and known sizes N and M
-    char *csv_file_1 = "correcto1.csv";
-    char *csv_file_2 = "correcto2.csv";
+    // char *csv_file_1 = "correcto1.csv";
+    // char *csv_file_2 = "correcto2.csv";
+    char *csv_file_1 = "benchmark_test/test03.csv";
+    char *csv_file_2 = "benchmark_test/test04.csv";
     int n0, n1, m0, m1;
     read_parameters(csv_file_1,&n0,&m0);
     read_parameters(csv_file_2,&n1,&m1);
@@ -550,8 +554,9 @@ int main(int argc, char *argv[])
 
 	// char *unifier = unify_rows(mat0,mat1,M);
 	// printf("Unifier: %s\n",unifier);
-	
 	// unify_matrices(mat0,mat1,N,M);
+
+
 	int i,*unifiers = NULL, unif_count, unifier_size = 1+(2*m0)+2;
     unifiers = (int*) malloc (n0*n1*unifier_size*sizeof(int));
     unif_count = unifier_matrices(mat0, mat1, n0, n1, unifiers);
@@ -560,6 +565,22 @@ int main(int argc, char *argv[])
     {
         print_unifier(&unifiers[i*unifier_size],m0);
     }
+
+
+    // int code;
+    // int unifier_size = 1+(2*m0)+2;
+    // int *unifier = &mat0[row_size*1 + 1 + m0]; 
+    // memset(unifier,0,unifier_size*sizeof(int));  // Revise full: This should be unnecessary, but it isn't, check why (not urgent)
+    // code = unifier_rows(&mat0[row_size * 1], &mat1[row_size * 30], unifier);
+    // if (code != 0) printf("Rows cannot be unified at STEP 1 \n"); // Rows cannot be unified
+
+    // code = correct_unifier(&mat0[row_size * 1], &mat1[row_size * 30], unifier);
+    // if (code != 0) printf("Rows cannot be unified at STEP 2 \n");; // Rows cannot be unified
+    
+    // unifier[1+(2*m0)]   = 1;
+    // unifier[1+(2*m0)+1] = 30;
+    // print_unifier(unifier,m0); 
+
 
     free(mat0);
     free(mat1);
