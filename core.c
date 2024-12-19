@@ -439,7 +439,6 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         if (lst[x-1].count > 0) x = lst[x-1].by;
         if (lst[y-1].count > 0) y = lst[y-1].by;
         if (x==y) continue; 
-
         // No need to get real index, the substitution is done for the real index
 
         // Get the value of x and y
@@ -447,7 +446,6 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         else val_y = row_a[y];
         if (x > m) val_x = row_b[x-m];
         else val_x = row_a[x];
-
         // If both constants 
         if (val_x > 0 && val_y > 0 && val_x!=val_y) return -1;
         else if (val_x > 0 && val_y > 0) continue;
@@ -479,6 +477,7 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
                 lst[x-1].tail = lst[x-1].head;
                 if (lst[y-1].head) lst[x-1].tail = lst[y-1].tail;
             } 
+            lst[y-1].head = lst[y-1].tail = NULL;
         }
         else // (x<-y)
         {
@@ -491,7 +490,9 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
             L3 *current = lst[x-1].head;
             while (current != NULL)
             {
-                lst[current->ind-1].by = y;
+                int current_index = current->ind;
+                // printf("Altering by of index %d\n",current_index);
+                lst[current_index-1].by = y;
                 current = current->next;
             }
 
@@ -499,7 +500,9 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
             if (lst[y-1].head)
             {
                 lst[y-1].tail->next = create_L3(x,lst[x-1].head);
+                lst[y-1].tail = lst[y-1].tail->next;
                 if (lst[x-1].head) lst[y-1].tail = lst[x-1].tail;
+
             }
             else
             {
@@ -507,6 +510,7 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
                 lst[y-1].tail = lst[y-1].head;
                 if (lst[x-1].head) lst[y-1].tail = lst[x-1].tail;
             }
+            lst[x-1].head = lst[x-1].tail = NULL;
         }
     }
 
@@ -601,11 +605,27 @@ int main(int argc, char *argv[])
     printf("\nValues and metadata for M2 from %s\n",csv_file);
     print_mat_values(mat1,n1,m1);
     
+    // ----- test all matrix ----- //
 	int *unifiers = NULL, unifier_size = 1+(2*m0)+2;
     unifiers = (int*) malloc (n0*n1*unifier_size*sizeof(int));
     int unif_count = unifier_matrices(mat0, mat1, n0, n1, unifiers);
     print_unifier_list(unifiers,unif_count,m0);
+    // ----- test all matrix ----- //
 
+
+    // ----- test two rows ----- //
+    // int *unifier, code;
+    // int row_size = 1+m0+1+(2*m0)+2, unifier_size = 1+(2*m0)+2;
+    // unifier = &mat0[row_size*15 + 1 + m0]; 
+    // memset(unifier,0,unifier_size*sizeof(int)); 
+    // code = unifier_rows(&mat0[row_size * 14], &mat1[row_size * 7], unifier);
+    // if (code != 0) printf("Not unifiable at STEP 1\n");
+    // code = correct_unifier(&mat0[row_size * 14], &mat1[row_size * 7], unifier);
+    // if (code != 0) printf("Not unifiable at STEP 2\n");
+    // unifier[1+(2*m0)]   = 14;
+    // unifier[1+(2*m0)+1] = 7;
+    // print_unifier(unifier,m0);
+    // ----- test two rows ----- //
 
     free(mat0);
     free(mat1);
