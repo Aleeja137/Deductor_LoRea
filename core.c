@@ -9,14 +9,7 @@
 #include "dictionary.h"
 #include "structures.h"
 
-// #define N 50
-// #define M 10
-#define N 3
-#define M 6
-#define minus_zero 555 
-
 struct nlist *dict;
-
 
 void read_matrix_dimensions(FILE *stream, int *n, int *m) {
     char *line = NULL;
@@ -107,7 +100,6 @@ void read_mat_file(char input_file[], int **mat1, int **mat2, int *n1, int *n2, 
     fclose(stream);
 }
 
-
 // Prints the matrix elements, not the metadata nor the unifiers
 void print_mat_values(int *mat, int n, int m){
     int i, j;
@@ -165,7 +157,8 @@ void print_unifier_list(int *unifiers, int unif_count, int m){
     }
     printf("Number of unifiers: %d\n",unif_count);
 }
-// Unify two elements from different rows
+
+// Update the unifier of two elements from different rows, unifier pointer must be pointing to row_a's unifier (for now)
 int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, int indexUnifier){
 
     // Make sure both rows have same number of elements
@@ -196,7 +189,7 @@ int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, in
 	return 0;
 }
 
-// Unifier must be pointing to row_a's unifier
+// Return the unifier of two rows (naive) or -1 if not unificable
 int unifier_rows(int *row_a, int *row_b, int *unifier){
     int i, result;
     assert(row_a[0]==row_b[0]);
@@ -213,7 +206,7 @@ int unifier_rows(int *row_a, int *row_b, int *unifier){
 	return 0;
 }
 
-// Correct/reduce/verify the unifier, unifier pointer must be pointing to row_a's unifier
+// Correct/reduce/verify the unifier, unifier pointer must be pointing to row_a's unifier (for now)
 int correct_unifier(int *row_a, int *row_b, int *unifier){
     int m = row_a[0];
     assert(row_a[0]==row_b[0]);
@@ -345,10 +338,18 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         }
     }
     unifier[0] = n_substitutions;
+
+    // Free lst
+    for ( i = 0; i < 2*m; i++)
+    {
+        free_L2(lst[i]);
+    }
+    free(lst);
+    
     return 0;
 }
 
-// Return the unifiers for two given matrices. Must have same width, and unifiers must be initialized to n0*n1
+// Return the unifiers for two given matrices. Must have same width, and unifiers must be initialized to n0*n1 before calling function
 int unifier_matrices(int *mat0, int *mat1, int n0, int n1, int *unifiers){
 
     int i, j, m, row_size, unifier_size, code, last_unifier;
@@ -383,9 +384,6 @@ int unifier_matrices(int *mat0, int *mat1, int n0, int n1, int *unifiers){
 
     return last_unifier;
 }
-
-// void read_unif_mat_file();
-// void process_files();
 
 int main(int argc, char *argv[])
 {

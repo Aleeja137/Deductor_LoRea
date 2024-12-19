@@ -39,7 +39,6 @@ L3* create_L3(int ind_in, L3* next_in){
 
 void free_L2(L2 node){
     if (node.head) free_L3(node.head);
-    if (node.tail) free_L3(node.tail);
 }
 
 void free_L3(L3* node){
