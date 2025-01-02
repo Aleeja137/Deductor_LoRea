@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <assert.h>
+#include <math.h>
 
 #include "dictionary.h"
 #include "structures.h"
@@ -158,6 +159,15 @@ void print_unifier_list(int *unifiers, int unif_count, int m){
     printf("Number of unifiers: %d\n",unif_count);
 }
 
+void print_mat_line(int *row){
+    int j;
+    int m = row[0];
+    printf("[");
+    for (j = 1; j <= m; j++)
+        printf("%d ", row[j]);
+    printf("]\n");
+}
+
 // Update the unifier of two elements from different rows, unifier pointer must be pointing to row_a's unifier (for now)
 int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, int indexUnifier){
 
@@ -227,7 +237,7 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
 
         if (x == y && x == 0) continue; // Empty case
 
-        // If any of the two elements is a repeated variable, get read index
+        // If any of the two elements is a repeated variable, get real index
         if (x <= m && row_a[x] < 0)
             x = -row_a[x];
         else if (x > m && row_b[x-m] < 0) 
@@ -241,7 +251,7 @@ int correct_unifier(int *row_a, int *row_b, int *unifier){
         if (lst[x-1].count > 0) x = lst[x-1].by;
         if (lst[y-1].count > 0) y = lst[y-1].by;
         if (x==y) continue; 
-        // No need to get real index, the substitution is done for the real index
+        // No need to get real index again, the substitution is done for the real index
 
         // Get the value of x and y
         if (y > m) val_y = row_b[y-m];
@@ -385,8 +395,68 @@ int unifier_matrices(int *mat0, int *mat1, int n0, int n1, int *unifiers){
     return last_unifier;
 }
 
-int main(int argc, char *argv[])
-{
+void apply_unifier(int *row_a, int *row_b, int *unifier){
+    assert(row_a[0]==row_b[0]);
+    int m = row_a[0];
+    int n = unifier[0]*2;
+
+    int i, j;
+    int x, y, val_y; // To perform x <- y
+
+    // Stuff needed if y is a variable
+    int length = (int)log10(2*m) + 2;
+    char *y_str = (char *)malloc(length * sizeof(char));
+    clear(); // Clean dictionary
+    printf("m: %d, n: %d, length: %d\n",m,n,length); // Check
+
+    for (i=1; i<=n; i+=2)
+    {
+        x = unifier[i];
+        y = unifier[i+1];
+
+        if (y <= m) val_y = row_a[y];
+        else val_y = row_b[y-m];
+        printf("x: %d, y: %d, val_y: %d\n",x,y,val_y); // Check
+        
+        if (val_y > 0) // y is a constant, substitute first x reference for that constant 
+        {
+            if (x <= m) row_a[x]   = val_y;
+            else        row_b[x-m] = val_y;
+        }
+        else // y is variable, get's a little bit tricky
+        {
+            snprintf(y_str, length, "%d", y);
+            struct nlist *entry = lookup(y_str);
+            if (entry==NULL) // First appearance of y, do not substitute anything but add appearance of y linked with x
+            {
+                install(y_str,x);
+            }
+            else // Not first appearance, need to change all x references to the first linked variable to y (z in this case)
+            {
+                int z = entry->defn;
+                if (x<=m)
+                {
+                    row_a[x] = -z;
+                    for (j=1;j<=m;j++)
+                        if (row_a[j]==(-x)) row_a[j] = -z;
+                }
+                else
+                {
+                    row_b[x-m] = -z;
+                    for (j=1;j<=m;j++)
+                        if (row_b[j]==(-(x-m))) row_a[j] = -z;
+                }
+            }
+        }
+    }
+
+    clear();
+    free(y_str);
+
+}
+
+
+int main(int argc, char *argv[]){
     int verbose = 0;
     char *csv_file = "benchmark/Set1_changed/test01.csv";
 
@@ -430,6 +500,17 @@ int main(int argc, char *argv[])
     // unifier[1+(2*m0)+1] = 7;
     // print_unifier(unifier,m0);
     // ----- test two rows ----- //
+
+    // ----- test unification ----- //
+    int num_unifier = 311;
+    assert(num_unifier<unif_count);
+    int line_len = 1+m0+1+(m0*2)+2;
+    int ind_A = unifiers[num_unifier*unifier_size+unifier_size-2];
+    int ind_B = unifiers[num_unifier*unifier_size+unifier_size-1];
+    printf("Applying unifier of rows %d and %d to left row\n",ind_A+1, ind_B+1);
+    apply_unifier(&mat0[ind_A*line_len],&mat1[ind_B*line_len],&unifiers[num_unifier*unifier_size]);
+    print_mat_line(&mat0[ind_A*line_len]);
+    // ----- test unification ----- //
 
     free(mat0);
     free(mat1);
