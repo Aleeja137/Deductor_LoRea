@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "structures.h"
 
@@ -66,3 +67,32 @@ L3* copy_L3(L3* node) {
     if (node->next) new_node->next = copy_L3(node->next);
     return new_node;
 }
+
+
+int timespec_subtract (struct timespec *result, struct timespec *x, struct timespec *y)
+{
+    if (x->tv_nsec < y->tv_nsec)
+    {
+        int nsec = (y->tv_nsec - x->tv_nsec) / 1000000000 + 1;
+        y->tv_nsec -= 1000000000 * nsec;
+        y->tv_sec += nsec;
+    }
+    if (x->tv_nsec - y->tv_nsec > 1000000000)
+    {
+        int nsec = (x->tv_nsec - y->tv_nsec) / 1000000000;
+        y->tv_nsec += 1000000000 * nsec;
+        y->tv_sec -= nsec;
+    }
+
+    result->tv_sec = x->tv_sec - y->tv_sec;
+    result->tv_nsec = x->tv_nsec - y->tv_nsec;
+
+    return x->tv_sec < y->tv_sec;
+}
+
+// void print_elapsed (struct timespec elapsed)
+// {
+//     if (elapsed.tv_sec <= 0)
+//     printf("%ld ns\n",elapsed.tv_nsec);
+//     else
+// }

@@ -24,3 +24,4 @@ void free_L2(L2 node);
 void free_L3(L3* node);
 L2 copy_L2(L2 node);
 L3* copy_L3(L3* node);
+int timespec_subtract (struct timespec *result, struct timespec *x, struct timespec *y);

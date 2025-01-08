@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <math.h>
+#include <time.h>
 
 #include "dictionary.h"
 #include "structures.h"
@@ -395,6 +396,7 @@ int unifier_matrices(int *mat0, int *mat1, int n0, int n1, int *unifiers){
     return last_unifier;
 }
 
+// Applies unifier to both rows, keep in mind
 void apply_unifier(int *row_a, int *row_b, int *unifier){
     assert(row_a[0]==row_b[0]);
     int m = row_a[0];
@@ -407,7 +409,7 @@ void apply_unifier(int *row_a, int *row_b, int *unifier){
     int length = (int)log10(2*m) + 2;
     char *y_str = (char *)malloc(length * sizeof(char));
     clear(); // Clean dictionary
-    printf("m: %d, n: %d, length: %d\n",m,n,length); // Check
+    // printf("m: %d, n: %d, length: %d\n",m,n,length); // Check
 
     for (i=1; i<=n; i+=2)
     {
@@ -416,7 +418,7 @@ void apply_unifier(int *row_a, int *row_b, int *unifier){
 
         if (y <= m) val_y = row_a[y];
         else val_y = row_b[y-m];
-        printf("x: %d, y: %d, val_y: %d\n",x,y,val_y); // Check
+        // printf("x: %d, y: %d, val_y: %d\n",x,y,val_y); // Check
         
         if (val_y > 0) // y is a constant, substitute first x reference for that constant 
         {
@@ -457,6 +459,8 @@ void apply_unifier(int *row_a, int *row_b, int *unifier){
 
 
 int main(int argc, char *argv[]){
+    struct timespec start, end1, end2, end3, elapsed; 
+
     int verbose = 0;
     char *csv_file = "benchmark/Set1_changed/test01.csv";
 
@@ -465,6 +469,9 @@ int main(int argc, char *argv[]){
 
     int *mat0=NULL, *mat1=NULL, n0,n1,m0,m1;
 
+
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    
     read_mat_file(csv_file, &mat0, &mat1, &n0,&n1,&m0,&m1);
 	printf("read_mat_file completed :)\n");
     printf("Dimensions for M1 are (%d,%d) and for M2 are (%d,%d)\n",n0,m0,n1,m1);
@@ -478,6 +485,8 @@ int main(int argc, char *argv[]){
         print_mat_values(mat1,n1,m1);
     }
 
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end1);
+    
     // ----- test all matrix ----- //
 	int *unifiers = NULL, unifier_size = 1+(2*m0)+2;
     unifiers = (int*) malloc (n0*n1*unifier_size*sizeof(int));
@@ -486,6 +495,7 @@ int main(int argc, char *argv[]){
     else printf("Number of unifiers: %d\n",unif_count);
     // ----- test all matrix ----- //
 
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end2);
 
     // ----- test two rows ----- //
     // int *unifier, code;
@@ -502,16 +512,42 @@ int main(int argc, char *argv[]){
     // ----- test two rows ----- //
 
     // ----- test unification ----- //
-    int num_unifier = 311;
-    assert(num_unifier<unif_count);
     int line_len = 1+m0+1+(m0*2)+2;
-    int ind_A = unifiers[num_unifier*unifier_size+unifier_size-2];
-    int ind_B = unifiers[num_unifier*unifier_size+unifier_size-1];
-    printf("Applying unifier of rows %d and %d to left row\n",ind_A+1, ind_B+1);
-    apply_unifier(&mat0[ind_A*line_len],&mat1[ind_B*line_len],&unifiers[num_unifier*unifier_size]);
-    print_mat_line(&mat0[ind_A*line_len]);
+    int *line_A  = (int*) malloc (line_len*sizeof(int));
+    int *line_B  = (int*) malloc (line_len*sizeof(int));
+    int *unified = (int*) malloc (unif_count*line_len*sizeof(int));
+
+    int i, ind_A, ind_B;
+    printf("Applying all unifiers . . .\n");
+    for (i=0; i<unif_count; i++)
+    {
+        ind_A = unifiers[i*unifier_size+unifier_size-2];
+        ind_B = unifiers[i*unifier_size+unifier_size-1];
+        memcpy(line_A,&mat0[ind_A*line_len],line_len*sizeof(int));
+        memcpy(line_B,&mat1[ind_B*line_len],line_len*sizeof(int));
+        apply_unifier(line_A,line_B,&unifiers[i*unifier_size]);
+        memcpy(&unified[i*line_len],line_A,line_len*sizeof(int));
+    }
+    printf("Applied all unifiers :)\n");
     // ----- test unification ----- //
 
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end3);
+
+    timespec_subtract(&elapsed, &end1, &start);
+    printf("Time for reading from file:    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
+
+    timespec_subtract(&elapsed, &end2, &end1);
+    printf("Time for calculating unifiers: %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
+
+    timespec_subtract(&elapsed, &end3, &end2);
+    printf("Time for applying unifiers:    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
+
+    timespec_subtract(&elapsed, &end3, &start);
+    printf("Total time:                    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
+
+    free(line_A);
+    free(line_B);
+    free(unified);
     free(mat0);
     free(mat1);
 	return 0;

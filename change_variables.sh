@@ -43,7 +43,7 @@ for file in "$benchmark_src"/*.csv; do
                 tok="${tokens[i]}"
 
                 # Si es minúscula, sustituirlo por un valor entero
-                if [[ "$tok" =~ ^[a-z]+$ ]]; then
+                if [[ "$tok" =~ ^[a-z0-9_]+$ ]]; then
                     # Si ese carácter ya existe en el diccionario, sustituirlo por integer
                     if [[ -n "${constantes_fichero[$tok]}" ]]; then
                         tokens[i]="${constantes_fichero[$tok]}" 
