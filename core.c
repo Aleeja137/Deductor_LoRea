@@ -51,7 +51,7 @@ void read_matrix(FILE *stream, int **matrix, int n, int m) {
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
-    int row = 0, col, line_len = 1 + m + 1 + (m * 2) + 2;
+    int row = 0, col, line_len = 1 + m;
     *matrix = (int *)malloc(n * line_len * sizeof(int));
 
     while ((read = getline(&line, &len, stream)) != -1 && row < n) {
@@ -59,7 +59,6 @@ void read_matrix(FILE *stream, int **matrix, int n, int m) {
             break;
 
         (*matrix)[row * line_len] = m;               // Number of elements in the line
-        (*matrix)[row * line_len + line_len - 2] = row; // Row index
 
         col = 1; // Start indexing columns from 1
         char *tok = strtok(line, ",");
@@ -105,33 +104,14 @@ void read_mat_file(char input_file[], int **mat1, int **mat2, int *n1, int *n2, 
 // Prints the matrix elements, not the metadata nor the unifiers
 void print_mat_values(int *mat, int n, int m){
     int i, j;
-    int start_elem = 1;
-    // int start_unif = 1+m;
-    int line_len = 1+m+1+(m*2)+2;
+    int line_len = 1+m;
     
 	for (i = 0; i < n; i++)
 	{
 		printf("[");
 		for (j = 0; j < m; j++)
-			printf("%d ", mat[i*line_len+start_elem+j]);
+			printf("%d ", mat[i*line_len+1+j]);
 		printf("]\n");
-	}
-}
-
-// Prints metadata from a matrix, usefull for testing the unifier in early stages
-void print_mat_metadata(int *mat, int n, int m){
-    int i, j;
-    // int start_elem = 1;
-    int start_unif = 1+m;
-    int line_len = 1+m+1+(m*2)+2;
-    
-	for (i = 0; i < n; i++)
-	{
-		printf("[");
-        printf("m: %d, nelem : %d, unifier: { ",mat[i*line_len],mat[i*line_len+start_unif]);
-		for (j = 0; j < mat[i*line_len+start_unif]; j+=2)
-			printf("%d<-%d ", mat[i*line_len+start_unif+1+j],mat[i*line_len+start_unif+1+j+1]);
-		printf("}, rowA: %d, rowB: %d ]\n",mat[i*line_len+line_len-2],mat[i*line_len+line_len-1]);
 	}
 }
 
@@ -368,15 +348,16 @@ int unifier_matrices(int *mat0, int *mat1, int n0, int n1, int *unifiers){
 
     m = mat0[0];
     last_unifier = 0;
-    row_size = 1+m+1+(2*m)+2;
+    row_size = 1+m;
     unifier_size = 1+(2*m)+2;
+
+    unifier = (int*) malloc (unifier_size*sizeof(int));
 
     for (i=0; i<n0; i++)
     {
         for (j=0; j<n1; j++)
         {
-            unifier = &mat0[row_size*i + 1 + m]; 
-            memset(unifier,0,unifier_size*sizeof(int));  // Revise full: This should be unnecessary, but it isn't, check why (not urgent)
+            memset(unifier,0,unifier_size*sizeof(int));  
             code = unifier_rows(&mat0[row_size * i], &mat1[row_size * j], unifier);
             if (code != 0) continue; // Rows cannot be unified
 
@@ -392,7 +373,7 @@ int unifier_matrices(int *mat0, int *mat1, int n0, int n1, int *unifiers){
 
     // Free the extra space
     unifiers = realloc(unifiers,last_unifier*unifier_size*sizeof(int));
-
+    free(unifier);
     return last_unifier;
 }
 
@@ -512,7 +493,7 @@ int main(int argc, char *argv[]){
     // ----- test two rows ----- //
 
     // ----- test unification ----- //
-    int line_len = 1+m0+1+(m0*2)+2;
+    int line_len = 1+m0;
     int *line_A  = (int*) malloc (line_len*sizeof(int));
     int *line_B  = (int*) malloc (line_len*sizeof(int));
     int *unified = (int*) malloc (unif_count*line_len*sizeof(int));
