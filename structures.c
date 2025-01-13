@@ -4,11 +4,12 @@
 #include "structures.h"
 
 L1* create_L1_empty(){
-    L1* node   = (L1*) malloc(sizeof(L1));
-    node->val  = 0;
-    node->info = NULL;
-    node->name = "empty";
-    return node; 
+    // L1* node   = (L1*) malloc(sizeof(L1));
+    // node->val  = 0;
+    // node->info = NULL;
+    // node->name = "empty";
+    // return node; 
+    return NULL;
 }
 
 L1* create_L1(int val_in, L2 *info_in, char *name_in){
@@ -20,12 +21,13 @@ L1* create_L1(int val_in, L2 *info_in, char *name_in){
 }
 
 L2* create_L2_empty(){
-    L2* node   = (L2*) malloc(sizeof(L2));
-    node->val  = 0;
-    node->head = NULL;
-    node->tail = NULL;
-    node->me   = NULL;
-    return node;
+    // L2* node   = (L2*) malloc(sizeof(L2));
+    // node->val  = 0;
+    // node->head = NULL;
+    // node->tail = NULL;
+    // node->me   = NULL;
+    // return node;
+    return NULL;
 }
 
 L2* create_L2(int val_in, L3* head_in, L3* tail_in, L1* me_in){
@@ -38,10 +40,11 @@ L2* create_L2(int val_in, L3* head_in, L3* tail_in, L1* me_in){
 }
 
 L3* create_L3_empty(){
-    L3* node   = (L3*) malloc(sizeof(L3));
-    node->var  = NULL;
-    node->next = NULL;
-    return node;
+    // L3* node   = (L3*) malloc(sizeof(L3));
+    // node->var  = NULL;
+    // node->next = NULL;
+    // return node;
+    return NULL;
 }
 
 L3* create_L3(L1* var_in, L3* next_in){
@@ -94,11 +97,9 @@ L1* copy_L1(L1* node) {
     // printf("Copying L1 %s\n",node->name); // Check
     if (!node) return NULL;
     // printf("Check 1\n"); // Check
-    char * tmp_name = strdup(node->name);
     // printf("Check 2\n"); // Check
-    L1* new_node = create_L1(node->val, NULL, tmp_name);
+    L1* new_node = create_L1(node->val, NULL, node->name);
     // printf("Check 3\n"); // Check
-    free(tmp_name);
     // printf("Check 4\n"); // Check
     if (node->info) new_node->info = copy_L2(node->info);
     // printf("Check 5\n"); // Check
@@ -135,9 +136,9 @@ L3* copy_L3(L3* node) {
 
 L1** copy_mat(size_t n, size_t m, L1** mat) {
     // printf("n = %zu, m = %zu\n", n, m); // Check
-    // printf("Check interno 1\n"); // Check
+    printf("Check interno 1\n"); // Check
     L1** mat2 = (L1**) malloc(n * m * sizeof(L1*));
-    // printf("Check interno 2\n"); // Check
+    printf("Check interno 2\n"); // Check
     if (!mat2) return NULL; // Allocation failure
     // printf("Check interno 3\n"); // Check
     

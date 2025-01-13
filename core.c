@@ -59,7 +59,7 @@ void read_mat_file(char input_file[], L1 **mat)
 			}
 			else
 			{
-				// printf("Var: %s\n",tok); // Check
+				printf("Var: %s\n",tok); // Check
 				// If the variable does not exist in the dictionary, create a L1 with 0 for value. Add entry to dictionary with the string with the memory address (https://stackoverflow.com/questions/73711419/how-to-convert-variables-address-to-string-variable-in-c)
 				if ((dict = lookup(tok)) == NULL)
 				{
@@ -254,23 +254,27 @@ char** unify_matrices(L1 **m0, L1 **m1, int nrow, int ncol){
 
 	int i, j, last_unifier = 0;
 	char **unifier_lst = NULL;
+	unifier_lst = (char **) malloc(nrow*nrow*sizeof(char *));
 
 	for (i=0; i<nrow; i++)
 	for (j=0; j<nrow; j++)
 	{
+		printf("Unifying rows %d and %d\n",i,j); // Check
 		// printf("Check 1!!\n"); // Check
 		L1 **tmp_m0 = copy_mat(1,ncol,&m0[i*ncol]);
 		// printf("Check 2!!\n"); // Check
 		L1 **tmp_m1 = copy_mat(1,ncol,&m1[j*ncol]);
-		printf("Unifying rows %d and %d\n",i,j); // Check
-		char *unifier=strdup("");
+		// printf("HEY PRE STRDUP \n"); // Check
+		char *unifier;
+		// printf("HEY POST STRDUP\n"); // Check
 		unifier = unify_rows(tmp_m0,tmp_m1,ncol);
 		printf("Unfier for rows %d and %d is %s\n",i,j,unifier); // Check
 		if (unifier != NULL) 
 		{
-			unifier_lst = (char **) realloc(unifier_lst,(last_unifier+1)*sizeof(char *));
+			// printf("HEY \n"); // Check
 			unifier_lst[last_unifier] = strdup(unifier);
 			last_unifier++;
+			free(unifier);
 		}
 	}
 	return unifier_lst;
@@ -289,11 +293,11 @@ int main(int argc, char *argv[])
 	read_mat_file("falla2.csv", mat1);
 	// read_mat_file("correcto1.csv", mat0);
 	// read_mat_file("correcto2.csv", mat1);
-	// printf("read_mat_file completed :)\n");
-	// printf("Mat 0 from benchmark_test/test00.csv\n");
-	// print_mat(mat0, N, M);
-	// printf("Mat 1 from benchmark_test/test01.csv\n");
-	// print_mat(mat1, N, M);
+	printf("read_mat_file completed :)\n");
+	printf("Mat 0 from benchmark_test/test00.csv\n");
+	print_mat(mat0, N, M);
+	printf("Mat 1 from benchmark_test/test01.csv\n");
+	print_mat(mat1, N, M);
 
 	// char *unifier = "";
 	// unifier = unify_a_b(mat0[2],mat1[2],unifier);
