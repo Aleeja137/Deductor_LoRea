@@ -1,6 +1,17 @@
 # Título proyecto  
 Info entidades involucradas, personas, correos (?).  
 Info proyecto, etc.  
+
+## Compilación  
+`gcc -o c core.c -Wall -Wextra -g -O0 structures.c -lm`  
+
+## Uso  
+`./c secondExamples/test0002.csv` siendo test0002.csv cualquier fichero de la carpeta secondExamples.  
+
+Para la comprobación de memoria con valgrind:  
+`valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=valgrind-out.txt ./c secondExamples/test0001.csv`  
+Dejará el resultado en valgrind-out.txt en la misma carpeta que el ejecutable.   
+
 ## Ficheros  
 ### core.c  
 Funciones para manejar el cómputo de matrices, unificadores, etc.  
