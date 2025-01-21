@@ -510,6 +510,7 @@ int main(int argc, char *argv[]){
         memcpy(&unified[i*line_len],line_A,line_len*sizeof(int));
     }
     printf("Applied all unifiers :)\n");
+    print_mat_values(unified,unif_count,m0);
     // ----- test unification ----- //
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end3);

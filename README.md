@@ -8,6 +8,9 @@ Info proyecto, etc.
 ## Uso  
 `./c secondExamples/test0002.csv` siendo test0002.csv cualquier fichero de la carpeta secondExamples.  
 
+## Uso prolog  
+`swipl -f get_times.pl -g "main('Files/AGT004+1.p/test000X.pl'), halt"`  
+
 Para la comprobación de memoria con valgrind:  
 `valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=valgrind-out.txt ./c secondExamples/test0001.csv`  
 Dejará el resultado en valgrind-out.txt en la misma carpeta que el ejecutable.   
