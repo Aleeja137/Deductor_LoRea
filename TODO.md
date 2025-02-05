@@ -1,8 +1,11 @@
-V0 - Sólo verificar
+V0 - Sólo unificar
     - Arreglar versión 1 (low priority)
     - Comprobar con representación interna si unifico bien
-        - Arreglar unificación (indices negativos fuera de rango)
-        - Implementar unificación cambiando todas instancias de variable con constante
+        - Arreglar unificación -> (indices negativos fuera de rango: NO FUNCIONA BIEN)
+        - Tener dos versiones de unificación, una en la que cambiamos la primera instancia de variable<-constante, y otra donde se cambian todas (seguramente esta se use para comprobar unificación correcta en implementación interna). 
+        - Hacer pruebas para ver el impacto de cambiar todas las apariciones 
+        - Optimizar el código
+        - Arreglar leaks
 
 V1 - Unifica con excepciones
 
