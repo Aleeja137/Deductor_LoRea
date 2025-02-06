@@ -18,6 +18,20 @@
 struct nlist *dict;
 int verbose = 0;
 
+// read_mat_row is necessary to prevent 'tok' from two matrices taking the same 'tok+row_str' 
+// but row still needs to start from 0 each read_matrix call, so additional variable
+int read_mat_row = 0; 
+int last_int = 1;
+
+void timespec_add(struct timespec *result, const struct timespec *t1, const struct timespec *t2) {
+    result->tv_sec = t1->tv_sec + t2->tv_sec;
+    result->tv_nsec = t1->tv_nsec + t2->tv_nsec;
+    if (result->tv_nsec >= 1000000000L) {
+        result->tv_sec++;
+        result->tv_nsec -= 1000000000L;
+    }
+}
+
 void read_matrix_dimensions(FILE *stream, int *n, int *m) {
     char *line = NULL;
     size_t len = 0;
@@ -35,6 +49,7 @@ void read_matrix_dimensions(FILE *stream, int *n, int *m) {
                 fprintf(stderr, "Could not read matrix dimensions\n");
                 exit(EXIT_FAILURE);
             }
+
             *n = num;
 
             e = strchr(endptr, ',');
@@ -59,14 +74,33 @@ void read_matrix(FILE *stream, int **matrix, int n, int m) {
     ssize_t read;
     int row = 0, col, line_len = 1 + m;
     *matrix = (int *)malloc(n * line_len * sizeof(int));
-    int last_int = 1;
 
     while ((read = getline(&line, &len, stream)) != -1 && row < n) {
         if (strstr(line, "END") != NULL)
             break;
 
-        (*matrix)[row * line_len] = m; // Number of elements in the line
+        // ---- MGU processing starts ----
+        if (strstr(line, "Unifier") != NULL)
+            continue;
+        if (strstr(line, "Row") != NULL) {
+            char *start = strchr(line, ':');
+            if (start) {
+                memmove(line, start + 2, strlen(start));
+            }
+        }
+        if (strstr(line, "M1 -->") != NULL || strstr(line, "M2 -->") != NULL) {
+            char *start = strstr(line, "\t(");
+            if (start) {
+                char *end = strchr(start, ')');
+                if (end) {
+                    memmove(start, end + 1, strlen(end));
+                }
+            }
+        }
+        // ---- MGU processing ends ----
 
+        (*matrix)[row * line_len] = m; // Number of elements in the line
+        // if (row==0) verbose=1; // Check
         col = 1; // Start indexing columns from 1
         char *tok = strtok(line, ",");
         while (tok) {
@@ -76,33 +110,37 @@ void read_matrix(FILE *stream, int **matrix, int n, int m) {
                     (*matrix)[index] = last_int;
                     install(tok, last_int);
                     last_int++;
-                    if (verbose) printf("CONSTANT read element %s first appearance, assigned integer %d\n", tok, last_int+1); // Check
+                    // if (verbose) printf("CONSTANT read element '%s' first appearance, assigned integer %d\n", tok, (*matrix)[index]); // Check
                 } else {
                     (*matrix)[index] = (lookup(tok)->defn);
-                    if (verbose) printf("CONSTANT read element %s NOT first appearance, assigned integer %d\n", tok, last_int+1); // Check
+                    // if (verbose) printf("CONSTANT read element '%s' NOT first appearance, assigned integer %d\n", tok, (*matrix)[index]); // Check
                 }
             } else { // It is a variable
-                if (lookup(tok) == NULL) {
+                snprintf(row_str, sizeof(row_str), "%d", read_mat_row);
+                char temp_tok[ROW_STR_SIZE + strlen(tok)];
+                snprintf(temp_tok, sizeof(temp_tok), "%s%s", tok, row_str);
+
+                if (lookup(temp_tok) == NULL) {
                     (*matrix)[index] = 0;
-                    snprintf(row_str, sizeof(row_str), "%d", row);
-                    char temp_tok[ROW_STR_SIZE + strlen(tok)];
-                    snprintf(temp_tok, sizeof(temp_tok), "%s%s", tok, row_str);
+                    
                     install(temp_tok, col);
-                    if (verbose) printf("VARIABLE read element %s first appearance, assigned column %d\n", tok, col); // Check
+                    // if (verbose) printf("VARIABLE read element '%s' first appearance, assigned column %d\n", tok, col); // Check
                 } else {
-                    (*matrix)[index] = -(lookup(tok)->defn);
-                    if (verbose) printf("VARIABLE read element %s NOT first appearance, assigned index %d\n", tok, (*matrix)[index]); // Check
+                    (*matrix)[index] = -(lookup(temp_tok)->defn);
+                    // if (verbose) printf("VARIABLE read element '%s' NOT first appearance, assigned index %d\n", tok, (*matrix)[index]); // Check
                 }
             }
             tok = strtok(NULL, ",\n");
             col++;
         }
         row++;
+        read_mat_row++;
+        // verbose=0; // Check
     }
     free(line);
 }
 
-void read_mat_file(char input_file[], int **mat1, int **mat2, int *n1, int *n2, int *m1, int *m2) {
+void read_mat_file(char input_file[], int **mat1, int **mat2, int **mat3, int *n1, int *n2, int *m1, int *m2, int *n3, int *m3) {
     FILE *stream = fopen(input_file, "r");
     if (!stream) {
         fprintf(stderr, "Error opening file %s, exiting\n", input_file);
@@ -116,6 +154,10 @@ void read_mat_file(char input_file[], int **mat1, int **mat2, int *n1, int *n2, 
     // Read second matrix
     read_matrix_dimensions(stream, n2, m2);
     read_matrix(stream, mat2, *n2, *m2);
+
+    // Read MGU matrix
+    read_matrix_dimensions(stream, n3, m3);
+    read_matrix(stream, mat3, *n3, *m3);
 
     fclose(stream);
 }
@@ -396,135 +438,7 @@ int unifier_matrices(int *mat0, int *mat1, int n0, int n1, int *unifiers){
     return last_unifier;
 }
 
-// // Applies unifier to BOTH rows (keep in mind)
-// // When a variable is substituted by a constant, only the first appearance of that variable is substituted
-// void apply_unifier_first(int *row_a, int *row_b, int *unifier){
-//     assert(row_a[0]==row_b[0]);
-//     int m = row_a[0];
-//     int n = unifier[0]*2;
-
-//     int i, j;
-//     int x, y, val_y; // To perform x <- y
-
-//     // Stuff needed if y is a variable
-//     int length = (int)log10(2*m) + 2;
-//     char *y_str = (char *)malloc(length * sizeof(char));
-//     clear(); // Clean dictionary
-//     // printf("m: %d, n: %d, length: %d\n",m,n,length); // Check
-
-//     for (i=1; i<=n; i+=2)
-//     {
-//         x = unifier[i];
-//         y = unifier[i+1];
-
-//         if (y <= m) val_y = row_a[y];
-//         else val_y = row_b[y-m];
-//         // printf("x: %d, y: %d, val_y: %d\n",x,y,val_y); // Check
-        
-//         if (val_y > 0) // y is a constant, substitute first x reference for that constant 
-//         {
-//             if (x <= m) row_a[x]   = val_y;
-//             else        row_b[x-m] = val_y;
-//         }
-//         else // y is variable, get's a little bit tricky
-//         {
-//             snprintf(y_str, length, "%d", y);
-//             struct nlist *entry = lookup(y_str);
-//             if (entry==NULL) // First appearance of y, do not substitute anything but add appearance of y linked with x
-//             {
-//                 install(y_str,x);
-//             }
-//             else // Not first appearance, need to change all x references to the first linked variable to y (z in this case)
-//             {
-//                 int z = entry->defn;
-//                 if (x<=m)
-//                 {
-//                     row_a[x] = -z;
-//                     for (j=1;j<=m;j++)
-//                         if (row_a[j]==(-x)) row_a[j] = -z;
-//                 }
-//                 else
-//                 {
-//                     row_b[x-m] = -z;
-//                     for (j=1;j<=m;j++)
-//                         if (row_b[j]==(-(x-m))) row_a[j] = -z;
-//                 }
-//             }
-//         }
-//     }
-//     clear();
-//     free(y_str);
-// }
-
-// // Applies unifier to BOTH rows (keep in mind)
-// // When a variable is substituted by a constant, all the first appearance(s) of that variable are substituted
-// void apply_unifier_all(int *row_a, int *row_b, int *unifier){
-//     assert(row_a[0]==row_b[0]);
-//     int m = row_a[0];
-//     int n = unifier[0]*2;
-
-//     int i, j;
-//     int x, y, val_y; // To perform x <- y
-
-//     // Stuff needed if y is a variable
-//     int length = (int)log10(2*m) + 2;
-//     char *y_str = (char *)malloc(length * sizeof(char));
-//     clear(); // Clean dictionary
-//     // printf("m: %d, n: %d, length: %d\n",m,n,length); // Check
-
-//     for (i=1; i<=n; i+=2)
-//     {
-//         x = unifier[i];
-//         y = unifier[i+1];
-
-//         if (y <= m) val_y = row_a[y];
-//         else val_y = row_b[y-m];
-//         // printf("x: %d, y: %d, val_y: %d\n",x,y,val_y); // Check
-        
-//         if (val_y > 0) // y is a constant, substitute first x reference for that constant 
-//         {
-//             if (x <= m) 
-//             {
-//                 for (j=1;j<=m;j++) if (row_a[j]==(-x)) row_a[j] = val_y;
-//                 row_a[x]   = val_y;                
-//             }
-//             else        
-//             {
-//                 for (j=1;j<=m;j++) if (row_b[j]==-(x-m)) row_b[j] = val_y;
-//                 row_b[x-m]   = val_y;
-//             }
-//         }
-//         else // y is variable, get's a little bit tricky
-//         {
-//             snprintf(y_str, length, "%d", y);
-//             struct nlist *entry = lookup(y_str);
-//             if (entry==NULL) // First appearance of y, do not substitute anything but add appearance of y linked with x
-//             {
-//                 install(y_str,x);
-//             }
-//             else // Not first appearance, need to change all x references to the first linked variable to y (z in this case)
-//             {
-//                 int z = entry->defn;
-//                 if (x<=m)
-//                 {
-//                     row_a[x] = -z;
-//                     for (j=1;j<=m;j++)
-//                         if (row_a[j]==(-x)) row_a[j] = -z;
-//                 }
-//                 else
-//                 {
-//                     row_b[x-m] = -z;
-//                     for (j=1;j<=m;j++)
-//                         if (row_b[j]==(-(x-m))) row_a[j] = -z;
-//                 }
-//             }
-//         }
-//     }
-//     clear();
-//     free(y_str);
-// }
-
-// Apply unifier to just row_a
+// Apply unifier to just row_a, change first occurrences of variable to constant
 void apply_unifier_first(int *row_a, int *row_b, int *unifier){
     assert(row_a[0]==row_b[0]);
     int m = row_a[0];
@@ -539,7 +453,7 @@ void apply_unifier_first(int *row_a, int *row_b, int *unifier){
     clear(); // Clean dictionary
     // printf("m: %d, n: %d, length: %d\n",m,n,length); // Check
     
-    for (i = 0; i < n; i+=2)
+    for (i = 1; i < n; i+=2)
     {
         x = unifier[i];
         y = unifier[i+1];
@@ -573,27 +487,99 @@ void apply_unifier_first(int *row_a, int *row_b, int *unifier){
     free(y_str);
 }
 
-// void apply_unifier_first(int* row_a, int* row_b, int* unifier){
+// Apply unifier to just row_a, change all occurrences of variable to constant
+void apply_unifier_all(int *row_a, int *row_b, int *unifier){
+    assert(row_a[0]==row_b[0]);
+    int m = row_a[0];
+    int n = unifier[0]*2;
+
+    int i, j;
+    int x, y, val_y; // To perform x <- y
+
+    // Stuff needed if y is a variable
+    int length = (int)log10(2*m) + 2;
+    char *y_str = (char *)malloc(length * sizeof(char));
+    clear(); // Clean dictionary
+    // printf("m: %d, n: %d, length: %d\n",m,n,length); // Check
     
-// }
+    for (i = 1; i < n; i+=2)
+    {
+        x = unifier[i];
+        y = unifier[i+1];
+        
+        if (x <= m)
+        {
+            if (y <= m) val_y = row_a[y];
+            else val_y = row_b[y-m];
+
+            if (val_y > 0) // y is a constant, substitute first x reference for the constant in y
+            {
+                row_a[x] = val_y;
+                for (j=1;j<=m;j++) if (row_a[j]==(-x)) row_a[j] = val_y;
+            }
+            else // y is a variable, so it can get tricky
+            {
+                snprintf(y_str, length, "%d", y);
+                struct nlist *entry = lookup(y_str);
+                if (entry==NULL) // First appearance of y, do not substitute anything, but add appearance of y linked with x
+                {
+                    install(y_str,x);
+                }
+                else // Not first appearance: need to point all x references to previous (x<-y) [effectively (x<-(-z))]
+                {
+                    int z = entry->defn;
+                    row_a[x] = -z;
+                    for (j=1;j<=m;j++) if (row_a[j]==(-x)) row_a[j] = -z;
+                }
+            }
+        }
+    }
+
+    clear();
+    free(y_str);
+}
+
+int compare_mgus(int *my_mgu, int *other_mgu, int n, int m){
+    int same = 1;
+    int n_elems = n*(1+m);
+    int i;
+
+    for (i = 0; i < n_elems; i++)
+    {
+        if (my_mgu[i] != other_mgu[i])
+        {
+            int row = i/(1+m);
+            int col = i%(1+m);
+            print_mat_line(&my_mgu[row*(1+m)]);
+            print_mat_line(&other_mgu[row*(1+m)]);
+            printf("Different elements at row %d col %d: %d != %d\n",row,col,my_mgu[i],other_mgu[i]);
+            return 0;
+        }
+    }
+    return same; 
+}
 
 int main(int argc, char *argv[]){
-    struct timespec start, end1, end2, end3, elapsed; 
-
-    
+    struct timespec start_total, start_reading, start_unifiers, start_unification;
+    struct timespec end_total, end_reading, end_unifiers, end_unification;     
+    struct timespec elapsed, elapsed2;     
     char *csv_file = "benchmark/Set1_changed/test01.csv";
 
     if (argc>1) csv_file = argv[1];
     if (argc>2) verbose = 1;
 
-    int *mat0=NULL, *mat1=NULL, n0,n1,m0,m1;
+    int *mat0=NULL, *mat1=NULL, *mat2=NULL, n0,n1,n2,m0,m1,m2;
 
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start_total);
 
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    // ----- read file start ----- //
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
     
-    read_mat_file(csv_file, &mat0, &mat1, &n0,&n1,&m0,&m1);
-	printf("read_mat_file completed :)\n");
+    read_mat_file(csv_file, &mat0,&mat1,&mat2,&n0,&n1,&m0,&m1,&n2,&m2);
     printf("Dimensions for M1 are (%d,%d) and for M2 are (%d,%d)\n",n0,m0,n1,m1);
+    printf("MGU Dimensions: (%d,%d)\n",n2,m2);
+    
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
 
     if (verbose)
     {
@@ -602,67 +588,72 @@ int main(int argc, char *argv[]){
 
         printf("\nValues and metadata for M2 from %s\n",csv_file);
         print_mat_values(mat1,n1,m1);
-    }
 
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end1);
-    
+        printf("\nValues and metadata for MGU from %s\n",csv_file);
+        print_mat_values(mat2,n2,m2);
+    }
+    // ----- read file end ----- //
+
     // ----- test all matrix start ----- //
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start_unifiers);
+    
 	int *unifiers = NULL, unifier_size = 1+(2*m0)+2;
     unifiers = (int*) malloc (n0*n1*unifier_size*sizeof(int));
     int unif_count = unifier_matrices(mat0, mat1, n0, n1, unifiers);
+
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end_unifiers);
+
     if (verbose) print_unifier_list(unifiers,unif_count,m0);
     else printf("Number of unifiers: %d\n",unif_count);
     // ----- test all matrix end ----- //
-
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end2);
-
-    // ----- test two rows start ----- //
-    // int *unifier, code;
-    // int row_size = 1+m0+1+(2*m0)+2, unifier_size = 1+(2*m0)+2;
-    // unifier = &mat0[row_size*15 + 1 + m0]; 
-    // memset(unifier,0,unifier_size*sizeof(int)); 
-    // code = unifier_rows(&mat0[row_size * 14], &mat1[row_size * 7], unifier);
-    // if (code != 0) printf("Not unifiable at STEP 1\n");
-    // code = correct_unifier(&mat0[row_size * 14], &mat1[row_size * 7], unifier);
-    // if (code != 0) printf("Not unifiable at STEP 2\n");
-    // unifier[1+(2*m0)]   = 14;
-    // unifier[1+(2*m0)+1] = 7;
-    // print_unifier(unifier,m0);
-    // ----- test two rows end ----- //
     
     // ----- test unification start ----- //
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start_unification);
     int line_len = 1+m0;
     int *line_A  = (int*) malloc (line_len*sizeof(int));
     int *line_B  = (int*) malloc (line_len*sizeof(int));
     int *unified = (int*) malloc (unif_count*line_len*sizeof(int));
 
     int i, ind_A, ind_B;
-    printf("Applying all unifiers . . .\n");
+    printf("Applying all unifiers . . . ");
     for (i=0; i<unif_count; i++)
     {
         ind_A = unifiers[i*unifier_size+unifier_size-2];
         ind_B = unifiers[i*unifier_size+unifier_size-1];
         memcpy(line_A,&mat0[ind_A*line_len],line_len*sizeof(int));
         memcpy(line_B,&mat1[ind_B*line_len],line_len*sizeof(int));
-        apply_unifier_first(line_A,line_B,&unifiers[i*unifier_size]);
+        apply_unifier_all(line_A,line_B,&unifiers[i*unifier_size]);
         memcpy(&unified[i*line_len],line_A,line_len*sizeof(int));
     }
-    printf("Applied all unifiers :)\n");
-    // if (verbose) print_mat_values(unified,unif_count,m0);
-    // ----- test unification end ----- //
-    
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end3);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);
 
-    timespec_subtract(&elapsed, &end1, &start);
+    printf("Applied all unifiers :)\n");
+    if (verbose) print_mat_values(unified,unif_count,m0);
+    // ----- test unification end ----- //
+
+    // ----- test unification correct start ---- //
+    printf("Comparing unification results. . . ");
+    int same = compare_mgus(unified,mat2,unif_count,m0);
+    if (same) printf("Unification is correct :)\n");
+    else printf("Unification is NOT correct :(\n");
+    // ----- test unification correct end   ---- //
+    
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end_total);
+
+    printf("-------- TIME MEASUREMENTS --------\n");
+    timespec_subtract(&elapsed, &end_reading, &start_reading);
     printf("Time for reading from file:    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
 
-    timespec_subtract(&elapsed, &end2, &end1);
+    timespec_subtract(&elapsed, &end_unifiers, &start_unifiers);
     printf("Time for calculating unifiers: %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
 
-    timespec_subtract(&elapsed, &end3, &end2);
-    printf("Time for applying unifiers:    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
+    timespec_subtract(&elapsed2, &end_unification, &start_unification);
+    printf("Time for applying unifiers:    %ld.%0*ld sec\n",elapsed2.tv_sec, 9, elapsed2.tv_nsec);
+    
+    timespec_add(&elapsed, &elapsed, &elapsed2);
+    printf("Time for unification total:    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
 
-    timespec_subtract(&elapsed, &end3, &start);
+    timespec_subtract(&elapsed, &end_total, &start_total);
     printf("Total time:                    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
 
     free(line_A);
