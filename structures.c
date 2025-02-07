@@ -89,10 +89,3 @@ int timespec_subtract (struct timespec *result, struct timespec *x, struct times
 
     return x->tv_sec < y->tv_sec;
 }
-
-// void print_elapsed (struct timespec elapsed)
-// {
-//     if (elapsed.tv_sec <= 0)
-//     printf("%ld ns\n",elapsed.tv_nsec);
-//     else
-// }
