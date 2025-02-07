@@ -23,6 +23,7 @@ int verbose = 0;
 int read_mat_row = 0; 
 int last_int = 1;
 
+// --------------------- UTILS START --------------------- //
 void timespec_add(struct timespec *result, const struct timespec *t1, const struct timespec *t2) {
     result->tv_sec = t1->tv_sec + t2->tv_sec;
     result->tv_nsec = t1->tv_nsec + t2->tv_nsec;
@@ -32,6 +33,77 @@ void timespec_add(struct timespec *result, const struct timespec *t1, const stru
     }
 }
 
+// Prints the matrix elements, not the metadata nor the unifiers
+void print_mat_values(int *mat, int n, int m){
+    int i, j;
+    int line_len = 1+m;
+    
+	for (i = 0; i < n; i++)
+	{
+		printf("[");
+		for (j = 0; j < m; j++)
+			printf("%d ", mat[i*line_len+1+j]);
+		printf("]\n");
+	}
+}
+
+// Prints the unifier
+void print_unifier(int *unifier, int m){
+    int i;
+    int n_elem = unifier[0]*2;
+    int rowA = unifier[1+2*m];
+    int rowB = unifier[1+2*m+1];
+    
+    printf("%d elements: [",n_elem);
+	for (i = 0; i < n_elem; i+=2)
+	{
+        printf("%d<-%d ", unifier[1+i],unifier[1+i+1]);
+	}
+    printf("],\t\t\trowA: %d, rowB: %d\n",rowA+1, rowB+1);
+}
+
+void print_unifier_list(int *unifiers, int unif_count, int m){
+
+    int i, unifier_size = 1+(2*m)+2;
+    for (i=0; i<unif_count; i++)
+    {
+        print_unifier(&unifiers[i*unifier_size],m);
+    }
+    printf("Number of unifiers: %d\n",unif_count);
+}
+
+void print_mat_line(int *row){
+    int j;
+    int m = row[0];
+    printf("[");
+    for (j = 1; j <= m; j++)
+        printf("%d ", row[j]);
+    printf("]\n");
+}
+
+int compare_mgus(int *my_mgu, int *other_mgu, int n, int m){
+    int same = 1;
+    int n_elems = n*(1+m);
+    int i;
+
+    for (i = 0; i < n_elems; i++)
+    {
+        if (my_mgu[i] != other_mgu[i])
+        {
+            int row = i/(1+m);
+            int col = i%(1+m);
+            print_mat_line(&my_mgu[row*(1+m)]);
+            print_mat_line(&other_mgu[row*(1+m)]);
+            printf("Different elements at row %d col %d: %d != %d\n",row,col,my_mgu[i],other_mgu[i]);
+            return 0;
+        }
+    }
+    return same; 
+}
+// ---------------------- UTILS END ---------------------- //
+
+
+// --------------------- READING FILE START --------------------- //
 void read_matrix_dimensions(FILE *stream, int *n, int *m) {
     char *line = NULL;
     size_t len = 0;
@@ -161,55 +233,9 @@ void read_mat_file(char input_file[], int **mat1, int **mat2, int **mat3, int *n
 
     fclose(stream);
 }
+// ---------------------- READING FILE END ---------------------- //
 
-// Prints the matrix elements, not the metadata nor the unifiers
-void print_mat_values(int *mat, int n, int m){
-    int i, j;
-    int line_len = 1+m;
-    
-	for (i = 0; i < n; i++)
-	{
-		printf("[");
-		for (j = 0; j < m; j++)
-			printf("%d ", mat[i*line_len+1+j]);
-		printf("]\n");
-	}
-}
-
-// Prints the unifier
-void print_unifier(int *unifier, int m){
-    int i;
-    int n_elem = unifier[0]*2;
-    int rowA = unifier[1+2*m];
-    int rowB = unifier[1+2*m+1];
-    
-    printf("%d elements: [",n_elem);
-	for (i = 0; i < n_elem; i+=2)
-	{
-        printf("%d<-%d ", unifier[1+i],unifier[1+i+1]);
-	}
-    printf("],\t\t\trowA: %d, rowB: %d\n",rowA+1, rowB+1);
-}
-
-void print_unifier_list(int *unifiers, int unif_count, int m){
-
-    int i, unifier_size = 1+(2*m)+2;
-    for (i=0; i<unif_count; i++)
-    {
-        print_unifier(&unifiers[i*unifier_size],m);
-    }
-    printf("Number of unifiers: %d\n",unif_count);
-}
-
-void print_mat_line(int *row){
-    int j;
-    int m = row[0];
-    printf("[");
-    for (j = 1; j <= m; j++)
-        printf("%d ", row[j]);
-    printf("]\n");
-}
-
+// --------------------- CORE START --------------------- //
 // Update the unifier of two elements from different rows, unifier pointer must be pointing to row_a's unifier (for now)
 int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, int indexUnifier){
 
@@ -538,26 +564,9 @@ void apply_unifier_all(int *row_a, int *row_b, int *unifier){
     clear();
     free(y_str);
 }
+// --------------------- CORE END --------------------- //
 
-int compare_mgus(int *my_mgu, int *other_mgu, int n, int m){
-    int same = 1;
-    int n_elems = n*(1+m);
-    int i;
 
-    for (i = 0; i < n_elems; i++)
-    {
-        if (my_mgu[i] != other_mgu[i])
-        {
-            int row = i/(1+m);
-            int col = i%(1+m);
-            print_mat_line(&my_mgu[row*(1+m)]);
-            print_mat_line(&other_mgu[row*(1+m)]);
-            printf("Different elements at row %d col %d: %d != %d\n",row,col,my_mgu[i],other_mgu[i]);
-            return 0;
-        }
-    }
-    return same; 
-}
 
 int main(int argc, char *argv[]){
     struct timespec start_total, start_reading, start_unifiers, start_unification;
