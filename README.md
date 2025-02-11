@@ -1,8 +1,8 @@
 # Deductor LoRea
-Este proyecto aspira a implementar un deductor de primer orden con contraints de igualdad en C, y después optimizarlo y acelerarlo en GPUs.  
+Este proyecto aspira a implementar un deductor lógico de primer orden con contraints de igualdad en C, y después optimizarlo y acelerarlo en GPUs.  
 Trabajo desarrollado en colaboración por:  
-- LoRea EHU  
-- ISG EHU  
+- [LoRea EHU](https://www.ehu.eus/es/web/lorea/web-gunea)  
+- [ISG EHU](http://www.sc.ehu.es/ccwbayes/)  
 
 Info entidades involucradas, personas, correos (?).  
 Info proyecto, etc.  
