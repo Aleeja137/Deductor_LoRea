@@ -34,23 +34,46 @@ void timespec_add(struct timespec *result, const struct timespec *t1, const stru
  }
 }
 
-// Prints the matrix elements, not the metadata nor the unifiers
-void print_mat_values(int *mat, int *LUT, int n, int m)
+// Prints just a single matrix line
+void print_mat_line(int *row, int m)
 {
- int i, j;
- int line_len = m;
+ int j;
+ printf("[");
+ for (j = 0; j < m; j++) printf("%d ", row[j]);
+ printf("]\n");
+}
+
+// Prints the matrix elements, not the metadata, nor exceptions nor the unifiers
+void print_matrix_clean(int *mat, int *LUT, int n, int m)
+{
+ int i;
  int line_index;
 
  for (i = 0; i < n; i++)
  {
-		line_index = LUT[i * 2];
-		printf("[");
-		for (j = 0; j < m; j++)
-			printf("%d ", mat[line_index * line_len + j]);
-		printf("]\n");
+	line_index = LUT[i * 2];
+	print_mat_line(&mat[line_index * m], m);
  }
 }
 
+void print_matrix_full(int *mat, int *LUT, int n, int m)
+{
+	int i,j;
+	int row_idx, n_exceptions;
+
+	for (i = 0; i < n; i++)
+	{
+		row_idx      = LUT[i*2];
+		n_exceptions = LUT[i*2+1];
+
+		print_mat_line(&mat[row_idx*m],m);
+		for (j = 0; j < n_exceptions; j++)
+		{
+			printf("\t");
+			print_mat_line(&mat[(row_idx+1+j)*m],m);
+		}
+	}
+}
 // Prints the unifier
 void print_unifier(int *unifier, int m)
 {
@@ -67,6 +90,7 @@ void print_unifier(int *unifier, int m)
  printf("],\t\t\trowA: %d, rowB: %d\n", rowA + 1, rowB + 1);
 }
 
+// Prints a list of unifiers
 void print_unifier_list(int *unifiers, int unif_count, int m)
 {
 
@@ -78,16 +102,9 @@ void print_unifier_list(int *unifiers, int unif_count, int m)
  printf("Number of unifiers: %d\n", unif_count);
 }
 
-void print_mat_line(int *row)
-{
- int j;
- int m = row[0];
- printf("[");
- for (j = 1; j <= m; j++)
-		printf("%d ", row[j]);
- printf("]\n");
-}
 
+
+// Prints the LUT content [starts_idx, n_exceptions]
 void print_LUT(int *LUT, int n)
 {
  int i;
@@ -95,6 +112,7 @@ void print_LUT(int *LUT, int n)
 		printf("\t[%d,%d]\n", LUT[i * 2], LUT[i * 2 + 1]);
 }
 
+// Compares if two MGU matrices are equal
 int compare_mgus(int *my_mgu, int *other_mgu, int n, int m)
 {
  int same = 1;
@@ -107,8 +125,8 @@ int compare_mgus(int *my_mgu, int *other_mgu, int n, int m)
 		{
 			int row = i / (1 + m);
 			int col = i % (1 + m);
-			print_mat_line(&my_mgu[row * (1 + m)]);
-			print_mat_line(&other_mgu[row * (1 + m)]);
+			print_mat_line(&my_mgu[row * (1 + m)],m);
+			print_mat_line(&other_mgu[row * (1 + m)],m);
 			printf("Different elements at row %d col %d: %d != %d\n", row, col, my_mgu[i], other_mgu[i]);
 			return 0;
 		}
@@ -744,17 +762,20 @@ int main(int argc, char *argv[])
  	printf(" --- LUT for M1 --- \n");
  	print_LUT(LUT1, n1);
  	printf("\nValues and metadata for M1 from %s\n", csv_file);
- 	print_mat_values(mat1, LUT1, n1, m1);
+ 	// print_matrix_clean(mat1, LUT1, n1, m1);
+	print_matrix_full(mat1,LUT1,n1,m1);
 
  	printf(" --- LUT for M2 --- \n");
  	print_LUT(LUT2, n2);
  	printf("\nValues and metadata for M2 from %s\n", csv_file);
- 	print_mat_values(mat2, LUT2, n2, m2);
+ 	// print_matrix_clean(mat2, LUT2, n2, m2);
+ 	print_matrix_full(mat2, LUT2, n2, m2);
 
  	printf(" --- LUT for MGU matrix\n");
  	print_LUT(LUT3, n3);
  	printf("\nValues and metadata for MGU from %s\n", csv_file);
- 	print_mat_values(mat3, LUT3, n3, m3);
+ 	// print_matrix_clean(mat3, LUT3, n3, m3);
+ 	print_matrix_full(mat3, LUT3, n3, m3);
  }
  // ----- read file end ----- //
 
@@ -815,12 +836,10 @@ int main(int argc, char *argv[])
  printf("Time for applying unifiers:    %ld.%0*ld sec\n", elapsed2.tv_sec, 9, elapsed2.tv_nsec);
 
  timespec_add(&elapsed, &elapsed, &elapsed2);
- if (isatty(fileno(stdout)))
-		printf("Time for unification total:    \033[1;33m%ld.%0*ld sec\033[0m\n", elapsed.tv_sec, 9, elapsed.tv_nsec);
-	else
-		printf("Time for unification total:    %ld.%0*ld sec\n", elapsed.tv_sec, 9, elapsed.tv_nsec);
+ if (isatty(fileno(stdout))) {printf("Time for unification total:    \033[1;33m%ld.%0*ld sec\033[0m\n", elapsed.tv_sec, 9, elapsed.tv_nsec);}
+	else	{printf("Time for unification total:    %ld.%0*ld sec\n", elapsed.tv_sec, 9, elapsed.tv_nsec);}
  
-		timespec_subtract(&elapsed, &end_total, &start_total);
+	timespec_subtract(&elapsed, &end_total, &start_total);
  printf("Total time:                    %ld.%0*ld sec\n", elapsed.tv_sec, 9, elapsed.tv_nsec);
 
  // free(line_A);
