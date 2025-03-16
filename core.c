@@ -421,7 +421,7 @@ int unifier_rows(int *row_a, int *row_b, int m, int *unifier)
 	return 0;
 }
 
-// Correct/reduce/verify the unifier, unifier pointer must be pointing to row_a's unifier (for now)
+// Correct/reduce/verify the unifier
 int correct_unifier(int *row_a, int *row_b, int m, int *unifier)
 {
 	int i, n_substitutions = 0;
@@ -732,253 +732,255 @@ void apply_unifier_all(int *row_a, int *row_b, int m, int *unifier)
 	free(y_str);
 }
 
-// Improv: could be using Trie or other structure to optimize this search, for now just doing it raw
-// Returns exceptions without duplicated lines; now exceptions is updated via pointer-to-pointer
-int delete_duplicates(int **exceptions, int n, int m)
+// Checks if row1 subsums row2 or if they are qual
+bool subsums_or_equal(int *row1, int *row2, int m)
 {
-	int i, j, k;
-	int *clean_exceptions = (int *)malloc(n * m * sizeof(int));
-	bool duplicated, equal;
-	int last_clean_line = 0;
+	// If row1 and row2 do not unify, return false
+	// If they unify, and row1 one variable is substituted by constant, return false
+	// If they unify, and row1 variables are substituted by some row2 variable more than once, return false
+	// If both rows are equal, return true
+	// Any other case, return false
 
-	for (i = 0; i < n; i++)
+	int i, code;
+	int unifier_size = 1+(2*m)+2;
+	int *unifier = (int*)malloc(unifier_size*sizeof(int));
+	if (!unifier)
+    {
+        fprintf(stderr, "Memory allocation failed in subsums_or_equal\n");
+        exit(EXIT_FAILURE);
+    }
+
+	// 1. Check if they unify
+	memset(unifier,0,unifier_size*sizeof(int));
+	code = unifier_rows(row1, row2, m, unifier);
+	if (code != 0) {free(unifier); return false;} // Rows cannot be unified
+
+	code = correct_unifier(row1, row2, m, unifier);
+	if (code != 0) {free(unifier); return false;} // Rows cannot be unified
+
+	// 2. Check the unifier
+	bool *used = (bool *)calloc(m, sizeof(bool));
+	if (!used)
+    {
+        fprintf(stderr, "Memory allocation failed for used array\n");
+        exit(EXIT_FAILURE);
+    }
+
+	bool equal = true;
+
+	int x, y;
+	__attribute_maybe_unused__ int val_x, val_y;
+	for (i=0; i<m; i++)
 	{
-		j = i + 1;
-		duplicated = false;
-		while (j < n && duplicated == false)
+		x = unifier[1 + (i*2)];
+		y = unifier[1 + (i*2)+1];
+
+		int val_x = (x < m) ? row1[x] : row2[x - m];
+        int val_y = (y < m) ? row1[y] : row2[y - m];
+
+		if (val_x != val_y) equal=false;
+
+		// If change done in row1
+		if (x<m)
 		{
-			k = 0;
-			equal = true;
-			while (k < m && equal == true)
+			// If substituted by constant, does not subsum
+			if (val_y > 0) {free(unifier); free(used); return false;}
+			else 
 			{
-				if ((*exceptions)[i * m + k] != (*exceptions)[j * m + k])
-					equal = false;
-				k++;
+				// If variable of row1 is substituted multiple times with variable from row2, does not subsum
+				if (used[y]) {free(unifier); free(used); return false;}
+				used[y] = true;
 			}
-			duplicated = equal;
-			j++;
-		}
-		if (!duplicated)
-		{
-			memcpy(&clean_exceptions[last_clean_line * m], &(*exceptions)[i * m], m * sizeof(int));
-			last_clean_line++;
 		}
 	}
-	*exceptions = realloc(*exceptions, last_clean_line * m * sizeof(int)); // Sizing down, so I skip the check to see if realloc did good (:$)
-	memcpy(*exceptions, clean_exceptions, last_clean_line * m * sizeof(int));
-	free(clean_exceptions);
-	return last_clean_line;
-}
 
-// Checks if any exception subsums any other exception or the new row, return 0 if no subsumes, 1 otherwise
-int subsums(int *exceptions, int n_exc, int *new_row, int m)
-{
-	int i, j, k;
-	int unif_size = (1 + 2 * m + 2) * sizeof(int);
-	int *unifier = (int *)malloc(unif_size);
-	int code;
-	bool delete, subsums, subsums_left, subsums_right;
+	free(unifier);
+	free(used);
+	return equal;
 
-	// For each exception row
-	i = 0;
-	delete = false;
-	while (i < n_exc && !delete)
-	{
-		// Check exception against new row
-		memset(unifier, 0, unif_size);
-		code = unifier_rows(&exceptions[i * m], new_row, m, unifier);
-		if (code != 0)
-		{
-			delete = true;
-			continue;
-		}
-
-		code = correct_unifier(&exceptions[i * m], new_row, m, unifier);
-		if (code != 0)
-		{
-			delete = true;
-			continue;
-		}
-
-		// Traverse unifier to see if exception subsums new unified row
-		k = 0;
-		subsums = true;
-		while (k < unifier[0] && subsums)
-		{
-			// If the unifier performs a change on exceptions[i], esceptions[i] does not subsum new_row
-			if (unifier[k * 2 + 1] < m)
-			{
-				subsums = false;
-				continue;
-			}
-
-			// It could be that all variables of exceptions[i] are substituted for distinct variables of new_row, in that case exc does not subsum new_row either
-			// TODO : Also check alternate case
-
-			k++;
-		}
-
-		delete = subsums;
-
-		// Check exception agains all other exceptions
-		j = i + 1;
-		while (j < n_exc && !delete)
-		{
-			code = unifier_rows(&exceptions[i * m], &exceptions[j * m], m, unifier);
-			if (code != 0)
-			{
-				delete = true;
-				continue;
-			}
-
-			code = correct_unifier(&exceptions[i * m], &exceptions[j * m], m, unifier);
-			if (code != 0)
-			{
-				delete = true;
-				continue;
-			}
-
-			// Traverse unifier to see which exception subsums which
-			k = 0;
-			subsums_left = subsums_right = true;
-			while (k < unifier[0] && (subsums_left || subsums_right))
-			{
-				// Check easy condition for subsumation
-				if (unifier[k * 2 + 1] < m)
-				{
-					subsums_left = false;
-					continue;
-				}
-				if (unifier[k * 2 + 1] >= m)
-				{
-					subsums_right = false;
-					continue;
-				}
-
-				// TODO : Also check alternate case where all variables on exc[i] are assigned distinct variables of exc[j]
-
-				k++;
-			}
-			if (subsums_left)
-				delete = true;
-			else if (subsums_right)
-			{
-				// TODO : Remove exception[i] from the list, continue
-			}
-
-			j++;
-		}
-		i++;
-	}
-
-	if (delete)
-		return 1;
-	else
-		return 0;
 }
 
 // Given the list of unifiers, this function will unify two matrices with exceptions
-int unify(int *mat1, int *mat2, int *LUT1, int *LUT2, int m, int *unifiers, int unif_count, int mode, int **result_LUT, int **result_mat)
+int matrix_intersection(int *mat1, int *mat2, int *LUT1, int *LUT2, int m, int *unifiers, int unif_count, int **result_LUT, int **result_mat)
 {
-	int i, idx_LUT_A, idx_LUT_B, idx_A, idx_B;
-	int n_exc_A, n_exc_B, n_exc;
-	int delete, num_saved, total_exceptions;
-	int unifier_size = 1 + (2 * m) + 2;
-	int total_lines = 0;
+	// For each pair of rows
+	// 1. T1 and T2 unify, apply unifier (depending on mode?) to any of them to get NT
+	// 2. For each exception E from LE1(T1) and LE2(T2), check if they unify with NT
+	// 3. If so, apply unifier (depending on mode?) to E that unify, generating NE1 and NE2, ignore the rest of E
+	// 4. If any NE subsumes NT, intersection for T1 and T2 is empty (possible exit)
+	// 5. Create NLE taking all NE that are not subsumed by any other NE (also avoid duplicates)
+	// 6. Create the NT-NLE matrix and LUT
 
-	bool *which_save = (bool *)malloc(unif_count * sizeof(bool));
+	
+	int i, j, k, code;
+	int unifier_size = 1+(2*m)+2;
+	int total_new_rows = 0;
+	int num_new_rows   = 0;
 
-	// Create 'empty' lines for unification operation
-	int *line_A = (int *)malloc(m * sizeof(int));
-	int *line_B = (int *)malloc(m * sizeof(int));
+	// Placeholders to perform unification operations
+	int *row1     = (int*)malloc(m*sizeof(int));
+	int *unifier  = (int*)malloc(unifier_size*sizeof(int));
 
-	// Create structures for the unified lines and a new exception matrix for each new unified line
-	int *unified = (int *)malloc(unif_count * m * sizeof(int));
-	int *exception_count = (int *)malloc(unif_count * sizeof(int));
-	int **exception_mats = (int **)malloc(unif_count * sizeof(int *));
+	// The matrix holding the new unified rows
+	int *new_rows = (int*)malloc(unif_count*m*sizeof(int));
 
-	for (i = 0; i < unif_count; i++)
+	// Array of matrices with new unified exceptions
+	int **new_exception_mats = (int**)malloc(unif_count*sizeof(int*));
+	int *num_exception_mats  = (int*) malloc(unif_count*sizeof(int));
+
+	if (!row1 || !unifier || !new_rows || !new_exception_mats || !num_exception_mats)
+    {
+        fprintf(stderr, "Initial memory allocation failed in matrix_intersection\n");
+        exit(EXIT_FAILURE);
+    }
+
+	// For each pair of rows
+	for (i=0; i<unif_count; i++)
 	{
-		// 1. Apply unifier (first or all, depending on 'mode')
-		idx_LUT_A = unifiers[i * unifier_size + unifier_size - 2];
-		idx_LUT_B = unifiers[i * unifier_size + unifier_size - 1];
+		// 1.1 Get the row index in the respective matrices
+		int row_index_in_LUT1 = unifiers[unifier_size*i + unifier_size-2];
+		int row_index_in_LUT2 = unifiers[unifier_size*i + unifier_size-1];
 
-		idx_A = LUT1[idx_LUT_A * 2];
-		idx_B = LUT2[idx_LUT_B * 2];
+		int row_index_in_mat1 = LUT1[row_index_in_LUT1*2];
+		int row_index_in_mat2 = LUT2[row_index_in_LUT2*2];
 
-		memcpy(line_A, &mat1[idx_A * m], m * sizeof(int));
-		memcpy(line_B, &mat2[idx_B * m], m * sizeof(int));
-		if (mode == 0)
-			apply_unifier_first(line_A, line_B, m, &unifiers[i * unifier_size]);
-		else
-			apply_unifier_all(line_A, line_B, m, &unifiers[i * unifier_size]);
-		memcpy(&unified[i * m], line_A, m * sizeof(int));
+		int number_exceptions_row1 = LUT1[row_index_in_LUT1*2+1];
+		int number_exceptions_row2 = LUT2[row_index_in_LUT2*2+1];
 
-		// 2. Append exceptions of both rows to the new unified row
-		n_exc_A = LUT1[idx_LUT_A * 2 + 1];
-		n_exc_B = LUT2[idx_LUT_B * 2 + 1];
-		n_exc = n_exc_A + n_exc_B;
+		// 1.2 Apply unifier to row1 to get NT
+		memcpy(row1, &mat1[row_index_in_mat1*m], m*sizeof(int));
+		apply_unifier_all(row1, &mat2[row_index_in_mat2*m], m, &unifiers[unifier_size*i]); // row1 will hold NT until we know it must be saved into new_rows[]
 
-		exception_mats[i] = (int *)malloc(n_exc * m * sizeof(int));
-		memcpy(exception_mats[i], &mat1[(idx_A + 1) * m], n_exc_A * m * sizeof(int));
-		memcpy(&exception_mats[i][n_exc_A * m], &mat2[(idx_B + 1) * m], n_exc_B * m * sizeof(int));
+		// 2.1 See which LE1 unify with NT
+		int *new_exception_mat = (int*)malloc((number_exceptions_row1+number_exceptions_row2)*m*sizeof(int));
+		if (!new_exception_mat)
+        {
+            fprintf(stderr, "Memory allocation failed for new_exception_mat\n");
+            exit(EXIT_FAILURE);
+        }
 
-		// 3. Delete duplicated lines
-		n_exc = delete_duplicates(&exception_mats[i], n_exc, m);
-
-		// 4. Check if any of the new exceptions subsums the unified row, or if they subsums between themselves
-		delete = subsums(exception_mats[i], n_exc, &unified[i * m], m);
-
-		// 5. If not, save results
-		if (!delete)
+		int last_inserted = 0;
+		for (j=row_index_in_mat1+1;j<row_index_in_mat1+1+number_exceptions_row1;j++)
 		{
-			which_save[i] = true;
-			exception_count[i] = n_exc;
-			num_saved++;
-			total_exceptions += n_exc;
+			memset(unifier,0,unifier_size*sizeof(int));
+			code = unifier_rows(&mat1[j * m], row1, m, unifier);
+			if (code != 0) continue; // NE not created, skip
+
+			code = correct_unifier(&mat1[j * m], row1, m, unifier);
+			if (code != 0) continue; // NE not created, skip
+
+			// 3.1 If so, apply unifier to get NE and save it
+			memcpy(&new_exception_mat[last_inserted*m],&mat1[j*m],m*sizeof(int));
+			apply_unifier_all(&new_exception_mat[last_inserted*m], row1, m, unifier);
+			last_inserted++;
 		}
-		else
+
+		// 2.2 See which LE2 unify with NT
+		for (j=row_index_in_mat2+1; j<row_index_in_mat2+1+number_exceptions_row2; j++)
 		{
-			which_save[i] = false;
-			free(exception_mats[i]);
+			memset(unifier,0,unifier_size*sizeof(int));
+			code = unifier_rows(&mat2[j * m], row1, m, unifier);
+			if (code != 0) continue; // NE not created, skip
+
+			code = correct_unifier(&mat2[j * m], row1, m, unifier);
+			if (code != 0) continue; // NE not created, skip
+
+			// 3.2 If so, apply unifier to get NE and save it
+			memcpy(&new_exception_mat[last_inserted*m], &mat2[j*m], m*sizeof(int));
+			apply_unifier_all(&new_exception_mat[last_inserted*m], row1, m, unifier);
+			last_inserted++;
+		}
+
+		// 4. Check if any NE subsumes NT
+		for (j=0; j<last_inserted;j++){
+			if (subsums_or_equal(&new_exception_mat[j*m],row1,m))
+			{
+				num_exception_mats[i] = 0;
+				break;
+			}
+		}
+
+		if (num_exception_mats[i]==0) {free(new_exception_mat); continue;}
+		
+		// 5.1 Check which NE are subsumed by other NE
+		bool *subsumed = (bool *)calloc(last_inserted, sizeof(bool));
+        if (!subsumed)
+        {
+            fprintf(stderr, "Memory allocation failed for subsumed array\n");
+            exit(EXIT_FAILURE);
+        }
+
+		int total_new_exceptions = last_inserted;
+		for (j=0; j<last_inserted; j++)
+		{
+			if (subsumed[j]) continue;
+			for (k=0; k<last_inserted; k++)
+			{
+				if (subsumed[k] || j==k) continue;
+				if (subsums_or_equal(&new_exception_mat[j*m],&new_exception_mat[k*m],m)) {subsumed[k] = true; total_new_exceptions--;}
+			}
+		}
+
+		// 5.2 Reduce NE matrix by removing those that are not subsumed by others nor duplicated
+		int *NE = (int*)malloc(total_new_exceptions*m*sizeof(int));
+		if (!NE)
+        {
+            fprintf(stderr, "Memory allocation failed for NE\n");
+            exit(EXIT_FAILURE);
+        }
+
+		total_new_exceptions = 0;
+		for (j=0; j<last_inserted; j++)
+		{
+			if (!subsumed[j]) 
+			{
+				memcpy(&NE[total_new_exceptions*m], &new_exception_mat[j*m], m*sizeof(int));
+				total_new_exceptions++;
+			}
+		}
+
+		free(new_exception_mat);
+		free(subsumed);
+
+		// 6.1 save data for later creating new matrix and LUT
+		num_exception_mats[i] = total_new_exceptions;
+		new_exception_mats[i] = NE;
+		total_new_rows += 1 + total_new_exceptions;
+		num_new_rows++;
+		memcpy(&new_rows[i*m],row1,m*sizeof(int));
+		free(NE);
+	}
+
+
+	// 6.2 Create new matrix and LUT
+	(*result_LUT) = (int*)malloc(num_new_rows*2*sizeof(int));
+	(*result_mat) = (int*)malloc(total_new_rows*m*sizeof(int));
+	if (!(*result_LUT) || !(*result_mat))
+    {
+        fprintf(stderr, "Memory allocation failed for result_LUT or result_mat\n");
+        exit(EXIT_FAILURE);
+    }
+	
+	int last_insert = 0;
+	for (i=0; i<unif_count; i++)
+	{
+		if (num_exception_mats[i]!=0)
+		{
+			memcpy(&(*result_mat)[last_insert*m],     &new_rows[i*m],         m*sizeof(int));
+			memcpy(&(*result_mat)[(last_insert+1)*m], &new_exception_mats[i], num_exception_mats[i]*m*sizeof(int));
+			(*result_LUT)[2*i]   = last_insert;
+			(*result_LUT)[2*i+1] = num_exception_mats[i];
+			last_insert += 1 + num_exception_mats[i];
+			free(new_exception_mats[i]);
 		}
 	}
 
-	// At the end, traverse which_save, unified and exception_mats to calculate MGU LUT and create the result matrix
-	(*result_mat) = (int *)malloc((total_exceptions + num_saved) * m * sizeof(int));
-	(*result_LUT) = (int *)malloc(num_saved * 2 * sizeof(int));
-	int last_row_index = 0;
-	int last_index = 0;
-	int n_exceptions;
-
-	for (i = 0; i < unif_count; i++)
-	{
-		if (which_save[i])
-		{
-			// Update MGU LUT
-			n_exceptions = exception_count[i];
-			(*result_LUT)[2 * last_index] = last_row_index;
-			(*result_LUT)[2 * last_index + 1] = n_exceptions;
-
-			// Update MGU matrix
-			memcpy(&(*result_mat)[last_row_index * m], &unified[i * m], m * sizeof(int));
-			memcpy(&(*result_mat)[(last_row_index + 1) * m], exception_mats[i], n_exceptions * m * sizeof(int));
-
-			free(exception_mats[i]);
-			last_row_index += 1 + n_exceptions;
-			last_index++;
-		}
-	}
-
-	free(line_A);
-	free(line_B);
-	free(unified);
-	free(exception_count);
-	free(exception_mats);
-	free(which_save);
-
-	// Return the new unif_count
-	return num_saved;
+	free(row1);
+	free(unifier);
+	free(new_rows);
+	free(new_exception_mats);
+	free(num_exception_mats);
+	return num_new_rows;
 }
 
 // --------------------- CORE END --------------------- //
@@ -1055,37 +1057,50 @@ int main(int argc, char *argv[])
 		printf("Number of unifiers: %d\n", unif_count);
 	// ----- test unifier creation all matrix end ----- //
 
-	// ----- test unification start ----- //
+	// // ----- test unification start OLD ----- //
+	// clock_gettime(CLOCK_MONOTONIC_RAW, &start_unification);
+	// int *line_A = (int *)malloc(m * sizeof(int));
+	// int *line_B = (int *)malloc(m * sizeof(int));
+	// int *unified = (int *)malloc(unif_count * m * sizeof(int));
+
+	// int i, idx_A, idx_B;
+	// printf("Applying all unifiers . . . ");
+	// for (i = 0; i < unif_count; i++)
+	// {
+	// 	idx_A = unifiers[i * unifier_size + unifier_size - 2];
+	// 	idx_B = unifiers[i * unifier_size + unifier_size - 1];
+	// 	memcpy(line_A, &mat1[idx_A * m], m * sizeof(int));
+	// 	memcpy(line_B, &mat2[idx_B * m], m * sizeof(int));
+	// 	apply_unifier_all(line_A, line_B, m, &unifiers[i * unifier_size]);
+	// 	memcpy(&unified[i * m], line_A, m * sizeof(int));
+	// }
+	// clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);
+
+	// printf("Applied all unifiers :)\n");
+	// if (verbose)
+	// 	print_matrix_clean_no_LUT(unified, unif_count, m);
+	// ----- test unification end OLD ----- //
+
+	// ----- test unification start NEW ----- //
+	int **result_LUT = NULL;
+	int **result_mat = NULL;
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start_unification);
-	int *line_A = (int *)malloc(m * sizeof(int));
-	int *line_B = (int *)malloc(m * sizeof(int));
-	int *unified = (int *)malloc(unif_count * m * sizeof(int));
 
-	int i, idx_A, idx_B;
-	printf("Applying all unifiers . . . ");
-	for (i = 0; i < unif_count; i++)
-	{
-		idx_A = unifiers[i * unifier_size + unifier_size - 2];
-		idx_B = unifiers[i * unifier_size + unifier_size - 1];
-		memcpy(line_A, &mat1[idx_A * m], m * sizeof(int));
-		memcpy(line_B, &mat2[idx_B * m], m * sizeof(int));
-		apply_unifier_all(line_A, line_B, m, &unifiers[i * unifier_size]);
-		memcpy(&unified[i * m], line_A, m * sizeof(int));
-	}
+	int tot_new = 0;
+	tot_new = matrix_intersection(mat1, mat2, LUT1, LUT2, m, unifiers, unif_count, result_LUT, result_mat);
+
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);
-
+	printf("tot new: %d\n",tot_new);
 	printf("Applied all unifiers :)\n");
-	if (verbose)
-		print_matrix_clean_no_LUT(unified, unif_count, m);
-	// ----- test unification end ----- //
+	// ----- test unification end NEW ----- //
 
 	// ----- test unification correct start ---- //
-	printf("Comparing unification results. . . ");
-	int same = compare_mgus(unified, mat2, unif_count, m);
-	if (same)
-		printf("Unification is correct :)\n");
-	else
-		printf("Unification is NOT correct :(\n");
+	// printf("Comparing unification results. . . ");
+	// int same = compare_mgus(unified, mat2, unif_count, m);
+	// if (same)
+	// 	printf("Unification is correct :)\n");
+	// else
+	// 	printf("Unification is NOT correct :(\n");
 	// ----- test unification correct end   ---- //
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end_total);
@@ -1113,9 +1128,9 @@ int main(int argc, char *argv[])
 	timespec_subtract(&elapsed, &end_total, &start_total);
 	printf("Total time:                    %ld.%0*ld sec\n", elapsed.tv_sec, 9, elapsed.tv_nsec);
 
-	free(line_A);
-	free(line_B);
-	free(unified);
+	// free(line_A);
+	// free(line_B);
+	// free(unified);
 	free(mat1);
 	free(mat2);
 	free(mat3);
