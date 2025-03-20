@@ -4,15 +4,137 @@
 
 #include "structures.h"
 
-typedef struct {
-    unsigned m;
-    unsigned *columns;
-    unsigned *mapping;
-} matrix_schema;
+
+mgu_schema* create_empty_mgu_schema(const unsigned m) {
+    mgu_schema *ms = malloc(sizeof(mgu_schema));
+    if (!ms) {fprintf(stderr, "Unable to allocate memory for mgu_schema\n"); exit(EXIT_FAILURE); }
+    ms->m = m;
+    ms->columns = (unsigned*)malloc(m * sizeof(unsigned));
+    ms->mapping_L = (unsigned*)malloc(m * sizeof(unsigned));
+    ms->mapping_R = (unsigned*)malloc(m * sizeof(unsigned));
+
+    if (!ms->columns || !ms->mapping_L || !ms->mapping_R) {
+        fprintf(stderr, "Unable to allocate memory inside mgu_schema\n"); 
+        free(ms->columns); free(ms->mapping_L); free(ms->mapping_R); free(ms);
+        exit(EXIT_FAILURE);
+    }
+
+    return ms;
+}
+
+// Assumes input arrays are not null and have appropriate size
+mgu_schema* create_mgu_schema(const unsigned m, unsigned* columns, unsigned* mappings_L, unsigned* mappings_R) {
+    mgu_schema *ms = malloc(sizeof(mgu_schema));
+    if (!ms) {fprintf(stderr, "Unable to allocate memory for mgu_schema\n"); exit(EXIT_FAILURE); }
+    ms->m = m;
+    ms->columns = (unsigned*)malloc(m * sizeof(unsigned));
+    ms->mapping_L = (unsigned*)malloc(m * sizeof(unsigned));
+    ms->mapping_R = (unsigned*)malloc(m * sizeof(unsigned));
+
+    if (!ms->columns || !ms->mapping_L || !ms->mapping_R) {
+        fprintf(stderr, "Unable to allocate memory inside mgu_schema\n"); 
+        free(ms->columns); free(ms->mapping_L); free(ms->mapping_R); free(ms);
+        exit(EXIT_FAILURE);
+    }
+
+    for (unsigned i = 0; i < m; i++) {
+        ms->columns[i] = columns[i]; 
+        ms->mapping_L[i] = mappings_L[i];
+        ms->mapping_R[i] = mappings_R[i];
+    }
+
+    return ms;
+}
+
+void free_mgu_schema(mgu_schema* ms) {
+    if (ms) {
+        free(ms->mapping_L);
+        free(ms->mapping_R);
+        free(ms->columns);
+        free(ms);
+    }
+}
+
+void print_mgu_schema(mgu_schema* ms) {
+    printf("columns: [");
+    for (unsigned i = 0; i < ms->m - 1; i++) {
+        printf("%d, ", ms->columns[i]);
+    }    
+    printf("%d]\n", ms->columns[ms->m - 1]);
+
+    printf("mapping_L: [");
+    for (unsigned i = 0; i < ms->m - 1; i++) {
+        printf("%d, ", ms->mapping_L[i]);
+    }    
+    printf("%d]\n", ms->mapping_L[ms->m - 1]);
+
+    printf("mapping_R: [");
+    for (unsigned i = 0; i < ms->m - 1; i++) {
+        printf("%d, ", ms->mapping_R[i]);
+    }    
+    printf("%d]\n", ms->mapping_R[ms->m - 1]);
+}
 
 
+matrix_schema* create_empty_matrix_schema(const unsigned m) {
+    matrix_schema *ms = malloc(sizeof(matrix_schema));
+    if (!ms) {fprintf(stderr, "Unable to allocate memory for matrix_schema\n"); exit(EXIT_FAILURE); }
+    ms->m = m;
+    ms->columns = (unsigned*)malloc(m*sizeof(unsigned));
+    ms->mapping = (unsigned*)malloc(m*sizeof(unsigned));
 
-struct mat_schema
+    if (!ms->columns || !ms->mapping) {
+        fprintf(stderr, "Unable to allocate memory inside matrix_schema\n"); 
+        free(ms->columns); free(ms->mapping); free(ms);
+        exit(EXIT_FAILURE);
+    }
+
+    return ms;
+}
+
+// Assumes input arrays are not null and have appropiate size
+matrix_schema* create_matrix_schema(const unsigned m, unsigned* columns, unsigned* mappings) {
+    matrix_schema *ms = malloc(sizeof(matrix_schema));
+    if (!ms) {fprintf(stderr, "Unable to allocate memory for matrix_schema\n"); exit(EXIT_FAILURE); }
+    ms->m = m;
+    ms->columns = (unsigned*)malloc(m*sizeof(unsigned));
+    ms->mapping = (unsigned*)malloc(m*sizeof(unsigned));
+
+    if (!ms->columns || !ms->mapping) {
+        fprintf(stderr, "Unable to allocate memory inside matrix_schema\n"); 
+        free(ms->columns); free(ms->mapping); free(ms);
+        exit(EXIT_FAILURE);
+    }
+
+    for (unsigned i = 0; i<m; i++){
+        ms->columns[i]=columns[i]; 
+        ms->mapping[i]=mappings[i];
+    }
+
+    return ms;
+}
+
+void free_matrix_schema(matrix_schema* ms) {
+    if (ms) {
+        free(ms->mapping);
+        free(ms->columns);
+        free(ms);
+    }
+}
+
+void print_matrix_schema(matrix_schema* ms){
+    printf("columns: [");
+    for (unsigned i = 0; i<ms->m-1; i++){
+        printf("%d, ",ms->columns[i]);
+    }    
+    printf("%d]\n",ms->columns[ms->m-1]);
+
+    printf("mapping: [");
+    for (unsigned i = 0; i<ms->m-1; i++){
+        printf("%d, ",ms->mapping[i]);
+    }    
+    printf("%d]\n",ms->mapping[ms->m-1]);
+}
 
 L2 create_L2_empty(){
     L2 node;

@@ -15,7 +15,30 @@ struct L3 {
     L3 *next;  
 };
 
+typedef struct {
+    unsigned m;
+    unsigned *columns;
+    unsigned *mapping;
+} matrix_schema;
+
+typedef struct {
+    unsigned m;
+    unsigned *columns;
+    unsigned *mapping_L;
+    unsigned *mapping_R;
+} mgu_schema;
+
+
 /* Functions */
+
+mgu_schema* create_empty_mgu_schema(const unsigned m);
+mgu_schema* create_mgu_schema(const unsigned m, unsigned* columns, unsigned* mappings_L, unsigned* mappings_R);
+void free_mgu_schema(mgu_schema* ms);
+void print_mgu_schema(mgu_schema* ms) ;
+matrix_schema* create_empty_matrix_schema(const unsigned m);
+matrix_schema* create_matrix_schema(const unsigned m, unsigned* columns, unsigned* mappings);
+void free_matrix_schema(matrix_schema* ms);
+void print_matrix_schema(matrix_schema* ms);
 L2 create_L2_empty();
 L2 create_L2(int ind_in, int count_in, int by_in, L3* head_in, L3* tail_in);
 L3* create_L3_empty();
