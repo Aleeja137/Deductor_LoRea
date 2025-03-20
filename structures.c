@@ -4,6 +4,16 @@
 
 #include "structures.h"
 
+typedef struct {
+    unsigned m;
+    unsigned *columns;
+    unsigned *mapping;
+} matrix_schema;
+
+
+
+struct mat_schema
+
 L2 create_L2_empty(){
     L2 node;
     node.ind   = -1;

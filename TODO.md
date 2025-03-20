@@ -13,3 +13,6 @@ V2 - Unifica con excepciones y nombres de columnas aplanados
 
 V3 - Lo mismo pero nombres de columnas sin aplanar y con los términos de aplanamiento en profundidad
     - 3:[1,2:[1:[1]],_]
+
+tests.v0 son simplemente unificación, sin esquema aplanado
+tests.v1 son con y sin excepciones, con esquema aplanado
