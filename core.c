@@ -138,13 +138,51 @@ void read_matrix_dimensions(FILE *stream, int *n, int *m) {
     free(line);
 }
 
-void read_matrix(FILE *stream, int **matrix, int n, int m) {
+matrix_schema* read_matrix_schema_from_csv(const char* line, int m) {
+
+    unsigned* columns = malloc(m * sizeof(unsigned));
+    unsigned* mapping = malloc(m * sizeof(unsigned));
+
+    // Parse the line
+    char* line_copy = strdup(line);
+    char* tok = strtok(line_copy, ",");
+    int i = 0;
+    while (tok && i < m) {
+        columns[i] = (unsigned)atoi(tok);
+        mapping[i] = (unsigned)i;
+        tok = strtok(NULL, ",");
+        i++;
+        // printf("tok: %s,",tok); // Check
+    }
+    free(line_copy);
+
+    if (i != m) {
+        fprintf(stderr, "Mismatch in number of parsed columns\n");
+        free(columns);
+        free(mapping);
+        exit(EXIT_FAILURE);
+    }
+
+    matrix_schema* ms = create_matrix_schema(m, columns, mapping);
+    free(columns);
+    free(mapping);
+    return ms;
+}
+
+matrix_schema* read_matrix(FILE *stream, int **matrix, int n, int m) {
     char *line = NULL;
     char row_str[ROW_STR_SIZE];
     size_t len = 0;
     ssize_t read;
     int row = 0, col, line_len = m;
     *matrix = (int *)malloc(n * line_len * sizeof(int));
+
+    // Skip unflatened schema
+    getline(&line, &len, stream);
+
+    // Get matrix_schema
+    getline(&line, &len, stream);
+    matrix_schema* ms = read_matrix_schema_from_csv(line, m);
 
     while ((read = getline(&line, &len, stream)) != -1 && row < n) {
         if (strstr(line, "END") != NULL)
@@ -209,9 +247,15 @@ void read_matrix(FILE *stream, int **matrix, int n, int m) {
         // verbose=0; // Check
     }
     free(line);
+    return ms;
 }
 
-void read_mat_file(char input_file[], int **mat1, int **mat2, int **mat3, int *n1, int *n2, int *m1, int *m2, int *n3, int *m3) {
+// void read_mat_file(char input_file[], int **mat1, int **mat2, int **mat3, int *n1, int *n2, int *m1, int *m2, int *n3, int *m3) {
+void read_mat_file(char input_file[],
+                   int **mat1, int **mat2, int **mat3,
+                   int *n1, int *n2, int *m1, int *m2, int *n3, int *m3,
+                   matrix_schema **ms1, matrix_schema **ms2) {
+
     FILE *stream = fopen(input_file, "r");
     if (!stream) {
         fprintf(stderr, "Error opening file %s, exiting\n", input_file);
@@ -220,11 +264,11 @@ void read_mat_file(char input_file[], int **mat1, int **mat2, int **mat3, int *n
 
     // Read first matrix
     read_matrix_dimensions(stream, n1, m1);
-    read_matrix(stream, mat1, *n1, *m1);
+    *ms1 = read_matrix(stream, mat1, *n1, *m1);
 
     // Read second matrix
     read_matrix_dimensions(stream, n2, m2);
-    read_matrix(stream, mat2, *n2, *m2);
+    *ms2 = read_matrix(stream, mat2, *n2, *m2);
 
     // Read MGU matrix
     read_matrix_dimensions(stream, n3, m3);
@@ -563,15 +607,18 @@ int main(int argc, char *argv[]){
     if (argc>2) verbose = 1;
 
     int *mat0=NULL, *mat1=NULL, *mat2=NULL, n0,n1,n2,m0,m1,m2, m;
+    matrix_schema *ms1, *ms2;
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_total);
 
     // ----- read file start ----- //
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
     
-    read_mat_file(csv_file, &mat0,&mat1,&mat2,&n0,&n1,&m0,&m1,&n2,&m2);
+    read_mat_file(csv_file, &mat0,&mat1,&mat2,&n0,&n1,&m0,&m1,&n2,&m2, &ms1, &ms2);
     // assert((m0==m1)==m2);
     m = m0;
+    print_matrix_schema(ms1);
+    print_matrix_schema(ms2);
 
     printf("Dimensions for M1 are (%d,%d) and for M2 are (%d,%d)\n",n0,m0,n1,m1);
     printf("MGU Dimensions: (%d,%d)\n",n2,m2);
