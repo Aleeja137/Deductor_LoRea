@@ -33,6 +33,7 @@ typedef struct {
 
 mgu_schema* create_empty_mgu_schema(const unsigned m);
 mgu_schema* create_mgu_schema(const unsigned m, unsigned* columns, unsigned* mappings_L, unsigned* mappings_R);
+mgu_schema* create_mgu_from_matrices(const matrix_schema* ms1, const matrix_schema* ms2);
 void free_mgu_schema(mgu_schema* ms);
 void print_mgu_schema(mgu_schema* ms) ;
 matrix_schema* create_empty_matrix_schema(const unsigned m);

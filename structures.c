@@ -46,6 +46,55 @@ mgu_schema* create_mgu_schema(const unsigned m, unsigned* columns, unsigned* map
     return ms;
 }
 
+mgu_schema* create_mgu_from_matrices(const matrix_schema* ms1, const matrix_schema* ms2) 
+{
+    unsigned n = 0;
+
+    // Find the number of common elements
+    for (unsigned i = 0; i < ms1->m; i++) {
+        for (unsigned j = 0; j < ms2->m; j++) {
+            if (ms1->columns[i] == ms2->columns[j]) {
+                n++;
+                break;
+            }
+        }
+    }
+    
+    // Create MGU schema
+    mgu_schema* mgu = malloc(sizeof(mgu_schema));
+    mgu->m = n;
+
+    if (n == 0) printf("No common elements found between matrix schemas\n");
+    else 
+    {
+        mgu->columns =   (unsigned*)malloc(n * sizeof(unsigned));
+        mgu->mapping_L = (unsigned*)malloc(n * sizeof(unsigned));
+        mgu->mapping_R = (unsigned*)malloc(n * sizeof(unsigned));
+
+        if (!mgu->columns || !mgu->mapping_L || !mgu->mapping_R) {
+            fprintf(stderr, "Unable to allocate memory inside mgu_schema\n");
+            free_mgu_schema(mgu);
+            exit(EXIT_FAILURE);
+        }
+
+        // Fill the mgu_schema
+        unsigned index = 0;
+        for (unsigned i = 0; i < ms1->m; i++) {
+            for (unsigned j = 0; j < ms2->m; j++) {
+                if (ms1->columns[i] == ms2->columns[j]) {
+                    mgu->columns[index] = ms1->columns[i];
+                    mgu->mapping_L[index] = ms1->mapping[i];
+                    mgu->mapping_R[index] = ms2->mapping[j];
+                    index++;
+                    break;
+                }
+            }
+        }
+    }
+
+    return mgu;
+}
+
 void free_mgu_schema(mgu_schema* ms) {
     if (ms) {
         free(ms->mapping_L);
@@ -56,7 +105,7 @@ void free_mgu_schema(mgu_schema* ms) {
 }
 
 void print_mgu_schema(mgu_schema* ms) {
-    printf("columns: [");
+    printf("columns:   [");
     for (unsigned i = 0; i < ms->m - 1; i++) {
         printf("%d, ", ms->columns[i]);
     }    

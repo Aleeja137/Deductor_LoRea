@@ -8,12 +8,13 @@
 #include <math.h>
 #include <time.h>
 #include <limits.h>
+#include <stdbool.h>
 
 #include "dictionary.h"
 #include "structures.h"
 
-
 #define ROW_STR_SIZE (snprintf(NULL, 0, "%d", INT_MAX) + 1)
+// bool chivato = false; // Check
 
 struct nlist *dict;
 int verbose = 0;
@@ -91,9 +92,9 @@ int compare_mgus(int *my_mgu, int *other_mgu, int n, int m){
         {
             int row = i/m;
             int col = i%m;
-            print_mat_line(&my_mgu[row*m],m);
-            print_mat_line(&other_mgu[row*m],m);
-            printf("Different elements at row %d col %d: %d != %d\n",row,col,my_mgu[i],other_mgu[i]);
+            printf("\t"); print_mat_line(&my_mgu[row*m],m);
+            printf("\t"); print_mat_line(&other_mgu[row*m],m);
+            printf("\tDifferent elements at row %d col %d: %d != %d\n",row,col,my_mgu[i],other_mgu[i]);
             return 0;
         }
     }
@@ -198,23 +199,16 @@ matrix_schema* read_matrix(FILE *stream, int **matrix, int n, int m) {
             }
         }
         if (strstr(line, "M1 -->") != NULL || strstr(line, "M2 -->") != NULL) {
-            char *start = strstr(line, "\t(");
-            if (start) {
-                char *end = strchr(start, ')');
-                if (end) {
-                    memmove(start, end + 1, strlen(end));
-                }
-            }
+            continue;
         }
         // ---- MGU processing ends ----
 
-        // (*matrix)[row * line_len] = m; // Number of elements in the line
         // if (row==0) verbose=1; // Check
         col = 1; // Start indexing columns from 1
         char *tok = strtok(line, ",");
         while (tok) {
             int index = (row * line_len) + col - 1;
-            if (strpbrk(tok, "ABCDEFGHIJKLMNOPQRSTUVWXYZ") == NULL) { // If no uppercase appears, it is a constant
+            if (!isupper(tok[0])) { // If no uppercase appears, it is a constant
                 if (lookup(tok) == NULL) {
                     (*matrix)[index] = last_int;
                     install(tok, last_int);
@@ -280,39 +274,37 @@ void read_mat_file(char input_file[],
 
 // --------------------- CORE START --------------------- //
 // Update the unifier of two elements from different rows, unifier pointer must be pointing to row_a's unifier (for now)
-int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, int indexUnifier, int m){
+int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, int indexUnifier, int m1){
 
-    // Get elements (+m is added to second row, might be reversed from recursive calls, so need to check)
-    int a, b, real_indexA = indexA, real_indexB = indexB;
-    if (indexA >= m) real_indexA = real_indexA-m; 
-    if (indexB >= m) real_indexB = real_indexB-m;
-    a = row_a[real_indexA];
-    b = row_b[real_indexB];
+    // Get elements
+    const int a = row_a[indexA];
+    const int b = row_b[indexB];
 
-    // A is constant (or variable initialized to constant)
-	if (a>0 && b > 0 && a!=b) // B is constant too
+    // A is constant
+	if (a>0 && b > 0 && a!=b) // B is constant too and they don't match
 		return -1;
-	else if (a>0 && b <= 0)        // B is variable
-		return unifier_a_b(row_b,indexB,row_a,indexA,unifier,indexUnifier,m);
-
-	// A is variable
-	if (a <= 0) // B is constant
+	else if (a>0 && b <= 0)   // B is variable, add to unifier (b<-a)
+    {
+        unifier[1+indexUnifier]   = indexB + m1;
+        unifier[1+indexUnifier+1] = indexA; 
+    }
+	else if (a <= 0) // A is variable and we don't care about B, add to unifier (a<-b)
 	{
-        // Update unifier (a<-b)
         unifier[1+indexUnifier]   = indexA;
-        unifier[1+indexUnifier+1] = indexB; 
+        unifier[1+indexUnifier+1] = indexB + m1; 
 	}
 
 	return 0;
 }
 
 // Return the unifier of two rows (naive) or -1 if not unificable
-int unifier_rows(int *row_a, int *row_b, int *unifier, int m){
-    int i, result;
-	for (i=0; i<m; i++)
+int unifier_rows(int *row_a, int *row_b, int *unifier, mgu_schema* ms3, int m1){
+    int result;
+    static unsigned m;
+    m = ms3->m;
+	for (unsigned i=0; i<m; i++)
 	{
-        unifier[0] = 0;
-		result = unifier_a_b(row_a, i, row_b, i+m, unifier, 2*i, m);
+		result = unifier_a_b(row_a, ms3->mapping_L[i], row_b, ms3->mapping_R[i], unifier, 2*i, m1);
 		if (result != 0) return result;
 	}
 
@@ -462,26 +454,28 @@ int correct_unifier(int *row_a, int *row_b, int *unifier, int m){
 }
 
 // Return the unifiers for two given matrices. Must have same width, and unifiers must be initialized to n0*n1 before calling function
-int unifier_matrices(int *mat0, int *mat1, int n0, int n1, int *unifiers, int m){
+int unifier_matrices(int *mat1, int *mat2, int n1, int n2, int *unifiers, matrix_schema* ms1, matrix_schema* ms2, mgu_schema* ms3){
 
-    int i, j, row_size, unifier_size, code, last_unifier;
+    int i, j, code;
     int *unifier;
 
-    last_unifier = 0;
-    row_size = m;
-    unifier_size = 1+(2*m)+2;
+    unsigned last_unifier = 0;
+    const unsigned m1 = ms1->m;
+    const unsigned m2 = ms2->m;
+    const unsigned m  = m1+m2-ms3->m;
+    const unsigned unifier_size = 1+(2*m)+2;
 
     unifier = (int*) malloc (unifier_size*sizeof(int));
 
-    for (i=0; i<n0; i++)
+    for (i=0; i<n1; i++)
     {
-        for (j=0; j<n1; j++)
+        for (j=0; j<n2; j++)
         {
             memset(unifier,0,unifier_size*sizeof(int));  
-            code = unifier_rows(&mat0[row_size * i], &mat1[row_size * j], unifier, m);
+            code = unifier_rows(&mat1[m1 * i], &mat2[m2 * j], unifier, ms3, m1);
             if (code != 0) continue; // Rows cannot be unified
 
-            code = correct_unifier(&mat0[row_size * i], &mat1[row_size * j], unifier, m);
+            code = correct_unifier(&mat1[m1 * i], &mat2[m2 * j], unifier, m);
             if (code != 0) continue; // Rows cannot be unified
             
             unifier[1+(2*m)]   = i;
@@ -497,80 +491,33 @@ int unifier_matrices(int *mat0, int *mat1, int n0, int n1, int *unifiers, int m)
     return last_unifier;
 }
 
-// Apply unifier to just row_a, change first occurrences of variable to constant
-void apply_unifier_first(int *row_a, int *row_b, int *unifier, int m){
-    int n = unifier[0]*2;
-
-    int i, j;
-    int x, y, val_y; // To perform x <- y
-
-    // Stuff needed if y is a variable
-    int length = (int)log10(2*m) + 2;
-    char *y_str = (char *)malloc(length * sizeof(char));
-    clear(); // Clean dictionary
-    // printf("m: %d, n: %d, length: %d\n",m,n,length); // Check
-    
-    for (i = 1; i < n; i+=2)
-    {
-        x = unifier[i];
-        y = unifier[i+1];
-
-        if (x < m)
-        {
-            if (y < m) val_y = row_a[y];
-            else val_y = row_b[y-m];
-
-            if (val_y > 0) // y is a constant, substitute first x reference for the constant in y
-                row_a[x] = val_y;
-            else // y is a variable, so it can get tricky
-            {
-                snprintf(y_str, length, "%d", y); // Improv: Since they are both ints, could use an int-int dictionary
-                struct nlist *entry = lookup(y_str);
-                if (entry==NULL) // First appearance of y, do not substitute anything, but add appearance of y linked with x
-                {
-                    install(y_str,x);
-                }
-                else // Not first appearance: need to point all x references to previous (x<-y) [effectively (x<-(-z))]
-                {
-                    int z = entry->defn;
-                    row_a[x] = -(z+1);
-                    for (j=0;j<m;j++) if (row_a[j]==(-(x+1))) row_a[j] = -(z+1);
-                }
-            }
-        }
-    }
-
-    clear();
-    free(y_str);
-}
-
 // Apply unifier to just row_a, change all occurrences of variable to constant
-void apply_unifier_all(int *row_a, int *row_b, int *unifier, int m){
+void apply_unifier_left(int *row_a, int *row_b, int *unifier, int m1){
     int n = unifier[0]*2;
 
     int i, j;
     int x, y, val_y; // To perform x <- y
 
     // Stuff needed if y is a variable
-    int length = (int)log10(2*m) + 2;
+    int length = (int)log10(2*m1) + 2;
     char *y_str = (char *)malloc(length * sizeof(char));
     clear(); // Clean dictionary
-    // printf("m: %d, n: %d, length: %d\n",m,n,length); // Check
+    // printf("m1: %d, n: %d, length: %d\n",m1,n,length); // Check
     
     for (i = 1; i < n; i+=2)
     {
         x = unifier[i];
         y = unifier[i+1];
         
-        if (x < m)
+        if (x < m1)
         {
-            if (y < m) val_y = row_a[y];
-            else val_y = row_b[y-m];
+            if (y < m1) val_y = row_a[y];
+            else val_y = row_b[y-m1];
 
             if (val_y > 0) // y is a constant, substitute first x reference for the constant in y
             {
                 row_a[x] = val_y;
-                for (j=0;j<m;j++) if (row_a[j]==(-(x+1))) row_a[j] = val_y;
+                for (j=0;j<m1;j++) if (row_a[j]==(-(x+1))) row_a[j] = val_y;
             }
             else // y is a variable, so it can get tricky
             {
@@ -584,7 +531,7 @@ void apply_unifier_all(int *row_a, int *row_b, int *unifier, int m){
                 {
                     int z = entry->defn;
                     row_a[x] = -(z+1);
-                    for (j=0;j<m;j++) if (row_a[j]==(-(x+1))) row_a[j] = -(z+1);
+                    for (j=0;j<m1;j++) if (row_a[j]==(-(x+1))) row_a[j] = -(z+1);
                 }
             }
         }
@@ -592,6 +539,45 @@ void apply_unifier_all(int *row_a, int *row_b, int *unifier, int m){
 
     clear();
     free(y_str);
+}
+
+void prepare_unified(int *row_a, int *row_b, int *unified, matrix_schema* ms1, matrix_schema* ms2, mgu_schema* ms3)
+{
+    // printf("\nrow_a: "); print_mat_line(row_a, ms1->m); // Check
+    //   printf("row_b: "); print_mat_line(row_b, ms2->m); // Check
+
+    // Copy 'unified' row_a to start of new row
+    memcpy(unified, row_a, ms1->m*sizeof(int));
+    unsigned last_appended = ms1->m;
+
+    // Append all elements not in common of row_b to new row
+    for (unsigned i = 0; i < ms2->m; i++)
+    {
+        // printf("Checking if column %d of row_b is in mgu\n", ms2->columns[i]); // Check
+        bool common = false;
+        for (unsigned j = 0; j < ms3->m; j++)
+        {
+            // printf("Checking against columns %d of mgu\n", ms3->columns[j]); // Check
+            if (ms2->columns[i]==ms3->columns[j])
+            {
+                // printf("    --->column %d of row_b found same with column %d of mgu !!\n", ms2->columns[i], ms3->columns[j]); // Check
+                common=true;
+                break;
+            }
+        }
+
+        if (!common)
+        {
+            printf("appending column %d with index %d with value %d to position %d in unified\n",ms2->columns[i], ms2->mapping[i], row_b[ms2->mapping[i]], last_appended); // Check
+            // printf("unified before: "); print_mat_line(unified, ms1->m+ms2->m-ms3->m); // Check
+            memcpy(&unified[last_appended],&row_b[ms2->mapping[i]],sizeof(int));
+            // printf("unified after:  "); print_mat_line(unified, ms1->m+ms2->m-ms3->m); // Check
+            last_appended++;
+        }   
+    }
+
+    // need an additional pass for reference-fixing
+
 }
 // --------------------- CORE END --------------------- //
 
@@ -606,19 +592,21 @@ int main(int argc, char *argv[]){
     if (argc>1) csv_file = argv[1];
     if (argc>2) verbose = 1;
 
-    int *mat0=NULL, *mat1=NULL, *mat2=NULL, n0,n1,n2,m0,m1,m2, m;
+    int *mat0=NULL, *mat1=NULL, *mat2=NULL, n0,n1,n2,m0,m1,m2;
     matrix_schema *ms1, *ms2;
-
+    mgu_schema *ms3;
+    
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_total);
 
     // ----- read file start ----- //
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
     
-    read_mat_file(csv_file, &mat0,&mat1,&mat2,&n0,&n1,&m0,&m1,&n2,&m2, &ms1, &ms2);
-    // assert((m0==m1)==m2);
-    m = m0;
+    read_mat_file(csv_file, &mat0,&mat1,&mat2,&n0,&n1,&m0,&m1,&n2,&m2,&ms1,&ms2);
+    ms3 = create_mgu_from_matrices(ms1, ms2); 
+    
     print_matrix_schema(ms1);
     print_matrix_schema(ms2);
+    print_mgu_schema(ms3);
 
     printf("Dimensions for M1 are (%d,%d) and for M2 are (%d,%d)\n",n0,m0,n1,m1);
     printf("MGU Dimensions: (%d,%d)\n",n2,m2);
@@ -641,9 +629,10 @@ int main(int argc, char *argv[]){
     // ----- test all matrix start ----- //
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_unifiers);
     
-	int *unifiers = NULL, unifier_size = 1+(2*m0)+2;
+    const unsigned m  = m0+m1-ms3->m;
+	int *unifiers = NULL, unifier_size = 1+(2*m)+2;
     unifiers = (int*) malloc (n0*n1*unifier_size*sizeof(int));
-    int unif_count = unifier_matrices(mat0, mat1, n0, n1, unifiers, m);
+    int unif_count = unifier_matrices(mat0, mat1, n0, n1, unifiers, ms1, ms2, ms3);
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_unifiers);
 
@@ -653,22 +642,40 @@ int main(int argc, char *argv[]){
     
     // ----- test unification start ----- //
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_unification);
-    int line_len = m;
-    int *line_A  = (int*) malloc (line_len*sizeof(int));
-    int *line_B  = (int*) malloc (line_len*sizeof(int));
-    int *unified = (int*) malloc (unif_count*line_len*sizeof(int));
+    int *line_A  = (int*) malloc (m0*sizeof(int));
+    int *line_B  = (int*) malloc (m1*sizeof(int));
+    int *unified = (int*) malloc (unif_count*m*sizeof(int));
 
     int i, ind_A, ind_B;
-    printf("Applying all unifiers . . . ");
+    printf("Applying all unifiers . . . \n");
     for (i=0; i<unif_count; i++)
     {
         ind_A = unifiers[i*unifier_size+unifier_size-2];
         ind_B = unifiers[i*unifier_size+unifier_size-1];
-        memcpy(line_A,&mat0[ind_A*line_len],line_len*sizeof(int));
-        memcpy(line_B,&mat1[ind_B*line_len],line_len*sizeof(int));
-        apply_unifier_all(line_A,line_B,&unifiers[i*unifier_size],m);
-        memcpy(&unified[i*line_len],line_A,line_len*sizeof(int));
+        memcpy(line_A,&mat0[ind_A*m0],m0*sizeof(int));
+        memcpy(line_B,&mat1[ind_B*m1],m1*sizeof(int));
+
+        if (i==766)
+        {
+            printf("(M1 --> %d, M2 --> %d)\n",ind_A+1,ind_B+1); // Check
+            printf("m0: %d, m1: %d\n",m0,m1);
+            printf("Unifier:\t");print_unifier(&unifiers[i*unifier_size],m);
+            printf("mat0_A:\t");print_mat_line(&mat0[ind_A*m0],m0);
+            printf("mat1_B:\t");print_mat_line(&mat1[ind_B*m1],m1);
+            printf("line_A:\t");print_mat_line(line_A,m0);
+            printf("line_B:\t");print_mat_line(line_B,m1);
+        }
+
+        apply_unifier_left(line_A,line_B,&unifiers[i*unifier_size],m0);
+        prepare_unified(line_A, line_B, &unified[i*m], ms1, ms2, ms3);
+
+        if (i==766)
+        {
+            printf("line_A after unification:\t");print_mat_line(line_A,m0);
+            printf("unified:\t");print_mat_line(&unified[i*m],m);
+        }
     }
+
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);
 
     printf("Applied all unifiers :)\n");
@@ -676,7 +683,7 @@ int main(int argc, char *argv[]){
     // ----- test unification end ----- //
 
     // ----- test unification correct start ---- //
-    printf("Comparing unification results. . . ");
+    printf("Comparing unification results. . . \n");
     int same = compare_mgus(unified,mat2,unif_count,m);
     if (same) printf("Unification is correct :)\n");
     else printf("Unification is NOT correct :(\n");

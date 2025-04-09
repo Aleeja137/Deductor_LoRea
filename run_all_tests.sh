@@ -17,7 +17,7 @@ else
 fi
 
 # Iterate over all matching CSV files in the given directory and its subdirectories
-find "$directory" -type f -name "$pattern" | while read -r file; do
+find "$directory" -type f -name "$pattern" | sort | while read -r file; do
     # Skip "no_exceptions" files if in WE mode
     if [ "$mode" != "NE" ] && [[ "$file" == *.no_exceptions.csv ]]; then
         continue

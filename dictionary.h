@@ -8,7 +8,7 @@ struct nlist { /* table entry: */
     int defn; /* replacement value */
 };
 
-#define HASHSIZE 101
+#define HASHSIZE 1001
 static struct nlist *hashtab[HASHSIZE]; /* pointer table */
 
 /* hash: form hash value for string s */
