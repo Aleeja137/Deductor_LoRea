@@ -8,56 +8,79 @@ struct nlist { /* table entry: */
     int defn; /* replacement value */
 };
 
-#define HASHSIZE 1001
-static struct nlist *hashtab[HASHSIZE]; /* pointer table */
+typedef struct {
+    struct nlist **hashtab; /* pointer table */
+    unsigned size;          /* size of the hash table */
+} Dictionary;
 
-/* hash: form hash value for string s */
-unsigned hash(char *s)
-{
-    unsigned hashval;
-    for (hashval = 0; *s != '\0'; s++)
-      hashval = *s + 31 * hashval;
-    return hashval % HASHSIZE;
+/* Create a new dictionary */
+Dictionary *create_dictionary(unsigned size) {
+    Dictionary *dict = malloc(sizeof(Dictionary));
+    dict->hashtab = calloc(size, sizeof(struct nlist *));
+    dict->size = size;
+    return dict;
 }
 
-/* lookup: look for s in hashtab */
-struct nlist *lookup(char *s)
-{
+/* Free the dictionary */
+void free_dictionary(Dictionary *dict) {
+    struct nlist *current, *temp;
+    for (unsigned i = 0; i < dict->size; i++) {
+        current = dict->hashtab[i];
+        while (current != NULL) {
+            temp = current->next;
+            free(current->name);
+            free(current);
+            current = temp;
+        }
+    }
+    free(dict->hashtab);
+    free(dict);
+}
+
+/* hash: form hash value for string s */
+unsigned hash(Dictionary *dict, char *s) {
+    unsigned hashval;
+    for (hashval = 0; *s != '\0'; s++)
+        hashval = *s + 31 * hashval;
+    return hashval % dict->size;
+}
+
+/* lookup: look for s in dictionary */
+struct nlist *lookup(Dictionary *dict, char *s) {
     struct nlist *np;
-    for (np = hashtab[hash(s)]; np != NULL; np = np->next)
+    for (np = dict->hashtab[hash(dict, s)]; np != NULL; np = np->next)
         if (strcmp(s, np->name) == 0)
-          return np; /* found */
+            return np; /* found */
     return NULL; /* not found */
 }
 
-/* install: put (name, defn) in hashtab */
-struct nlist *install(char *name, int defn)
-{
+/* install: put (name, defn) in dictionary */
+struct nlist *install(Dictionary *dict, char *name, int defn) {
     struct nlist *np;
     unsigned hashval;
-    if ((np = lookup(name)) == NULL) { 
-        np = (struct nlist *) malloc(sizeof(*np));
+    if ((np = lookup(dict, name)) == NULL) {
+        np = (struct nlist *)malloc(sizeof(*np));
         if (np == NULL || (np->name = strdup(name)) == NULL)
-          return NULL;
-        hashval = hash(name);
-        np->next = hashtab[hashval];
-        hashtab[hashval] = np;
+            return NULL;
+        hashval = hash(dict, name);
+        np->next = dict->hashtab[hashval];
+        dict->hashtab[hashval] = np;
     }
-    np->defn = defn; 
+    np->defn = defn;
     return np;
 }
 
-/* clear: free dictionary */
-void clear() {
+/* clear: clear all entries in the dictionary */
+void clear(Dictionary *dict) {
     struct nlist *current, *temp;
-    for (int i = 0; i < HASHSIZE; i++) {
-        current = hashtab[i];
+    for (unsigned i = 0; i < dict->size; i++) {
+        current = dict->hashtab[i];
         while (current != NULL) {
             temp = current->next;
-            free(current->name);  
-            free(current);        
+            free(current->name);
+            free(current);
             current = temp;
         }
-        hashtab[i] = NULL; 
+        dict->hashtab[i] = NULL;
     }
 }

@@ -6,8 +6,8 @@ Trabajo desarrollado en colaboración por:
 
 ## Branch info  
 Functionalites:  
-    -   
-    -       
+    - Unification withou exceptions  
+    - Added basic column matching, M1 and M2 can have different flatenned schemas
   
   
 ## Compilación  

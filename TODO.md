@@ -22,8 +22,11 @@ A mejorar:
     - Añadir un valor en mgu schema que me diga si la intersección de los esquemas (n) es 0, para hacer la operación bastante más rápido (copia-pega)  
     - Añadir vector de booleanos para (mapping_L y) mapping_R en mgu_schema para saber qué columnas no están en común y hay que hacer append (en prepare_united)  
     - Añadir un array de offsets de los valores que no están en común entre mgu y M2, así en lugar de ir haciendo append 1 a 1 puedo hacer append de varios (en prepare_united)  
+    - Poner un diccionario dedicado a variables y otro a constantes, el de variables se puede limpiar línea a línea para que la búsqueda sea más corta, y el de constantes será más corto también imagino
 
 
 Siguientes pasos:  
     - Leer nuevo formato con excepcioness  
     - Aplicar la lógica de unificación con excepciones  
+    - La comparación para ver si es correcto o no podría ser únicamente el número de filas nuevas (ya que es muy muy sensible y puede ser sufi), ya que con dos variables X e Y, que no toman valor y se repiten, las dos opciones (x<-y / y<-x) son equivalentes pero las detecta como mal.
+        - Hay otro caso donde la unificación está 'bien' y detecta mal, que es cuando hacemos append de las clumnas en r_B que no son en común al final, y prolog suele hacer el append en 'orden'; aunque esto se podría arreglar con un 'orden' a la hora de comparar

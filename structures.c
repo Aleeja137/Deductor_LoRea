@@ -61,7 +61,7 @@ mgu_schema* create_mgu_from_matrices(const matrix_schema* ms1, const matrix_sche
     }
     
     // Create MGU schema
-    mgu_schema* mgu = malloc(sizeof(mgu_schema));
+    mgu_schema* mgu = (mgu_schema*)malloc(sizeof(mgu_schema));
     mgu->m = n;
 
     if (n == 0) printf("No common elements found between matrix schemas\n");

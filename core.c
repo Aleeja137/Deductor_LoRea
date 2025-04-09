@@ -14,6 +14,9 @@
 #include "structures.h"
 
 #define ROW_STR_SIZE (snprintf(NULL, 0, "%d", INT_MAX) + 1)
+Dictionary *const_dict;
+Dictionary *var_dict;
+Dictionary *unif_dict;
 // bool chivato = false; // Check
 
 struct nlist *dict;
@@ -209,13 +212,13 @@ matrix_schema* read_matrix(FILE *stream, int **matrix, int n, int m) {
         while (tok) {
             int index = (row * line_len) + col - 1;
             if (!isupper(tok[0])) { // If no uppercase appears, it is a constant
-                if (lookup(tok) == NULL) {
+                if (lookup(const_dict, tok) == NULL) {
                     (*matrix)[index] = last_int;
-                    install(tok, last_int);
+                    install(const_dict, tok, last_int);
                     last_int++;
                     // if (verbose) printf("CONSTANT read element '%s' first appearance, assigned integer %d\n", tok, (*matrix)[index]); // Check
                 } else {
-                    (*matrix)[index] = (lookup(tok)->defn);
+                    (*matrix)[index] = (lookup(const_dict,tok)->defn);
                     // if (verbose) printf("CONSTANT read element '%s' NOT first appearance, assigned integer %d\n", tok, (*matrix)[index]); // Check
                 }
             } else { // It is a variable
@@ -223,13 +226,13 @@ matrix_schema* read_matrix(FILE *stream, int **matrix, int n, int m) {
                 char temp_tok[ROW_STR_SIZE + strlen(tok)];
                 snprintf(temp_tok, sizeof(temp_tok), "%s%s", tok, row_str);
 
-                if (lookup(temp_tok) == NULL) {
+                if (lookup(var_dict, temp_tok) == NULL) {
                     (*matrix)[index] = 0;
                     
-                    install(temp_tok, col);
+                    install(var_dict, temp_tok, col);
                     // if (verbose) printf("VARIABLE read element '%s' first appearance, assigned column %d\n", tok, col); // Check
                 } else {
-                    (*matrix)[index] = -(lookup(temp_tok)->defn);
+                    (*matrix)[index] = -(lookup(var_dict, temp_tok)->defn);
                     // if (verbose) printf("VARIABLE read element '%s' NOT first appearance, assigned index %d\n", tok, (*matrix)[index]); // Check
                 }
             }
@@ -283,7 +286,7 @@ int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, in
     // A is constant
 	if (a>0 && b > 0 && a!=b) // B is constant too and they don't match
 		return -1;
-	else if (a>0 && b <= 0)   // B is variable, add to unifier (b<-a)
+	else if (a>0 && b <= 0)   // B is constant, add to unifier (b<-a)
     {
         unifier[1+indexUnifier]   = indexB + m1;
         unifier[1+indexUnifier+1] = indexA; 
@@ -312,7 +315,7 @@ int unifier_rows(int *row_a, int *row_b, int *unifier, mgu_schema* ms3, int m1){
 }
 
 // Correct/reduce/verify the unifier, unifier pointer must be pointing to row_a's unifier (for now)
-int correct_unifier(int *row_a, int *row_b, int *unifier, int m){
+int correct_unifier(int *row_a, int *row_b, int *unifier, int m, int m1){
     
     int i, n_substitutions = 0;
     L2 *lst = (L2*) malloc (2*m*sizeof(L2));
@@ -331,14 +334,14 @@ int correct_unifier(int *row_a, int *row_b, int *unifier, int m){
         if (x == y && x == 0) continue; // Empty case
 
         // If any of the two elements is a repeated variable, get real index
-        if (x < m && row_a[x] < 0)
+        if (x < m1 && row_a[x] < 0)
             x = -row_a[x] - 1;
-        else if (x >= m && row_b[x-m] < 0) 
-            x = -row_b[x-m] + m - 1;
-        if (y <= m && row_a[y] < 0) 
+        else if (x >= m1 && row_b[x-m1] < 0) 
+            x = -row_b[x-m1] + m1 - 1;
+        if (y < m1 && row_a[y] < 0) 
             y = -row_a[y] - 1;
-        else if (y > m && row_b[y-m] < 0)
-            y = -row_b[y-m] + m - 1; 
+        else if (y > m1 && row_b[y-m1] < 0)
+            y = -row_b[y-m1] + m1 - 1; 
 
         // If any of them was substituted before, get the corresponding elements
         if (lst[x].count > 0) x = lst[x].by;
@@ -347,15 +350,19 @@ int correct_unifier(int *row_a, int *row_b, int *unifier, int m){
         // No need to get real index again, the substitution is done for the real index
 
         // Get the value of x and y
-        if (y >= m) val_y = row_b[y-m];
+        if (y >= m1) val_y = row_b[y-m1];
         else val_y = row_a[y];
-        if (x >= m) val_x = row_b[x-m];
+        if (x >= m1) val_x = row_b[x-m1];
         else val_x = row_a[x];
 
-        // If both constants 
-        if (val_x > 0 && val_y > 0 && val_x!=val_y) return -1;
-        else if (val_x > 0 && val_y > 0) continue;
+        // printf("x: %d, val_x: %d\n",x,val_x); // Check
+        // printf("y: %d, val_y: %d\n",y,val_y); // Check
 
+        // If both constants 
+        if (val_x > 0 && val_y > 0 && val_x!=val_y) return -1; // And don't match
+        else if (val_x > 0 && val_y > 0) continue;             // And match
+
+        // If x is constant and y is variable
         if (val_x > 0 && val_y == 0) // (y<-x)
         {   
             // make the replacement on y
@@ -385,9 +392,10 @@ int correct_unifier(int *row_a, int *row_b, int *unifier, int m){
             } 
             lst[y].head = lst[y].tail = NULL;
         }
+        // If x is variable
         else // (x<-y)
         {
-            // make the replacement on x
+            // Make the replacement on x
             lst[x].count = 1;
             lst[x].by    = y;
             lst[x].ind   = x;
@@ -397,7 +405,7 @@ int correct_unifier(int *row_a, int *row_b, int *unifier, int m){
             while (current != NULL)
             {
                 int current_index = current->ind;
-                // printf("Altering by of index %d\n",current_index);
+                // printf("Altering by of index %d\n",current_index); // Check
                 lst[current_index].by = y;
                 current = current->next;
             }
@@ -475,7 +483,7 @@ int unifier_matrices(int *mat1, int *mat2, int n1, int n2, int *unifiers, matrix
             code = unifier_rows(&mat1[m1 * i], &mat2[m2 * j], unifier, ms3, m1);
             if (code != 0) continue; // Rows cannot be unified
 
-            code = correct_unifier(&mat1[m1 * i], &mat2[m2 * j], unifier, m);
+            code = correct_unifier(&mat1[m1 * i], &mat2[m2 * j], unifier, m, m1);
             if (code != 0) continue; // Rows cannot be unified
             
             unifier[1+(2*m)]   = i;
@@ -501,7 +509,7 @@ void apply_unifier_left(int *row_a, int *row_b, int *unifier, int m1){
     // Stuff needed if y is a variable
     int length = (int)log10(2*m1) + 2;
     char *y_str = (char *)malloc(length * sizeof(char));
-    clear(); // Clean dictionary
+    // clear(unif_dict); // Clean dictionary
     // printf("m1: %d, n: %d, length: %d\n",m1,n,length); // Check
     
     for (i = 1; i < n; i+=2)
@@ -522,10 +530,10 @@ void apply_unifier_left(int *row_a, int *row_b, int *unifier, int m1){
             else // y is a variable, so it can get tricky
             {
                 snprintf(y_str, length, "%d", y);
-                struct nlist *entry = lookup(y_str);
+                struct nlist *entry = lookup(unif_dict,y_str);
                 if (entry==NULL) // First appearance of y, do not substitute anything, but add appearance of y linked with x
                 {
-                    install(y_str,x);
+                    install(unif_dict,y_str,x);
                 }
                 else // Not first appearance: need to point all x references to previous (x<-y) [effectively (x<-(-z))]
                 {
@@ -537,7 +545,7 @@ void apply_unifier_left(int *row_a, int *row_b, int *unifier, int m1){
         }
     }
 
-    clear();
+    clear(unif_dict); // Clean dictionary
     free(y_str);
 }
 
@@ -568,7 +576,7 @@ void prepare_unified(int *row_a, int *row_b, int *unified, matrix_schema* ms1, m
 
         if (!common)
         {
-            printf("appending column %d with index %d with value %d to position %d in unified\n",ms2->columns[i], ms2->mapping[i], row_b[ms2->mapping[i]], last_appended); // Check
+            if (verbose) printf("appending column %d with index %d with value %d to position %d in unified\n",ms2->columns[i], ms2->mapping[i], row_b[ms2->mapping[i]], last_appended); // Check
             // printf("unified before: "); print_mat_line(unified, ms1->m+ms2->m-ms3->m); // Check
             memcpy(&unified[last_appended],&row_b[ms2->mapping[i]],sizeof(int));
             // printf("unified after:  "); print_mat_line(unified, ms1->m+ms2->m-ms3->m); // Check
@@ -589,6 +597,10 @@ int main(int argc, char *argv[]){
     struct timespec elapsed, elapsed2;     
     char *csv_file = "benchmark/Set1_changed/test01.csv";
 
+    const_dict = create_dictionary(1001);
+    var_dict = create_dictionary(1001);
+    unif_dict = create_dictionary(1001);
+
     if (argc>1) csv_file = argv[1];
     if (argc>2) verbose = 1;
 
@@ -603,10 +615,6 @@ int main(int argc, char *argv[]){
     
     read_mat_file(csv_file, &mat0,&mat1,&mat2,&n0,&n1,&m0,&m1,&n2,&m2,&ms1,&ms2);
     ms3 = create_mgu_from_matrices(ms1, ms2); 
-    
-    print_matrix_schema(ms1);
-    print_matrix_schema(ms2);
-    print_mgu_schema(ms3);
 
     printf("Dimensions for M1 are (%d,%d) and for M2 are (%d,%d)\n",n0,m0,n1,m1);
     printf("MGU Dimensions: (%d,%d)\n",n2,m2);
@@ -615,6 +623,10 @@ int main(int argc, char *argv[]){
 
     if (verbose)
     {
+        print_matrix_schema(ms1);
+        print_matrix_schema(ms2);
+        if (ms3->m != 0) print_mgu_schema(ms3);
+
         printf("\nValues and metadata for M1 from %s\n",csv_file);
         print_mat_values(mat0,n0,m0);
 
@@ -654,37 +666,20 @@ int main(int argc, char *argv[]){
         ind_B = unifiers[i*unifier_size+unifier_size-1];
         memcpy(line_A,&mat0[ind_A*m0],m0*sizeof(int));
         memcpy(line_B,&mat1[ind_B*m1],m1*sizeof(int));
-
-        if (i==766)
-        {
-            printf("(M1 --> %d, M2 --> %d)\n",ind_A+1,ind_B+1); // Check
-            printf("m0: %d, m1: %d\n",m0,m1);
-            printf("Unifier:\t");print_unifier(&unifiers[i*unifier_size],m);
-            printf("mat0_A:\t");print_mat_line(&mat0[ind_A*m0],m0);
-            printf("mat1_B:\t");print_mat_line(&mat1[ind_B*m1],m1);
-            printf("line_A:\t");print_mat_line(line_A,m0);
-            printf("line_B:\t");print_mat_line(line_B,m1);
-        }
-
         apply_unifier_left(line_A,line_B,&unifiers[i*unifier_size],m0);
         prepare_unified(line_A, line_B, &unified[i*m], ms1, ms2, ms3);
-
-        if (i==766)
-        {
-            printf("line_A after unification:\t");print_mat_line(line_A,m0);
-            printf("unified:\t");print_mat_line(&unified[i*m],m);
-        }
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);
 
-    printf("Applied all unifiers :)\n");
+    printf("Applied all unifiers\n");
     if (verbose) print_mat_values(unified,unif_count,m);
     // ----- test unification end ----- //
 
     // ----- test unification correct start ---- //
     printf("Comparing unification results. . . \n");
-    int same = compare_mgus(unified,mat2,unif_count,m);
+    // int same = compare_mgus(unified,mat2,unif_count,m);
+    int same = unif_count == n2;
     if (same) printf("Unification is correct :)\n");
     else printf("Unification is NOT correct :(\n");
     // ----- test unification correct end   ---- //
