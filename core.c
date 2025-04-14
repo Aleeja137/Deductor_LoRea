@@ -156,7 +156,7 @@ matrix_schema* read_matrix_schema_from_csv(const char* line, int m) {
     return ms;
 }
 
-void read_operand_block_dimensions(FILE *stream, int *n, int *m) {
+void read_dimensions(FILE *stream, int *n, int *m) {
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
@@ -191,7 +191,108 @@ void read_operand_block_dimensions(FILE *stream, int *n, int *m) {
     free(line);
 }
 
-matrix_schema* read_matrix(FILE *stream, operand_block *ob) {
+void read_line(char *line, int *row, bool skip_first) {
+    tok = strtok(line, ",\n");
+    if (skip_first) tok = strtok(NULL, ",\n");
+
+    col = 1;
+    clear(var_dict);
+    while (tok) {
+        if (!isupper(tok[0])) { // If no uppercase appears, it is a constant
+            const struct Symbol* s = get_value(token, strlen(token));
+            row[col-1] = s->value;
+        } else { // It is a variable
+            if (lookup(var_dict, tok) == NULL) {
+                row[col-1] = 0;
+                install(var_dict, tok, col);
+                // if (verbose) printf("VARIABLE read element '%s' first appearance, assigned column %d\n", tok, col); // Check
+            } else {
+                row[col-1] = -(lookup(var_dict, tok)->defn);
+                // if (verbose) printf("VARIABLE read element '%s' NOT first appearance, assigned index %d\n", tok, (*matrix)[index]); // Check
+            }
+        }
+        tok = strtok(NULL, ",\n");
+        col++;
+    }
+}
+
+void read_exception_blocks(FILE *stream, main_term *mt) {
+    int n, m;
+    int e = mt->e;
+    exception_block *eb;
+    
+    for (size_t i = 0; i < e; i++)
+    {
+        // Read dimensions of exception block (subset)
+        read_dimensions(stream,&n,&m);
+
+        // Create empty exception block to be populated later
+        eb = mt->exceptions[i];
+        eb = create_empty_exception_block(n,m);
+
+        // Skip unflatened schema
+        getline(&line, &len, stream);
+
+        // Read mapping
+        read_mapping(stream, eb->mapping, m);
+
+        // Skip flatened schema
+        getline(&line, &len, stream);
+
+        for (size_t j = 0; j < n; j++)
+        {
+            read_line()
+        }
+        
+        
+    }
+    
+}
+
+void read_operand_matrix(FILE *stream, operand_block *ob) {
+    char *line = NULL;
+    char row_str[ROW_STR_SIZE]; // Might be removed I think
+    size_t len = 0;
+    ssize_t read;
+    int row = 0, col
+
+    // Skip unflatened schema
+    getline(&line, &len, stream);
+
+    // Skip flatened schema
+    getline(&line, &len, stream);
+
+    // Iterate the main term rows
+    while ((read = getline(&line, &len, stream)) != -1 && row < n) {
+        // Get a pointer to the main term for easier working
+        main_term *mt = ob->terms[row];
+
+        // If end of matrix reached, exit
+        if (strstr(line, "END") != NULL || strstr(line, "End") != NULL)
+            break;
+
+        // Get first token, which tells the number of exception blocks
+        char *tok = strtok(line, ",");
+        unsigned e = (unsigned)strtoul(tok, NULL, 10);
+        printf("The main term %u has %u exception blocks\n",row,e); // Check
+        
+        // Initialize the exception blocks
+        mt = create_empty_main_term(ob->c,e);
+
+        // Read the rest of the line
+        read_line(line, mt->row, true);
+
+        // Read one by one the exception blocks
+        read_exception_blocks();
+
+        // Increment the row by 1
+        row++;
+    }
+
+    free(line);
+}
+
+matrix_schema* read_result_matrix(FILE *stream, operand_block *ob) {
     char *line = NULL;
     char row_str[ROW_STR_SIZE];
     size_t len = 0;
@@ -202,12 +303,13 @@ matrix_schema* read_matrix(FILE *stream, operand_block *ob) {
     // Skip unflatened schema
     getline(&line, &len, stream);
 
-    // Get matrix_schema
+    // Get matrix_schema // Skip matrix schema too
     getline(&line, &len, stream);
     matrix_schema* ms = read_matrix_schema_from_csv(line, m);
 
+    // Iterate the main term rows
     while ((read = getline(&line, &len, stream)) != -1 && row < n) {
-        if (strstr(line, "END") != NULL)
+        if (strstr(line, "END") != NULL || strstr(line, "End") != NULL  )
             break;
 
         // ---- MGU processing starts ----
@@ -275,7 +377,7 @@ matrix_schema* read_matrix(FILE *stream, operand_block *ob) {
 
     // Read operand block dimensions
     int r, c;
-    read_operand_block_dimensions(stream, &r, &c);
+    read_dimensions(stream, &r, &c);
     printf("Operand block dimensions: %u rows, %u columns\n",r,c); // Check
 
     // Create the operand_block structure for later populating it
