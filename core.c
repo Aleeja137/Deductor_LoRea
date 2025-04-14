@@ -107,7 +107,56 @@ int compare_mgus(int *my_mgu, int *other_mgu, int n, int m){
 
 
 // --------------------- READING FILE START --------------------- //
-void read_matrix_dimensions(FILE *stream, int *n, int *m) {
+int read_num_blocks(FILE *stream, unsigned *s) {
+    char *line = NULL;
+    size_t len = 0;
+
+    if (getline(&line, &len, stream) == -1) return 0; // Failed to read the line
+    if (strstr(line, "BEGIN") == NULL) {free(line); return 0;} // Not the correct line
+
+    char *endptr;
+    char *e = strchr(line, '(');
+    if (!e) {free(line); return 0;} // Not the correct line
+    int num = strtol(e + 1, &endptr, 10);
+    if (endptr == e + 1) {free(line); return 0;}
+
+    *s = (unsigned)num;
+    free(line);
+    return 1;
+}
+
+matrix_schema* read_matrix_schema_from_csv(const char* line, int m) {
+
+    unsigned* columns = malloc(m * sizeof(unsigned));
+    unsigned* mapping = malloc(m * sizeof(unsigned));
+
+    // Parse the line
+    char* line_copy = strdup(line);
+    char* tok = strtok(line_copy, ",");
+    int i = 0;
+    while (tok && i < m) {
+        columns[i] = (unsigned)atoi(tok);
+        mapping[i] = (unsigned)i;
+        tok = strtok(NULL, ",");
+        i++;
+        // printf("tok: %s,",tok); // Check
+    }
+    free(line_copy);
+
+    if (i != m) {
+        fprintf(stderr, "Mismatch in number of parsed columns\n");
+        free(columns);
+        free(mapping);
+        exit(EXIT_FAILURE);
+    }
+
+    matrix_schema* ms = create_matrix_schema(m, columns, mapping);
+    free(columns);
+    free(mapping);
+    return ms;
+}
+
+void read_operand_block_dimensions(FILE *stream, int *n, int *m) {
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
@@ -142,38 +191,7 @@ void read_matrix_dimensions(FILE *stream, int *n, int *m) {
     free(line);
 }
 
-matrix_schema* read_matrix_schema_from_csv(const char* line, int m) {
-
-    unsigned* columns = malloc(m * sizeof(unsigned));
-    unsigned* mapping = malloc(m * sizeof(unsigned));
-
-    // Parse the line
-    char* line_copy = strdup(line);
-    char* tok = strtok(line_copy, ",");
-    int i = 0;
-    while (tok && i < m) {
-        columns[i] = (unsigned)atoi(tok);
-        mapping[i] = (unsigned)i;
-        tok = strtok(NULL, ",");
-        i++;
-        // printf("tok: %s,",tok); // Check
-    }
-    free(line_copy);
-
-    if (i != m) {
-        fprintf(stderr, "Mismatch in number of parsed columns\n");
-        free(columns);
-        free(mapping);
-        exit(EXIT_FAILURE);
-    }
-
-    matrix_schema* ms = create_matrix_schema(m, columns, mapping);
-    free(columns);
-    free(mapping);
-    return ms;
-}
-
-matrix_schema* read_matrix(FILE *stream, int **matrix, int n, int m) {
+matrix_schema* read_matrix(FILE *stream, operand_block *ob) {
     char *line = NULL;
     char row_str[ROW_STR_SIZE];
     size_t len = 0;
@@ -247,31 +265,26 @@ matrix_schema* read_matrix(FILE *stream, int **matrix, int n, int m) {
     return ms;
 }
 
-// void read_mat_file(char input_file[], int **mat1, int **mat2, int **mat3, int *n1, int *n2, int *m1, int *m2, int *n3, int *m3) {
-void read_mat_file(char input_file[],
-                   int **mat1, int **mat2, int **mat3,
-                   int *n1, int *n2, int *m1, int *m2, int *n3, int *m3,
-                   matrix_schema **ms1, matrix_schema **ms2) {
+/**
+ * Reads an operand block from a csv containing
+ *
+ * @param stream   Input file stream to operand block from, must point to the first line of the block, of form '% BEGIN: Matrix subsetX.Y (n,m)'
+ * @return         Operand block that contains all main terms, their number of exception blocks and all the exceptions
+ */
+ operand_block read_operand_block(FILE *stream) {
 
-    FILE *stream = fopen(input_file, "r");
-    if (!stream) {
-        fprintf(stderr, "Error opening file %s, exiting\n", input_file);
-        exit(EXIT_FAILURE);
-    }
+    // Read operand block dimensions
+    int r, c;
+    read_operand_block_dimensions(stream, &r, &c);
+    printf("Operand block dimensions: %u rows, %u columns\n",r,c); // Check
 
-    // Read first matrix
-    read_matrix_dimensions(stream, n1, m1);
-    *ms1 = read_matrix(stream, mat1, *n1, *m1);
+    // Create the operand_block structure for later populating it
+    operand_block ob = create_empty_operand_block(r, c);
 
-    // Read second matrix
-    read_matrix_dimensions(stream, n2, m2);
-    *ms2 = read_matrix(stream, mat2, *n2, *m2);
+    // Read the operand block and fill the struct
+    read_matrix(stream, &ob);
 
-    // Read MGU matrix
-    read_matrix_dimensions(stream, n3, m3);
-    read_matrix(stream, mat3, *n3, *m3);
-
-    fclose(stream);
+    return ob;
 }
 // ---------------------- READING FILE END ---------------------- //
 
@@ -594,15 +607,54 @@ void prepare_unified(int *row_a, int *row_b, int *unified, matrix_schema* ms1, m
 int main(int argc, char *argv[]){
     struct timespec start_total, start_reading, start_unifiers, start_unification;
     struct timespec end_total, end_reading, end_unifiers, end_unification;     
-    struct timespec elapsed, elapsed2;     
-    char *csv_file = "benchmark/Set1_changed/test01.csv";
+    struct timespec elapsed, elapsed2;         
 
     const_dict = create_dictionary(1001);
     var_dict = create_dictionary(1001);
     unif_dict = create_dictionary(1001);
 
-    if (argc>1) csv_file = argv[1];
-    if (argc>2) verbose = 1;
+    char *M1_file = argv[1];
+    char *M2_file = argv[2];
+    char *M3_file = argv[3];
+    if (argc>4) verbose = 1;
+
+    // Open the files and check so
+    FILE *stream_M1 = fopen(M1_file, "r");
+    FILE *stream_M2 = fopen(M2_file, "r");
+    FILE *stream_M3 = fopen(M3_file, "r");
+
+    if (!stream_M1 || !stream_M2 || !stream_M3) {
+        fprintf(stderr, "Error opening files %s, %s and %s; exiting\n", M1_file, M2_file, M3_file);
+    
+        if (stream_M1) fclose(stream_M1);
+        if (stream_M2) fclose(stream_M2);
+        if (stream_M3) fclose(stream_M3);
+    
+        exit(EXIT_FAILURE);
+    }
+
+    // Read number of blocks in M1 and M2
+    unsigned s1, s2;
+    if (read_num_blocks(stream_M1,&s1)) fprintf(stderr, "Could not read number of blocks in %s\n",M1_file);
+    if (read_num_blocks(stream_M2,&s2)) fprintf(stderr, "Could not read number of blocks in %s\n",M2_file);
+
+    printf("M1 blocks %u, M2 blocks %u\n",s1,s2); // Check
+
+    // Read one block from M1 and one block from M2
+    read_operand_block(stream_M1);
+    
+
+
+    // Read the corresponding pair of blocks from M3
+
+    exit(EXIT_SUCCESS);
+    // NEW: Read one by one blocks from M1 and M2
+        // For each pair of blocks, read:
+            // Their schemas
+            // The number of exception blocks
+            // The exceptions blocks
+                // Their schemas and their schemas mappings
+
 
     int *mat0=NULL, *mat1=NULL, *mat2=NULL, n0,n1,n2,m0,m1,m2;
     matrix_schema *ms1, *ms2;
@@ -613,7 +665,7 @@ int main(int argc, char *argv[]){
     // ----- read file start ----- //
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
     
-    read_mat_file(csv_file, &mat0,&mat1,&mat2,&n0,&n1,&m0,&m1,&n2,&m2,&ms1,&ms2);
+    // read_mat_file(M1_file, &mat0,&mat1,&mat2,&n0,&n1,&m0,&m1,&n2,&m2,&ms1,&ms2);
     ms3 = create_mgu_from_matrices(ms1, ms2); 
 
     printf("Dimensions for M1 are (%d,%d) and for M2 are (%d,%d)\n",n0,m0,n1,m1);
@@ -627,13 +679,13 @@ int main(int argc, char *argv[]){
         print_matrix_schema(ms2);
         if (ms3->m != 0) print_mgu_schema(ms3);
 
-        printf("\nValues and metadata for M1 from %s\n",csv_file);
+        printf("\nValues and metadata for M1 from %s\n",M1_file);
         print_mat_values(mat0,n0,m0);
 
-        printf("\nValues and metadata for M2 from %s\n",csv_file);
+        printf("\nValues and metadata for M2 from %s\n",M1_file);
         print_mat_values(mat1,n1,m1);
 
-        printf("\nValues and metadata for MGU from %s\n",csv_file);
+        printf("\nValues and metadata for MGU from %s\n",M1_file);
         print_mat_values(mat2,n2,m2);
     }
     // ----- read file end ----- //

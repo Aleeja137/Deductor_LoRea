@@ -23,6 +23,7 @@ A mejorar:
     - Añadir vector de booleanos para (mapping_L y) mapping_R en mgu_schema para saber qué columnas no están en común y hay que hacer append (en prepare_united)  
     - Añadir un array de offsets de los valores que no están en común entre mgu y M2, así en lugar de ir haciendo append 1 a 1 puedo hacer append de varios (en prepare_united)  
     - Poner un diccionario dedicado a variables y otro a constantes, el de variables se puede limpiar línea a línea para que la búsqueda sea más corta, y el de constantes será más corto también imagino
+    - Mirar si es subconjunto, easier copy
 
 
 Siguientes pasos:  

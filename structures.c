@@ -4,7 +4,178 @@
 
 #include "structures.h"
 
+// ===<<< BEGIN EXCEPTION BLOCK >>>=== //
+exception_block create_null_exception_block() {
+    exception_block eb;
+    eb.n = 0;
+    eb.m = 0;
+    eb.mapping = NULL;
+    eb.mat = NULL;
+    return eb;
+}
 
+exception_block create_empty_exception_block(unsigned n, unsigned m) {
+    exception_block eb;
+    eb.n = n;
+    eb.m = m;
+    eb.mapping = (int*)malloc(2 * m * sizeof(int));
+    eb.mat = (int*)malloc(n * m * sizeof(int));
+
+    if (!eb.mapping || !eb.mat) {
+        fprintf(stderr, "Failed to allocate exception_block\n");
+        free(eb.mapping);
+        free(eb.mat);
+        exit(EXIT_FAILURE);
+    }
+    return eb;
+}
+
+exception_block create_exception_block(unsigned n, unsigned m, int* mapping, int* mat) {
+    exception_block eb = create_empty_exception_block(n,m);
+    memcpy(eb.mapping, mapping, 2 * m * sizeof(int));
+    memcpy(eb.mat, mat, n * m * sizeof(int));
+    return eb;
+}
+
+void free_exception_block(exception_block* eb) {
+    if (eb) {
+        free(eb->mapping);
+        free(eb->mat);
+    }
+}
+
+void print_exception_block(exception_block* eb) {
+    printf("Exception Block:\n");
+    printf("mapping: [");
+    for (unsigned i = 0; i < 2 * eb->m - 1; i++)
+        printf("%d, ", eb->mapping[i]);
+    printf("%d]\n", eb->mapping[2 * eb->m - 1]);
+
+    printf("mat:\n");
+    for (unsigned i = 0; i < eb->n; i++) {
+        printf("[");
+        for (unsigned j = 0; j < eb->m - 1; j++)
+            printf("%d, ", eb->mat[i * eb->m + j]);
+        printf("%d]\n", eb->mat[i * eb->m + eb->m - 1]);
+    }
+}
+// ===<<< END EXCEPTION BLOCK >>>=== //
+
+// ===<<< BEGIN MAIN TERM >>>=== //
+main_term create_null_main_term() {
+    main_term mt;
+    mt.c = 0;
+    mt.e = 0;
+    mt.row = NULL;
+    mt.exceptions = NULL;
+    return mt;
+}
+
+main_term create_empty_main_term(unsigned c, unsigned e) {
+    main_term mt;
+    mt.c = c;
+    mt.e = e;
+    mt.row = (int*)malloc(c * sizeof(int));
+    mt.exceptions = (exception_block*)malloc(e * sizeof(exception_block));
+
+    if (!mt.row || !mt.exceptions) {
+        fprintf(stderr, "Failed to allocate main_term\n");
+        free(mt.row);
+        free(mt.exceptions);
+        exit(EXIT_FAILURE);
+    }
+
+    return mt;
+}
+
+main_term create_main_term(unsigned c, unsigned* row, unsigned e, exception_block* exceptions) {
+    main_term mt = create_empty_main_term(c,e);
+
+    memcpy(mt.row, row, c * sizeof(int));
+    for (unsigned i = 0; i < e; i++) {
+        mt.exceptions[i] = exceptions[i];
+    }
+    return mt;
+}
+
+void free_main_term(main_term* mt) {
+    if (mt) {
+        for (unsigned i = 0; i < mt->e; i++)
+            free_exception_block(&mt->exceptions[i]);
+        free(mt->exceptions);
+        free(mt->row);
+    }
+}
+
+void print_main_term(main_term* mt, int verbosity) {
+    printf("Main Term:\n");
+    printf("row: [");
+    for (unsigned i = 0; i < mt->c - 1; i++)
+        printf("%d, ", mt->row[i]);
+    printf("%d]\n", mt->row[mt->c - 1]);
+
+    printf("Exceptions: %u\n", mt->e);
+    if (verbosity)
+    {
+        for (unsigned i = 0; i < mt->e; i++) {
+            printf("\tException Block %u:\n", i);
+            print_exception_block(&mt->exceptions[i]);
+        }
+    }
+}
+// ===<<< END MAIN TERM >>>=== //
+
+// ===<<< BEGIN OPERAND BLOCK >>>=== //
+operand_block create_null_operand_block() {
+    operand_block ob;
+    ob.r = 0;
+    ob.c = 0;
+    ob.terms = NULL;
+    return ob;
+}
+
+operand_block create_empty_operand_block(unsigned r, unsigned c) {
+    operand_block ob;
+    ob.r = r;
+    ob.c = c;
+    ob.terms = (main_term*)malloc(r * sizeof(main_term));
+
+    if (!ob.terms) {
+        fprintf(stderr, "Failed to allocate operand_block\n");
+        exit(EXIT_FAILURE);
+    }
+    return ob;
+}
+
+operand_block create_operand_block(unsigned r, unsigned c, main_term* terms) {
+    operand_block ob = create_empty_operand_block(r,c);
+    for (unsigned i = 0; i < r; i++) {
+        ob.terms[i] = terms[i];
+    }
+    return ob;
+}
+
+void free_operand_block(operand_block* ob) {
+    if (ob) {
+        for (unsigned i = 0; i < ob->r; i++)
+            free_main_term(&ob->terms[i]);
+        free(ob->terms);
+    }
+}
+
+void print_operand_block(operand_block* ob, int verbosity) {
+    printf("Operand Block: %u terms, %u columns\n", ob->r, ob->c);
+    if (verbosity)
+    {
+        for (unsigned i = 0; i < ob->r; i++) {
+            printf("== Main Term %u ==\n", i);
+            print_main_term(&ob->terms[i], verbosity - 1);
+        }
+    }
+}
+// ===<<< END OPERAND BLOCK >>>=== //
+
+// ===<<< BEGIN MGU SCHEMA >>>=== //
 mgu_schema* create_empty_mgu_schema(const unsigned m) {
     mgu_schema *ms = malloc(sizeof(mgu_schema));
     if (!ms) {fprintf(stderr, "Unable to allocate memory for mgu_schema\n"); exit(EXIT_FAILURE); }
@@ -123,8 +294,9 @@ void print_mgu_schema(mgu_schema* ms) {
     }    
     printf("%d]\n", ms->mapping_R[ms->m - 1]);
 }
+// ===<<< END MGU SCHEMA >>>=== //
 
-
+// ===<<< BEGIN MATRIX SCHEMA >>>=== //
 matrix_schema* create_empty_matrix_schema(const unsigned m) {
     matrix_schema *ms = malloc(sizeof(matrix_schema));
     if (!ms) {fprintf(stderr, "Unable to allocate memory for matrix_schema\n"); exit(EXIT_FAILURE); }
@@ -184,7 +356,9 @@ void print_matrix_schema(matrix_schema* ms){
     }    
     printf("%d]\n",ms->mapping[ms->m-1]);
 }
+// ===<<< END MATRIX SCHEMA >>>=== //
 
+// ===<<< BEGIN L2, L3 >>>=== //
 L2 create_L2_empty(){
     L2 node;
     node.ind   = -1;
@@ -248,6 +422,7 @@ L3* copy_L3(L3* node) {
     if (node->next) new_node->next = copy_L3(node->next);
     return new_node;
 }
+// ===<<< END L2, L3 >>>=== //
 
 
 int timespec_subtract (struct timespec *result, struct timespec *x, struct timespec *y)
@@ -270,10 +445,3 @@ int timespec_subtract (struct timespec *result, struct timespec *x, struct times
 
     return x->tv_sec < y->tv_sec;
 }
-
-// void print_elapsed (struct timespec elapsed)
-// {
-//     if (elapsed.tv_sec <= 0)
-//     printf("%ld ns\n",elapsed.tv_nsec);
-//     else
-// }
