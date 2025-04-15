@@ -12,6 +12,7 @@
 
 #include "dictionary.h"
 #include "structures.h"
+#include "AGT_hash.h"
 
 #define ROW_STR_SIZE (snprintf(NULL, 0, "%d", INT_MAX) + 1)
 Dictionary *const_dict;
@@ -156,7 +157,7 @@ matrix_schema* read_matrix_schema_from_csv(const char* line, int m) {
     return ms;
 }
 
-void read_dimensions(FILE *stream, int *n, int *m) {
+void read_dimensions(FILE *stream, unsigned *n, unsigned *m) {
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
@@ -192,14 +193,14 @@ void read_dimensions(FILE *stream, int *n, int *m) {
 }
 
 void read_line(char *line, int *row, bool skip_first) {
-    tok = strtok(line, ",\n");
+    char *tok = strtok(line, ",");
     if (skip_first) tok = strtok(NULL, ",\n");
 
-    col = 1;
+    int col = 1;
     clear(var_dict);
     while (tok) {
         if (!isupper(tok[0])) { // If no uppercase appears, it is a constant
-            const struct Symbol* s = get_value(token, strlen(token));
+            const struct Symbol* s = get_value(tok, strlen(tok));
             row[col-1] = s->value;
         } else { // It is a variable
             if (lookup(var_dict, tok) == NULL) {
@@ -217,31 +218,36 @@ void read_line(char *line, int *row, bool skip_first) {
 }
 
 void read_exception_blocks(FILE *stream, main_term *mt) {
-    int n, m;
-    int e = mt->e;
+    unsigned n, m;
+    unsigned e = mt->e;
     exception_block *eb;
+    char *line = NULL;
+    size_t len = 0;
     
-    for (size_t i = 0; i < e; i++)
+    for (unsigned i = 0; i < e; i++)
     {
         // Read dimensions of exception block (subset)
         read_dimensions(stream,&n,&m);
 
         // Create empty exception block to be populated later
-        eb = mt->exceptions[i];
-        eb = create_empty_exception_block(n,m);
+        mt->exceptions[i] = create_empty_exception_block(n,m);
+        eb = &(mt->exceptions[i]);
 
         // Skip unflatened schema
         getline(&line, &len, stream);
 
-        // Read mapping
-        read_mapping(stream, eb->mapping, m);
+        // Read mapping (Skip for now)
+        // read_mapping(stream, eb->mapping, m);
+        getline(&line, &len, stream);
+
 
         // Skip flatened schema
         getline(&line, &len, stream);
 
         for (size_t j = 0; j < n; j++)
         {
-            read_line()
+            getline(&line, &len, stream);
+            read_line(line,&eb->mat[j*m],false);
         }
         
         
@@ -251,10 +257,10 @@ void read_exception_blocks(FILE *stream, main_term *mt) {
 
 void read_operand_matrix(FILE *stream, operand_block *ob) {
     char *line = NULL;
-    char row_str[ROW_STR_SIZE]; // Might be removed I think
     size_t len = 0;
     ssize_t read;
-    int row = 0, col
+    unsigned row = 0;
+    // unsigned col;
 
     // Skip unflatened schema
     getline(&line, &len, stream);
@@ -263,13 +269,12 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
     getline(&line, &len, stream);
 
     // Iterate the main term rows
-    while ((read = getline(&line, &len, stream)) != -1 && row < n) {
-        // Get a pointer to the main term for easier working
-        main_term *mt = ob->terms[row];
-
+    while ((read = getline(&line, &len, stream)) != -1 && row < ob->r) {
+        
         // If end of matrix reached, exit
         if (strstr(line, "END") != NULL || strstr(line, "End") != NULL)
             break;
+        
 
         // Get first token, which tells the number of exception blocks
         char *tok = strtok(line, ",");
@@ -277,13 +282,16 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
         printf("The main term %u has %u exception blocks\n",row,e); // Check
         
         // Initialize the exception blocks
-        mt = create_empty_main_term(ob->c,e);
+        ob->terms[row] = create_empty_main_term(ob->c,e);
+
+        // Get a pointer to the main term for easier working
+        main_term *mt = &(ob->terms[row]);
 
         // Read the rest of the line
         read_line(line, mt->row, true);
 
         // Read one by one the exception blocks
-        read_exception_blocks();
+        if (e) read_exception_blocks(stream, mt);
 
         // Increment the row by 1
         row++;
@@ -292,80 +300,80 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
     free(line);
 }
 
-matrix_schema* read_result_matrix(FILE *stream, operand_block *ob) {
-    char *line = NULL;
-    char row_str[ROW_STR_SIZE];
-    size_t len = 0;
-    ssize_t read;
-    int row = 0, col, line_len = m;
-    *matrix = (int *)malloc(n * line_len * sizeof(int));
+// matrix_schema* read_result_matrix(FILE *stream, operand_block *ob) {
+//     char *line = NULL;
+//     char row_str[ROW_STR_SIZE];
+//     size_t len = 0;
+//     ssize_t read;
+//     int row = 0, col, line_len = m;
+//     *matrix = (int *)malloc(n * line_len * sizeof(int));
 
-    // Skip unflatened schema
-    getline(&line, &len, stream);
+//     // Skip unflatened schema
+//     getline(&line, &len, stream);
 
-    // Get matrix_schema // Skip matrix schema too
-    getline(&line, &len, stream);
-    matrix_schema* ms = read_matrix_schema_from_csv(line, m);
+//     // Get matrix_schema // Skip matrix schema too
+//     getline(&line, &len, stream);
+//     matrix_schema* ms = read_matrix_schema_from_csv(line, m);
 
-    // Iterate the main term rows
-    while ((read = getline(&line, &len, stream)) != -1 && row < n) {
-        if (strstr(line, "END") != NULL || strstr(line, "End") != NULL  )
-            break;
+//     // Iterate the main term rows
+//     while ((read = getline(&line, &len, stream)) != -1 && row < n) {
+//         if (strstr(line, "END") != NULL || strstr(line, "End") != NULL  )
+//             break;
 
-        // ---- MGU processing starts ----
-        if (strstr(line, "Unifier") != NULL)
-            continue;
-        if (strstr(line, "Row") != NULL) {
-            char *start = strchr(line, ':');
-            if (start) {
-                memmove(line, start + 2, strlen(start));
-            }
-        }
-        if (strstr(line, "M1 -->") != NULL || strstr(line, "M2 -->") != NULL) {
-            continue;
-        }
-        // ---- MGU processing ends ----
+//         // ---- MGU processing starts ----
+//         if (strstr(line, "Unifier") != NULL)
+//             continue;
+//         if (strstr(line, "Row") != NULL) {
+//             char *start = strchr(line, ':');
+//             if (start) {
+//                 memmove(line, start + 2, strlen(start));
+//             }
+//         }
+//         if (strstr(line, "M1 -->") != NULL || strstr(line, "M2 -->") != NULL) {
+//             continue;
+//         }
+//         // ---- MGU processing ends ----
 
-        // if (row==0) verbose=1; // Check
-        col = 1; // Start indexing columns from 1
-        char *tok = strtok(line, ",");
-        while (tok) {
-            int index = (row * line_len) + col - 1;
-            if (!isupper(tok[0])) { // If no uppercase appears, it is a constant
-                if (lookup(const_dict, tok) == NULL) {
-                    (*matrix)[index] = last_int;
-                    install(const_dict, tok, last_int);
-                    last_int++;
-                    // if (verbose) printf("CONSTANT read element '%s' first appearance, assigned integer %d\n", tok, (*matrix)[index]); // Check
-                } else {
-                    (*matrix)[index] = (lookup(const_dict,tok)->defn);
-                    // if (verbose) printf("CONSTANT read element '%s' NOT first appearance, assigned integer %d\n", tok, (*matrix)[index]); // Check
-                }
-            } else { // It is a variable
-                snprintf(row_str, sizeof(row_str), "%d", read_mat_row);
-                char temp_tok[ROW_STR_SIZE + strlen(tok)];
-                snprintf(temp_tok, sizeof(temp_tok), "%s%s", tok, row_str);
+//         // if (row==0) verbose=1; // Check
+//         col = 1; // Start indexing columns from 1
+//         char *tok = strtok(line, ",");
+//         while (tok) {
+//             int index = (row * line_len) + col - 1;
+//             if (!isupper(tok[0])) { // If no uppercase appears, it is a constant
+//                 if (lookup(const_dict, tok) == NULL) {
+//                     (*matrix)[index] = last_int;
+//                     install(const_dict, tok, last_int);
+//                     last_int++;
+//                     // if (verbose) printf("CONSTANT read element '%s' first appearance, assigned integer %d\n", tok, (*matrix)[index]); // Check
+//                 } else {
+//                     (*matrix)[index] = (lookup(const_dict,tok)->defn);
+//                     // if (verbose) printf("CONSTANT read element '%s' NOT first appearance, assigned integer %d\n", tok, (*matrix)[index]); // Check
+//                 }
+//             } else { // It is a variable
+//                 snprintf(row_str, sizeof(row_str), "%d", read_mat_row);
+//                 char temp_tok[ROW_STR_SIZE + strlen(tok)];
+//                 snprintf(temp_tok, sizeof(temp_tok), "%s%s", tok, row_str);
 
-                if (lookup(var_dict, temp_tok) == NULL) {
-                    (*matrix)[index] = 0;
+//                 if (lookup(var_dict, temp_tok) == NULL) {
+//                     (*matrix)[index] = 0;
                     
-                    install(var_dict, temp_tok, col);
-                    // if (verbose) printf("VARIABLE read element '%s' first appearance, assigned column %d\n", tok, col); // Check
-                } else {
-                    (*matrix)[index] = -(lookup(var_dict, temp_tok)->defn);
-                    // if (verbose) printf("VARIABLE read element '%s' NOT first appearance, assigned index %d\n", tok, (*matrix)[index]); // Check
-                }
-            }
-            tok = strtok(NULL, ",\n");
-            col++;
-        }
-        row++;
-        read_mat_row++;
-        // verbose=0; // Check
-    }
-    free(line);
-    return ms;
-}
+//                     install(var_dict, temp_tok, col);
+//                     // if (verbose) printf("VARIABLE read element '%s' first appearance, assigned column %d\n", tok, col); // Check
+//                 } else {
+//                     (*matrix)[index] = -(lookup(var_dict, temp_tok)->defn);
+//                     // if (verbose) printf("VARIABLE read element '%s' NOT first appearance, assigned index %d\n", tok, (*matrix)[index]); // Check
+//                 }
+//             }
+//             tok = strtok(NULL, ",\n");
+//             col++;
+//         }
+//         row++;
+//         read_mat_row++;
+//         // verbose=0; // Check
+//     }
+//     free(line);
+//     return ms;
+// }
 
 /**
  * Reads an operand block from a csv containing
@@ -376,7 +384,7 @@ matrix_schema* read_result_matrix(FILE *stream, operand_block *ob) {
  operand_block read_operand_block(FILE *stream) {
 
     // Read operand block dimensions
-    int r, c;
+    unsigned r, c;
     read_dimensions(stream, &r, &c);
     printf("Operand block dimensions: %u rows, %u columns\n",r,c); // Check
 
@@ -384,7 +392,7 @@ matrix_schema* read_result_matrix(FILE *stream, operand_block *ob) {
     operand_block ob = create_empty_operand_block(r, c);
 
     // Read the operand block and fill the struct
-    read_matrix(stream, &ob);
+    read_operand_matrix(stream, &ob);
 
     return ob;
 }
