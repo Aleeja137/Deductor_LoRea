@@ -1,0 +1,416 @@
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0001M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0001M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0001M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 13824
+Ignore, for avoiding optimization: 310
+Total time:                    0.073766302 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0002M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0002M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0002M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 54
+Ignore, for avoiding optimization: 256
+Total time:                    0.000515697 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0003M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0003M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0003M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 310
+Ignore, for avoiding optimization: 13824
+Total time:                    0.073550475 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0004M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0004M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0004M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 310
+Ignore, for avoiding optimization: 310
+Total time:                    0.137624921 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0005M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0005M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0005M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 13824
+Ignore, for avoiding optimization: 13824
+Total time:                    0.075280103 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0007M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0007M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0007M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 483584
+Ignore, for avoiding optimization: 1
+Total time:                    1.342871984 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0008M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0008M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0008M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 13824
+Ignore, for avoiding optimization: 13824
+Total time:                    0.083825760 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0009M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0009M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0009M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 13824
+Ignore, for avoiding optimization: 14080
+Total time:                    0.142054933 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0010M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0010M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0010M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 13824
+Ignore, for avoiding optimization: 256
+Total time:                    0.037904464 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0011M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0011M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0011M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 256
+Ignore, for avoiding optimization: 13824
+Total time:                    0.038083587 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0012M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0012M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0012M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 14080
+Ignore, for avoiding optimization: 13824
+Total time:                    0.141936835 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0013M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0013M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0013M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 14080
+Ignore, for avoiding optimization: 14080
+Total time:                    0.300632130 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0015M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0015M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0015M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 13824
+Ignore, for avoiding optimization: 13824
+Total time:                    0.092015949 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0017M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0017M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0017M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.092769007 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0018M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0018M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0018M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 65536
+Ignore, for avoiding optimization: 256
+Total time:                    0.137003430 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0019M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0019M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0019M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 65536
+Ignore, for avoiding optimization: 256
+Total time:                    0.137985598 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0020M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0020M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0020M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 65536
+Ignore, for avoiding optimization: 512
+Total time:                    0.258259887 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0021M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0021M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0021M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 256
+Ignore, for avoiding optimization: 256
+Total time:                    0.000793397 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0022M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0022M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0022M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 256
+Ignore, for avoiding optimization: 256
+Total time:                    0.000776201 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0023M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0023M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0023M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 512
+Ignore, for avoiding optimization: 65536
+Total time:                    0.258699836 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0024M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0024M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0024M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 512
+Ignore, for avoiding optimization: 512
+Total time:                    0.485215603 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0025M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0025M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0025M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 65536
+Ignore, for avoiding optimization: 65536
+Total time:                    0.274371120 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0027M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0027M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0027M3.csv
+M1 blocks 1, M2 blocks 2
+Ignore, for avoiding optimization: 128
+Ignore, for avoiding optimization: 1
+Total time:                    0.151085129 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0028M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0028M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0028M3.csv
+M1 blocks 2, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 128
+Total time:                    0.151067674 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0029M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0029M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0029M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.304930477 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0036M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0036M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0036M3.csv
+M1 blocks 30, M2 blocks 2
+Ignore, for avoiding optimization: 208
+Ignore, for avoiding optimization: 1
+Total time:                    0.043055265 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0037M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0037M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0037M3.csv
+M1 blocks 2, M2 blocks 30
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 208
+Total time:                    0.042671461 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0038M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0038M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0038M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.086308026 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0045M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0045M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0045M3.csv
+M1 blocks 903, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 13824
+Total time:                    0.042377173 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0046M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0046M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0046M3.csv
+M1 blocks 903, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.052406206 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0047M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0047M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0047M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 13824
+Total time:                    0.038416319 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0048M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0048M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0048M3.csv
+M1 blocks 2, M2 blocks 903
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.052537136 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0049M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0049M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0049M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.105168154 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0050M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0050M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0050M3.csv
+M1 blocks 1, M2 blocks 903
+Ignore, for avoiding optimization: 245
+Ignore, for avoiding optimization: 1
+Total time:                    0.005334753 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0058M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0058M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0058M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 13824
+Ignore, for avoiding optimization: 256
+Total time:                    0.038440093 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0059M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0059M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0059M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 483584
+Ignore, for avoiding optimization: 13824
+Total time:                    1.397761905 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0060M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0060M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0060M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 483584
+Ignore, for avoiding optimization: 256
+Total time:                    1.352306466 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0061M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0061M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0061M3.csv
+M1 blocks 1, M2 blocks 2
+Ignore, for avoiding optimization: 483584
+Ignore, for avoiding optimization: 256
+Total time:                    2.674794499 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0063M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0063M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0063M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 256
+Ignore, for avoiding optimization: 13824
+Total time:                    0.038656612 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0064M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0064M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0064M3.csv
+M1 blocks 2, M2 blocks 1
+Ignore, for avoiding optimization: 256
+Ignore, for avoiding optimization: 483584
+Total time:                    2.596651437 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0071M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0071M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0071M3.csv
+M1 blocks 1, M2 blocks 2
+Ignore, for avoiding optimization: 4509
+Ignore, for avoiding optimization: 1
+Total time:                    1.386590766 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0109M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0109M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0109M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 13815
+Ignore, for avoiding optimization: 13824
+Total time:                    0.110043192 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0110M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0110M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0110M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 13824
+Total time:                    0.046676101 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0112M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0112M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0112M3.csv
+M1 blocks 2, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1889
+Total time:                    0.066178047 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0113M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0113M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0113M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.142662228 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0114M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0114M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0114M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 13815
+Ignore, for avoiding optimization: 13815
+Total time:                    0.107556994 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0116M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0116M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0116M3.csv
+M1 blocks 2, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 245
+Total time:                    0.061075175 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0117M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0117M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0117M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.118505706 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0118M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0118M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0118M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 13815
+Ignore, for avoiding optimization: 13824
+Total time:                    0.094932511 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0119M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0119M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0119M3.csv
+M1 blocks 2, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 245
+Total time:                    0.052540312 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0120M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0120M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0120M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.103852962 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0121M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0121M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0121M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 13815
+Ignore, for avoiding optimization: 13815
+Total time:                    0.094605483 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0123M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0123M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0123M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 1889
+Ignore, for avoiding optimization: 13815
+Total time:                    0.059425329 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0124M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0124M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0124M3.csv
+M1 blocks 1, M2 blocks 2
+Ignore, for avoiding optimization: 1889
+Ignore, for avoiding optimization: 1
+Total time:                    0.056070861 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0125M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0125M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0125M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 13815
+Total time:                    0.047213390 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0126M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0126M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0126M3.csv
+M1 blocks 2, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1889
+Total time:                    0.056638048 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0127M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0127M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0127M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.121914733 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0128M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0128M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0128M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 245
+Ignore, for avoiding optimization: 1889
+Total time:                    0.005354292 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0130M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0130M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0130M3.csv
+M1 blocks 903, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.016263252 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0131M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0131M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0131M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1889
+Total time:                    0.003768552 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0132M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0132M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0132M3.csv
+M1 blocks 2, M2 blocks 903
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.022054913 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0133M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0133M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0133M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.044047414 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0134M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0134M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0134M3.csv
+M1 blocks 903, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 283
+Total time:                    0.005005458 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0135M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0135M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0135M3.csv
+M1 blocks 903, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 283
+Total time:                    0.007864039 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0137M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0137M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0137M3.csv
+M1 blocks 903, M2 blocks 903
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.022834900 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0138M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0138M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0138M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 2172
+Ignore, for avoiding optimization: 1889
+Total time:                    0.011854700 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0139M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0139M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0139M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 1889
+Ignore, for avoiding optimization: 2172
+Total time:                    0.008938252 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0140M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0140M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0140M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 2172
+Ignore, for avoiding optimization: 2172
+Total time:                    0.010362637 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0159M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0159M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0159M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 2134
+Ignore, for avoiding optimization: 2390
+Total time:                    0.012608743 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0160M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0160M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0160M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 2134
+Ignore, for avoiding optimization: 256
+Total time:                    0.004203647 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0162M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0162M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0162M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 2390
+Ignore, for avoiding optimization: 2390
+Total time:                    0.008613623 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0163M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0163M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0163M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 2390
+Ignore, for avoiding optimization: 2390
+Total time:                    0.008752401 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0165M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0165M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0165M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 256
+Ignore, for avoiding optimization: 2134
+Total time:                    0.008264632 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0187M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0187M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0187M3.csv
+M1 blocks 1, M2 blocks 2
+Ignore, for avoiding optimization: 4509
+Ignore, for avoiding optimization: 1
+Total time:                    0.009770825 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0188M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0188M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0188M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.009184030 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0189M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0189M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0189M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.009195066 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0192M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0192M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0192M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.016452411 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0194M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0194M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0194M3.csv
+M1 blocks 931, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 2172
+Total time:                    0.010028935 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0195M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0195M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0195M3.csv
+M1 blocks 931, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.016056943 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0196M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0196M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0196M3.csv
+M1 blocks 1, M2 blocks 1
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 2172
+Total time:                    0.005309429 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0197M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0197M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0197M3.csv
+M1 blocks 2, M2 blocks 931
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.021432791 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0198M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0198M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0198M3.csv
+M1 blocks 2, M2 blocks 2
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.048190940 sec
+Running: ./c /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0199M1.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0199M2.csv /home/javier/MassiveUnification/Tests/matrices/AGT006+1/test0199M3.csv
+M1 blocks 931, M2 blocks 931
+Ignore, for avoiding optimization: 1
+Ignore, for avoiding optimization: 1
+Total time:                    0.013099201 sec
+✅ Total time: 17 seconds

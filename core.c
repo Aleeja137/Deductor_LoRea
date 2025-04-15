@@ -124,7 +124,7 @@ int read_num_blocks(FILE *stream, unsigned *s) {
 
     *s = (unsigned)num;
     free(line);
-    return 1;
+    return 0;
 }
 
 matrix_schema* read_matrix_schema_from_csv(const char* line, int m) {
@@ -254,7 +254,6 @@ void read_exception_blocks(FILE *stream, main_term *mt) {
             read_line(line,&eb->mat[j*m],false);
         }
         
-        
     }
     
 }
@@ -279,8 +278,6 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
         if (strstr(line, "END") != NULL || strstr(line, "End") != NULL)
             break;
         
-
-        
         // Get first token, which tells the number of exception blocks
         // printf("Line is before tok '%s'\n",line); // Check
         char *tok = strtok(strdup(line), ",");
@@ -295,11 +292,15 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
         main_term *mt = &(ob->terms[row]);
 
         // Read the rest of the line
+        // printf("Line: %s\n",line); // Check
         read_line(line, mt->row, true);
-        print_mat_line(mt->row,mt->c); // Check
+        // print_mat_line(mt->row,mt->c); // Check
 
         // Read one by one the exception blocks
         if (e) read_exception_blocks(stream, mt);
+
+        // Skip '% End: Exception subsetX' line
+        if (e) getline(&line, &len, stream);
 
         // Increment the row by 1
         row++;
@@ -759,19 +760,28 @@ int main(int argc, char *argv[]){
     printf("M1 blocks %u, M2 blocks %u\n",s1,s2); // Check
 
     // Read one block from M1 and one block from M2
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start_total);
+    // printf("M1 start ---------\n"); // Check
     operand_block ob;
     for (size_t s = 0; s < s1; s++)
     {
         ob = read_operand_block(stream_M1);
-        print_operand_block(&ob, 2);
+        // printf("%lu: - ",s+1); print_operand_block(&ob, 0); // Check
     }
+    printf("Ignore, for avoiding optimization: %d\n",ob.r);
+    // printf("M1 end ---------\n"); // Check
     
+    // printf("M2 start ---------\n"); // Check
     for (size_t s = 0; s < s2; s++)
     {
         ob = read_operand_block(stream_M2);
-        print_operand_block(&ob, 2);
+        // printf("%lu: - ",s+1); print_operand_block(&ob, 0); // Check
     }
-    
+    // printf("M2 end ---------\n"); // Check
+    printf("Ignore, for avoiding optimization: %d\n",ob.r);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end_total);
+    timespec_subtract(&elapsed, &end_total, &start_total);
+    printf("Total time:                    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
 
 
 
