@@ -12,7 +12,8 @@
 
 #include "dictionary.h"
 #include "structures.h"
-#include "AGT_hash.h"
+// #include "AGT_hash.h"
+#include "COM_hash.h"
 
 #define ROW_STR_SIZE (snprintf(NULL, 0, "%d", INT_MAX) + 1)
 Dictionary *const_dict;
@@ -193,6 +194,7 @@ void read_dimensions(FILE *stream, unsigned *n, unsigned *m) {
 }
 
 void read_line(char *line, int *row, bool skip_first) {
+    // printf("Line is '%s'\n",line); // Check
     char *tok = strtok(line, ",");
     if (skip_first) tok = strtok(NULL, ",\n");
 
@@ -200,7 +202,9 @@ void read_line(char *line, int *row, bool skip_first) {
     clear(var_dict);
     while (tok) {
         if (!isupper(tok[0])) { // If no uppercase appears, it is a constant
+            // printf("suspected constant tok: %s\n",tok); // Check
             const struct Symbol* s = get_value(tok, strlen(tok));
+            // printf("CONSTANT VALUE: %d\n",s->value); // Check
             row[col-1] = s->value;
         } else { // It is a variable
             if (lookup(var_dict, tok) == NULL) {
@@ -276,10 +280,13 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
             break;
         
 
+        
         // Get first token, which tells the number of exception blocks
-        char *tok = strtok(line, ",");
+        // printf("Line is before tok '%s'\n",line); // Check
+        char *tok = strtok(strdup(line), ",");
+        // printf("Line is after tok '%s'\n",line); // Check
         unsigned e = (unsigned)strtoul(tok, NULL, 10);
-        printf("The main term %u has %u exception blocks\n",row,e); // Check
+        // printf("The main term %u has %u exception blocks\n",row,e); // Check
         
         // Initialize the exception blocks
         ob->terms[row] = create_empty_main_term(ob->c,e);
@@ -289,6 +296,7 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
 
         // Read the rest of the line
         read_line(line, mt->row, true);
+        print_mat_line(mt->row,mt->c); // Check
 
         // Read one by one the exception blocks
         if (e) read_exception_blocks(stream, mt);
@@ -386,7 +394,7 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
     // Read operand block dimensions
     unsigned r, c;
     read_dimensions(stream, &r, &c);
-    printf("Operand block dimensions: %u rows, %u columns\n",r,c); // Check
+    // printf("Operand block dimensions: %u rows, %u columns\n",r,c); // Check
 
     // Create the operand_block structure for later populating it
     operand_block ob = create_empty_operand_block(r, c);
@@ -751,8 +759,20 @@ int main(int argc, char *argv[]){
     printf("M1 blocks %u, M2 blocks %u\n",s1,s2); // Check
 
     // Read one block from M1 and one block from M2
-    read_operand_block(stream_M1);
+    operand_block ob;
+    for (size_t s = 0; s < s1; s++)
+    {
+        ob = read_operand_block(stream_M1);
+        print_operand_block(&ob, 2);
+    }
     
+    for (size_t s = 0; s < s2; s++)
+    {
+        ob = read_operand_block(stream_M2);
+        print_operand_block(&ob, 2);
+    }
+    
+
 
 
     // Read the corresponding pair of blocks from M3
