@@ -29,6 +29,19 @@ int verbose = 0;
 int read_mat_row = 0; 
 int last_int = 1;
 
+// #define malloc(X) my_malloc( X, __FILE__, __LINE__, __FUNCTION__)
+
+// void* my_malloc(size_t size, const char *file, int line, const char *func)
+// {
+
+//     void *p = malloc(size);
+//     printf ("Allocated = %s, %i, %s, %p[%li]\n", file, line, func, p, size);
+
+//     /*Link List functionality goes in here*/
+
+//     return p;
+// }
+
 // --------------------- UTILS START --------------------- //
 void timespec_add(struct timespec *result, const struct timespec *t1, const struct timespec *t2) {
     result->tv_sec = t1->tv_sec + t2->tv_sec;
@@ -161,35 +174,42 @@ matrix_schema* read_matrix_schema_from_csv(const char* line, int m) {
 void read_dimensions(FILE *stream, unsigned *n, unsigned *m) {
     char *line = NULL;
     size_t len = 0;
-    ssize_t read;
     char *endptr, *e;
     long int num;
 
-    while ((read = getline(&line, &len, stream)) != -1) {
-        if (strstr(line, "BEGIN") != NULL) {
-            e = strchr(line, '(');
-            if (!e) break;
-
-            num = strtol(e + 1, &endptr, 10);
-            if (endptr == e + 1) {
-                fprintf(stderr, "Could not read matrix dimensions\n");
-                exit(EXIT_FAILURE);
-            }
-
-            *n = num;
-
-            e = strchr(endptr, ',');
-            if (!e) break;
-
-            num = strtol(e + 1, &endptr, 10);
-            if (endptr == e + 1) {
-                fprintf(stderr, "Could not read matrix dimensions\n");
-                exit(EXIT_FAILURE);
-            }
-            *m = num;
-            break;
-        }
+    getline(&line, &len, stream);
+    // printf("Line in read_dimensions is: %s\n",line); // Check
+    if (strstr(line, "BEGIN") == NULL) {
+        fprintf(stderr, "Could not read matrix dimensions\n");
+        exit(EXIT_FAILURE);
     }
+    
+    e = strchr(line, '(');
+    if (!e) {
+        fprintf(stderr, "Could not read matrix dimensions\n");
+        exit(EXIT_FAILURE);
+    };
+
+    num = strtol(e + 1, &endptr, 10);
+    if (endptr == e + 1) {
+        fprintf(stderr, "Could not read matrix dimensions\n");
+        exit(EXIT_FAILURE);
+    }
+
+    *n = num;
+
+    e = strchr(endptr, ',');
+    if (!e) {
+        fprintf(stderr, "Could not read matrix dimensions\n");
+        exit(EXIT_FAILURE);
+    }
+
+    num = strtol(e + 1, &endptr, 10);
+    if (endptr == e + 1) {
+        fprintf(stderr, "Could not read matrix dimensions\n");
+        exit(EXIT_FAILURE);
+    }
+    *m = num;
     free(line);
 }
 
@@ -201,6 +221,7 @@ void read_line(char *line, int *row, bool skip_first) {
     int col = 1;
     clear(var_dict);
     while (tok) {
+        // printf("'%s' - ",tok); // Check
         if (!isupper(tok[0])) { // If no uppercase appears, it is a constant
             // printf("suspected constant tok: %s\n",tok); // Check
             const struct Symbol* s = get_value(tok, strlen(tok));
@@ -221,17 +242,18 @@ void read_line(char *line, int *row, bool skip_first) {
     }
 }
 
-void read_exception_blocks(FILE *stream, main_term *mt) {
+void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
     unsigned n, m;
     unsigned e = mt->e;
     exception_block *eb;
     char *line = NULL;
     size_t len = 0;
-    
+    // printf("Number of exceptions is %u\n",e); // Check
     for (unsigned i = 0; i < e; i++)
     {
         // Read dimensions of exception block (subset)
         read_dimensions(stream,&n,&m);
+        // printf("n: %u, m: %u\n",n,m); // Check
 
         // Create empty exception block to be populated later
         mt->exceptions[i] = create_empty_exception_block(n,m);
@@ -241,21 +263,29 @@ void read_exception_blocks(FILE *stream, main_term *mt) {
         getline(&line, &len, stream);
 
         // Read mapping (Skip for now)
-        // read_mapping(stream, eb->mapping, m);
         getline(&line, &len, stream);
+        // read_mapping(stream, eb->ms, m);
 
-
-        // Skip flatened schema
-        getline(&line, &len, stream);
+        // Skip flatened schema if reading from operand
+        if (!result) getline(&line, &len, stream);
 
         for (size_t j = 0; j < n; j++)
-        {
+        {            
             getline(&line, &len, stream);
-            read_line(line,&eb->mat[j*m],false);
+            char *line_ptr = line;  
+            // printf("Line before moving past Row: %s\n",line); // Check
+            if (result) line_ptr = strchr(line_ptr, ':') + 2;
+            // printf("Line after moving past Row:  %s\n\n",line_ptr); // Check
+            read_line(line_ptr, &eb->mat[j*m], false);
+            // Skip unifier if reading from result file
+            if (result) getline(&line, &len, stream);
         }
-        
+
+        // Skip end exception subset line
+        getline(&line, &len, stream);
     }
     
+    free(line);
 }
 
 void read_operand_matrix(FILE *stream, operand_block *ob) {
@@ -297,10 +327,7 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
         // print_mat_line(mt->row,mt->c); // Check
 
         // Read one by one the exception blocks
-        if (e) read_exception_blocks(stream, mt);
-
-        // Skip '% End: Exception subsetX' line
-        if (e) getline(&line, &len, stream);
+        if (e) read_exception_blocks(stream, mt, false);
 
         // Increment the row by 1
         row++;
@@ -309,83 +336,137 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
     free(line);
 }
 
-// matrix_schema* read_result_matrix(FILE *stream, operand_block *ob) {
-//     char *line = NULL;
-//     char row_str[ROW_STR_SIZE];
-//     size_t len = 0;
-//     ssize_t read;
-//     int row = 0, col, line_len = m;
-//     *matrix = (int *)malloc(n * line_len * sizeof(int));
+void get_mapping(char *line, unsigned n_pairs, unsigned *mapping){
+    char *tok = strtok(line, " ,\n");
+    unsigned count = 0;
 
-//     // Skip unflatened schema
-//     getline(&line, &len, stream);
+    while (tok != NULL && count < n_pairs * 2) {
+        char *dash = strchr(tok, '-');
+        if (dash) {
+            *dash = '\0'; 
+            char *first = tok;
+            char *second = dash + 1;
 
-//     // Get matrix_schema // Skip matrix schema too
-//     getline(&line, &len, stream);
-//     matrix_schema* ms = read_matrix_schema_from_csv(line, m);
+            mapping[count++] = (strcmp(first, "_") == 0)  ? 0 : (unsigned)atoi(first);
+            mapping[count++] = (strcmp(second, "_") == 0) ? 0 : (unsigned)atoi(second);
+        }
+        tok = strtok(NULL, " ,\n");
+    }
+}
 
-//     // Iterate the main term rows
-//     while ((read = getline(&line, &len, stream)) != -1 && row < n) {
-//         if (strstr(line, "END") != NULL || strstr(line, "End") != NULL  )
-//             break;
+void read_result_matrix(FILE *stream, result_block *rb) {
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    unsigned row = 0;
 
-//         // ---- MGU processing starts ----
-//         if (strstr(line, "Unifier") != NULL)
-//             continue;
-//         if (strstr(line, "Row") != NULL) {
-//             char *start = strchr(line, ':');
-//             if (start) {
-//                 memmove(line, start + 2, strlen(start));
-//             }
-//         }
-//         if (strstr(line, "M1 -->") != NULL || strstr(line, "M2 -->") != NULL) {
-//             continue;
-//         }
-//         // ---- MGU processing ends ----
+    // Skip matrix header // TODO: Change the logic to do this elsewhere
+    getline(&line, &len, stream);
 
-//         // if (row==0) verbose=1; // Check
-//         col = 1; // Start indexing columns from 1
-//         char *tok = strtok(line, ",");
-//         while (tok) {
-//             int index = (row * line_len) + col - 1;
-//             if (!isupper(tok[0])) { // If no uppercase appears, it is a constant
-//                 if (lookup(const_dict, tok) == NULL) {
-//                     (*matrix)[index] = last_int;
-//                     install(const_dict, tok, last_int);
-//                     last_int++;
-//                     // if (verbose) printf("CONSTANT read element '%s' first appearance, assigned integer %d\n", tok, (*matrix)[index]); // Check
-//                 } else {
-//                     (*matrix)[index] = (lookup(const_dict,tok)->defn);
-//                     // if (verbose) printf("CONSTANT read element '%s' NOT first appearance, assigned integer %d\n", tok, (*matrix)[index]); // Check
-//                 }
-//             } else { // It is a variable
-//                 snprintf(row_str, sizeof(row_str), "%d", read_mat_row);
-//                 char temp_tok[ROW_STR_SIZE + strlen(tok)];
-//                 snprintf(temp_tok, sizeof(temp_tok), "%s%s", tok, row_str);
+    // Read block header
+    getline(&line, &len, stream);
+    // printf("line to be matched is: %s\n",line); // Check
+    int matched = sscanf(line, "%% BEGIN: Matrix subset %u-%u (%u-%u,%u-%u,%u)",
+                         &rb->t1, &rb->t2, &rb->r1, &rb->r2, &rb->c1, &rb->c2, &rb->c);
 
-//                 if (lookup(var_dict, temp_tok) == NULL) {
-//                     (*matrix)[index] = 0;
-                    
-//                     install(var_dict, temp_tok, col);
-//                     // if (verbose) printf("VARIABLE read element '%s' first appearance, assigned column %d\n", tok, col); // Check
-//                 } else {
-//                     (*matrix)[index] = -(lookup(var_dict, temp_tok)->defn);
-//                     // if (verbose) printf("VARIABLE read element '%s' NOT first appearance, assigned index %d\n", tok, (*matrix)[index]); // Check
-//                 }
-//             }
-//             tok = strtok(NULL, ",\n");
-//             col++;
-//         }
-//         row++;
-//         read_mat_row++;
-//         // verbose=0; // Check
-//     }
-//     free(line);
-//     return ms;
-// }
+    if (matched != 7) {
+        fprintf(stderr, "Could not read matrix subset info, matched: %d\n",matched);
+        free_result_block(rb);
+        free(line);
+        exit(EXIT_FAILURE);
+    }
+
+    // Info for all possible main terms from the unification of M1 block (r1) and M2 block (r2)
+    rb->r = rb->r1*rb->r2;
+    rb->terms = (main_term*)malloc(rb->r * sizeof(main_term));
+    rb->valid = (unsigned*) malloc(rb->r * sizeof(unsigned));
+    for (size_t _ = 0; _ < rb->r; _++)
+    {
+        rb->valid[_] = 0;
+    }
+    
+
+    // Skip largest schema
+    getline(&line, &len, stream);
+
+    // Get mapping info
+    getline(&line, &len, stream);
+    unsigned *mapping = (unsigned*)malloc(rb->c*2*sizeof(unsigned));
+    get_mapping(line, rb->c, mapping);
+    rb->ms = create_mgu_from_mapping(mapping, rb->c, rb->c1, rb->c2);
+
+    // Skip flattened schema
+    getline(&line, &len, stream);
+
+    // Iterate the main term rows
+    while ((read = getline(&line, &len, stream)) != -1 && row < rb->r) {
+        
+        // If end of matrix reached, exit
+        if (strstr(line, "END") != NULL || strstr(line, "End") != NULL)
+            break;
+        
+        // Get line indexes from row
+
+        // check if line is unifiable, subsumed or not unifiable
+        if (strncmp(line, "Rows ", 5) == 0) {
+            if (strstr(line, "subsumed by exception")) {
+                rb->valid[row] = 1;
+                // printf("Reading line %u is subsumed by exception\n",row); // Check
+            } else if (strstr(line, "not unifiable")) {
+                rb->valid[row] = 2;
+                // printf("Reading line %u is not unifiable\n",row); // Check
+            }
+            // rb->terms[row] = NULL; // This not necessary I would say
+            row++;
+            continue;
+        }
+
+        // If unifiable, read number of exception blocks
+        unsigned d1, d2, e;
+        // printf("Line is: %s\n",line); // Check
+        if (sscanf(line, "Row %u-%u: %u", &d1, &d2, &e) != 3) 
+        {
+            fprintf(stderr, "Could not read number of exception blocks in row\n");
+            free_result_block(rb);
+            free(line);
+            // TODO: free other things too
+            exit(EXIT_FAILURE);
+        }
+        // printf("The main term %u-%u has %u exception blocks\n",row/rb->r2+1, row%rb->r2+1,e); // Check
+
+        // Initialize the exception blocks
+        rb->terms[row] = create_empty_main_term(rb->c,e);
+
+        // Get a pointer to the main term for easier working
+        main_term *mt = &(rb->terms[row]);
+
+        // Read the rest of the line
+        // printf("Line: %s\n",line); // Check
+        read_line(line, mt->row, true);
+        // print_mat_line(mt->row,mt->c); // Check
+
+        // Skip the unifier line
+        getline(&line, &len, stream);
+
+        // Read the exception blocks
+
+        // TODO HERE: Change this to read the new exception format (with unifiers) and handle unifiers in the rest of the function too.
+        // Read one by one the exception blocks
+        if (e) read_exception_blocks(stream, mt, true);
+
+        // Skip '% End: Exception subsetX' line
+        // if (e) getline(&line, &len, stream);
+
+        // Increment the row by 1
+        row++;
+    }
+
+    free(line);
+    free(mapping);
+}
 
 /**
- * Reads an operand block from a csv containing
+ * Reads an operand block from a csv
  *
  * @param stream   Input file stream to operand block from, must point to the first line of the block, of form '% BEGIN: Matrix subsetX.Y (n,m)'
  * @return         Operand block that contains all main terms, their number of exception blocks and all the exceptions
@@ -405,6 +486,25 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
 
     return ob;
 }
+
+/**
+ * Reads a result block from a csv
+ * TODO: Update documentation
+ *
+ * @param stream   Input file stream to operand block from, must point to the first line of the block, of form '% BEGIN: Matrix subsetX.Y (n,m)'
+ * @return         Operand block that contains all main terms, their number of exception blocks and all the exceptions
+ */
+result_block read_result_block(FILE *stream) {
+
+    // Create the operand_block structure for later populating it
+    result_block rb = create_null_result_block();
+
+    // Read the operand block and fill the struct
+    read_result_matrix(stream, &rb);
+
+    return rb;
+}
+
 // ---------------------- READING FILE END ---------------------- //
 
 // --------------------- CORE START --------------------- //
@@ -436,10 +536,10 @@ int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, int *unifier, in
 int unifier_rows(int *row_a, int *row_b, int *unifier, mgu_schema* ms3, int m1){
     int result;
     static unsigned m;
-    m = ms3->m;
+    m = ms3->n_common;
 	for (unsigned i=0; i<m; i++)
 	{
-		result = unifier_a_b(row_a, ms3->mapping_L[i], row_b, ms3->mapping_R[i], unifier, 2*i, m1);
+		result = unifier_a_b(row_a, ms3->common_L[i], row_b, ms3->common_R[i], unifier, 2*i, m1);
 		if (result != 0) return result;
 	}
 
@@ -602,7 +702,7 @@ int unifier_matrices(int *mat1, int *mat2, int n1, int n2, int *unifiers, matrix
     unsigned last_unifier = 0;
     const unsigned m1 = ms1->m;
     const unsigned m2 = ms2->m;
-    const unsigned m  = m1+m2-ms3->m;
+    const unsigned m  = m1+m2-ms3->n_common;
     const unsigned unifier_size = 1+(2*m)+2;
 
     unifier = (int*) malloc (unifier_size*sizeof(int));
@@ -695,10 +795,10 @@ void prepare_unified(int *row_a, int *row_b, int *unified, matrix_schema* ms1, m
     {
         // printf("Checking if column %d of row_b is in mgu\n", ms2->columns[i]); // Check
         bool common = false;
-        for (unsigned j = 0; j < ms3->m; j++)
+        for (unsigned j = 0; j < ms3->n_common; j++)
         {
             // printf("Checking against columns %d of mgu\n", ms3->columns[j]); // Check
-            if (ms2->columns[i]==ms3->columns[j])
+            if (ms2->columns[i]==ms3->common_columns[j])
             {
                 // printf("    --->column %d of row_b found same with column %d of mgu !!\n", ms2->columns[i], ms3->columns[j]); // Check
                 common=true;
@@ -744,11 +844,9 @@ int main(int argc, char *argv[]){
 
     if (!stream_M1 || !stream_M2 || !stream_M3) {
         fprintf(stderr, "Error opening files %s, %s and %s; exiting\n", M1_file, M2_file, M3_file);
-    
         if (stream_M1) fclose(stream_M1);
         if (stream_M2) fclose(stream_M2);
         if (stream_M3) fclose(stream_M3);
-    
         exit(EXIT_FAILURE);
     }
 
@@ -759,9 +857,9 @@ int main(int argc, char *argv[]){
 
     printf("M1 blocks %u, M2 blocks %u\n",s1,s2); // Check
 
-    // Read one block from M1 and one block from M2
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_total);
-    // printf("M1 start ---------\n"); // Check
+
+    printf("M1 start ---------\n"); // Check
     operand_block ob;
     for (size_t s = 0; s < s1; s++)
     {
@@ -769,16 +867,19 @@ int main(int argc, char *argv[]){
         // printf("%lu: - ",s+1); print_operand_block(&ob, 0); // Check
     }
     printf("Ignore, for avoiding optimization: %d\n",ob.r);
-    // printf("M1 end ---------\n"); // Check
+    printf("M1 end ---------\n"); // Check
     
-    // printf("M2 start ---------\n"); // Check
+    printf("M2 start ---------\n"); // Check
     for (size_t s = 0; s < s2; s++)
     {
         ob = read_operand_block(stream_M2);
         // printf("%lu: - ",s+1); print_operand_block(&ob, 0); // Check
     }
-    // printf("M2 end ---------\n"); // Check
+    printf("M2 end ---------\n"); // Check
     printf("Ignore, for avoiding optimization: %d\n",ob.r);
+
+    
+
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_total);
     timespec_subtract(&elapsed, &end_total, &start_total);
     printf("Total time:                    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
@@ -786,6 +887,10 @@ int main(int argc, char *argv[]){
 
 
     // Read the corresponding pair of blocks from M3
+
+    result_block rb;
+    rb = read_result_block(stream_M3);
+    print_result_block(&rb,2);
 
     exit(EXIT_SUCCESS);
     // NEW: Read one by one blocks from M1 and M2
@@ -806,7 +911,7 @@ int main(int argc, char *argv[]){
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
     
     // read_mat_file(M1_file, &mat0,&mat1,&mat2,&n0,&n1,&m0,&m1,&n2,&m2,&ms1,&ms2);
-    ms3 = create_mgu_from_matrices(ms1, ms2); 
+    ms3 = create_mgu_from_mapping(NULL, m2, m0, m1); // THIS IS NOT CORRECT
 
     printf("Dimensions for M1 are (%d,%d) and for M2 are (%d,%d)\n",n0,m0,n1,m1);
     printf("MGU Dimensions: (%d,%d)\n",n2,m2);
@@ -817,7 +922,7 @@ int main(int argc, char *argv[]){
     {
         print_matrix_schema(ms1);
         print_matrix_schema(ms2);
-        if (ms3->m != 0) print_mgu_schema(ms3);
+        if (ms3->n_common != 0) print_mgu_schema(ms3);
 
         printf("\nValues and metadata for M1 from %s\n",M1_file);
         print_mat_values(mat0,n0,m0);
@@ -833,7 +938,7 @@ int main(int argc, char *argv[]){
     // ----- test all matrix start ----- //
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_unifiers);
     
-    const unsigned m  = m0+m1-ms3->m;
+    const unsigned m  = m0+m1-ms3->n_common;
 	int *unifiers = NULL, unifier_size = 1+(2*m)+2;
     unifiers = (int*) malloc (n0*n1*unifier_size*sizeof(int));
     int unif_count = unifier_matrices(mat0, mat1, n0, n1, unifiers, ms1, ms2, ms3);

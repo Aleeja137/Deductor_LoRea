@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdbool.h>
 
 #include "structures.h"
 
@@ -9,7 +10,7 @@ exception_block create_null_exception_block() {
     exception_block eb;
     eb.n = 0;
     eb.m = 0;
-    eb.mapping = NULL;
+    eb.ms  = NULL;
     eb.mat = NULL;
     return eb;
 }
@@ -18,46 +19,43 @@ exception_block create_empty_exception_block(unsigned n, unsigned m) {
     exception_block eb;
     eb.n = n;
     eb.m = m;
-    eb.mapping = (int*)malloc(2 * m * sizeof(int));
+    eb.ms = NULL;
+    // printf("n,m: %u, %u\n",n,m); // Check
     eb.mat = (int*)malloc(n * m * sizeof(int));
 
-    if (!eb.mapping || !eb.mat) {
+    if (!eb.mat) {
         fprintf(stderr, "Failed to allocate exception_block\n");
-        free(eb.mapping);
         free(eb.mat);
         exit(EXIT_FAILURE);
     }
     return eb;
 }
 
-exception_block create_exception_block(unsigned n, unsigned m, int* mapping, int* mat) {
+exception_block create_exception_block(unsigned n, unsigned m, mgu_schema *ms, int* mat) {
     exception_block eb = create_empty_exception_block(n,m);
-    memcpy(eb.mapping, mapping, 2 * m * sizeof(int));
+    eb.ms = deep_copy_mgu_schema(ms);
     memcpy(eb.mat, mat, n * m * sizeof(int));
     return eb;
 }
 
 void free_exception_block(exception_block* eb) {
     if (eb) {
-        free(eb->mapping);
+        free_mgu_schema(eb->ms);
         free(eb->mat);
     }
 }
 
 void print_exception_block(exception_block* eb) {
-    printf("Exception Block:\n");
-    printf("mapping: [");
-    for (unsigned i = 0; i < 2 * eb->m - 1; i++)
-        printf("%d, ", eb->mapping[i]);
-    printf("%d]\n", eb->mapping[2 * eb->m - 1]);
+    printf("%% BEGIN: Exception subset (%u,%u)\n",eb->n,eb->m);
+    // print_mgu_schema(eb->ms);
 
-    printf("mat:\n");
     for (unsigned i = 0; i < eb->n; i++) {
-        printf("[");
+        printf("Row %u: ",i);
         for (unsigned j = 0; j < eb->m - 1; j++)
-            printf("%d, ", eb->mat[i * eb->m + j]);
-        printf("%d]\n", eb->mat[i * eb->m + eb->m - 1]);
+            printf("%d,", eb->mat[i * eb->m + j]);
+        printf("%d\n", eb->mat[i * eb->m + eb->m - 1]);
     }
+    printf("%% END: Exception subset\n");
 }
 // ===<<< END EXCEPTION BLOCK >>>=== //
 
@@ -108,20 +106,35 @@ void free_main_term(main_term* mt) {
 }
 
 void print_main_term(main_term* mt, int verbosity) {
-    printf("Main Term:\n");
-    printf("row: [");
-    for (unsigned i = 0; i < mt->c - 1; i++)
-        printf("%d, ", mt->row[i]);
-    printf("%d]\n", mt->row[mt->c - 1]);
+    // printf("Main Term:\n");
+    // printf("row: [");
+    // for (unsigned i = 0; i < mt->c - 1; i++)
+    //     printf("%d, ", mt->row[i]);
+    // printf("%d]\n", mt->row[mt->c - 1]);
 
-    printf("Exceptions: %u\n", mt->e);
+    // printf("Exceptions: %u\n", mt->e);
+    // if (verbosity)
+    // {
+    //     for (unsigned i = 0; i < mt->e; i++) {
+    //         printf("\tException Block %u:\n", i);
+    //         print_exception_block(&mt->exceptions[i]);
+    //     }
+    // }
+
+    // Print line
+    printf("%u,",mt->e);
+    for (unsigned i = 0; i < mt->c - 1; i++)
+        printf("%d,", mt->row[i]);
+    printf("%d\n", mt->row[mt->c - 1]);
+
+    // Print exceptions
     if (verbosity)
     {
         for (unsigned i = 0; i < mt->e; i++) {
-            printf("\tException Block %u:\n", i);
             print_exception_block(&mt->exceptions[i]);
         }
     }
+
 }
 // ===<<< END MAIN TERM >>>=== //
 
@@ -175,124 +188,248 @@ void print_operand_block(operand_block* ob, int verbosity) {
 }
 // ===<<< END OPERAND BLOCK >>>=== //
 
+// ===<<< BEGIN RESULT BLOCK >>>=== //
+result_block create_null_result_block() {
+    result_block rb;
+    rb.t1 = 0;
+    rb.t2 = 0;
+    rb.r1 = 0;
+    rb.r2 = 0;
+    rb.r = 0;
+    rb.c1 = 0;
+    rb.c2 = 0;
+    rb.c = 0;
+    rb.terms = NULL;
+    rb.valid = NULL;
+    rb.ms = NULL;
+    return rb;
+}
+
+result_block create_empty_result_block(unsigned r1, unsigned r2, unsigned c1, unsigned c2, unsigned c, mgu_schema *ms) {
+    result_block rb;
+    rb.t1 = 0;
+    rb.t2 = 0;
+    rb.r1 = r1;
+    rb.r2 = r2;
+    rb.r = r1 * r2;
+    rb.c1 = c1;
+    rb.c2 = c2;
+    rb.c = c;
+    rb.ms = ms;
+
+    rb.terms = (main_term*)malloc(rb.r * sizeof(main_term));
+    rb.valid = (unsigned*)malloc(rb.r * sizeof(unsigned));
+
+    if (!rb.terms || !rb.valid) {
+        fprintf(stderr, "Failed to allocate result_block\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return rb;
+}
+
+result_block create_result_block(unsigned t1, unsigned t2, unsigned r1, unsigned r2, unsigned c1, unsigned c2, unsigned c, main_term* terms, unsigned* valid, mgu_schema *ms) {
+    result_block rb = create_empty_result_block(r1, r2, c1, c2, c, ms);
+    rb.t1 = t1;
+    rb.t2 = t2;
+
+    for (unsigned i = 0; i < rb.r; i++) {
+        rb.terms[i] = terms[i];
+        rb.valid[i] = valid[i];
+    }
+
+    return rb;
+}
+
+void free_result_block(result_block* rb) {
+    if (rb) {
+        for (unsigned i = 0; i < rb->r; i++)
+            free_main_term(&rb->terms[i]);
+
+        free(rb->terms);
+        free(rb->valid);
+        free_mgu_schema(rb->ms);
+    }
+}
+
+void print_result_block(result_block* rb, int verbosity) {
+    printf("Result Block: t1=%u, t2=%u | %u x %u terms (%u unified), c1=%u, c2=%u, c=%u\n",
+           rb->t1, rb->t2, rb->r1, rb->r2, rb->r, rb->c1, rb->c2, rb->c);
+
+    if (verbosity) {
+        for (unsigned i = 0; i < rb->r; i++) {
+            // printf("== Result Term [%u][%u] (valid=%u) ==\n", i / rb->r2, i % rb->r2, rb->valid[i]);
+            if (rb->valid[i]==0) 
+            {
+                printf("Row %u-%u: ",i/rb->r2+1, i%rb->r2+1);
+                print_main_term(&rb->terms[i], verbosity - 1);
+            }
+            else if (rb->valid[i]==1) printf("Rows %u-%u subsumed by exception\n",i/rb->r2+1, i%rb->r2+1);
+            else printf("Rows %u-%u not unifiable\n",i/rb->r2+1, i%rb->r2+1);
+        }
+    }
+}
+// ===<<< END RESULT BLOCK >>>=== //
+
 // ===<<< BEGIN MGU SCHEMA >>>=== //
-mgu_schema* create_empty_mgu_schema(const unsigned m) {
+mgu_schema* create_empty_mgu_schema(const unsigned n_common, const unsigned n_uncommon_L, const unsigned n_uncommon_R) {
     mgu_schema *ms = malloc(sizeof(mgu_schema));
-    if (!ms) {fprintf(stderr, "Unable to allocate memory for mgu_schema\n"); exit(EXIT_FAILURE); }
-    ms->m = m;
-    ms->columns = (unsigned*)malloc(m * sizeof(unsigned));
-    ms->mapping_L = (unsigned*)malloc(m * sizeof(unsigned));
-    ms->mapping_R = (unsigned*)malloc(m * sizeof(unsigned));
+    if (!ms) {
+        fprintf(stderr, "Unable to allocate memory for mgu_schema\n");
+        exit(EXIT_FAILURE);
+    }
 
-    if (!ms->columns || !ms->mapping_L || !ms->mapping_R) {
-        fprintf(stderr, "Unable to allocate memory inside mgu_schema\n"); 
-        free(ms->columns); free(ms->mapping_L); free(ms->mapping_R); free(ms);
+    ms->n_common = n_common;
+    ms->common_columns = (unsigned*)malloc(n_common * sizeof(unsigned));
+    ms->common_L = (unsigned*)malloc(n_common * sizeof(unsigned));
+    ms->common_R = (unsigned*)malloc(n_common * sizeof(unsigned));
+
+    ms->n_uncommon_L = n_uncommon_L;
+    ms->n_uncommon_R = n_uncommon_R;
+    ms->uncommon_L = (unsigned*)malloc(2 * n_uncommon_L * sizeof(unsigned));
+    ms->uncommon_R = (unsigned*)malloc(2 * n_uncommon_R * sizeof(unsigned));
+
+    if (!ms->common_columns || !ms->common_L || !ms->common_R || !ms->uncommon_L || !ms->uncommon_R) {
+        fprintf(stderr, "Unable to allocate memory inside mgu_schema\n");
+        free(ms->common_columns); free(ms->common_L); free(ms->common_R); 
+        free(ms->uncommon_L); free(ms->uncommon_R);
+        free(ms);
         exit(EXIT_FAILURE);
     }
 
     return ms;
 }
 
-// Assumes input arrays are not null and have appropriate size
-mgu_schema* create_mgu_schema(const unsigned m, unsigned* columns, unsigned* mappings_L, unsigned* mappings_R) {
-    mgu_schema *ms = malloc(sizeof(mgu_schema));
-    if (!ms) {fprintf(stderr, "Unable to allocate memory for mgu_schema\n"); exit(EXIT_FAILURE); }
-    ms->m = m;
-    ms->columns = (unsigned*)malloc(m * sizeof(unsigned));
-    ms->mapping_L = (unsigned*)malloc(m * sizeof(unsigned));
-    ms->mapping_R = (unsigned*)malloc(m * sizeof(unsigned));
-
-    if (!ms->columns || !ms->mapping_L || !ms->mapping_R) {
-        fprintf(stderr, "Unable to allocate memory inside mgu_schema\n"); 
-        free(ms->columns); free(ms->mapping_L); free(ms->mapping_R); free(ms);
-        exit(EXIT_FAILURE);
-    }
-
-    for (unsigned i = 0; i < m; i++) {
-        ms->columns[i] = columns[i]; 
-        ms->mapping_L[i] = mappings_L[i];
-        ms->mapping_R[i] = mappings_R[i];
-    }
-
-    return ms;
-}
-
-mgu_schema* create_mgu_from_matrices(const matrix_schema* ms1, const matrix_schema* ms2) 
+// n must be the total number of elements, that is,n_pairs*2
+// mapping must not have '_-_' entry, but not checked (maybe should)
+mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const unsigned n_L, const unsigned n_R) 
 {
-    unsigned n = 0;
+    unsigned i;
+    unsigned n_common = 0;
 
-    // Find the number of common elements
-    for (unsigned i = 0; i < ms1->m; i++) {
-        for (unsigned j = 0; j < ms2->m; j++) {
-            if (ms1->columns[i] == ms2->columns[j]) {
-                n++;
-                break;
-            }
-        }
-    }
-    
-    // Create MGU schema
-    mgu_schema* mgu = (mgu_schema*)malloc(sizeof(mgu_schema));
-    mgu->m = n;
-
-    if (n == 0) printf("No common elements found between matrix schemas\n");
-    else 
+    for (i=0; i<n; i+=2)
     {
-        mgu->columns =   (unsigned*)malloc(n * sizeof(unsigned));
-        mgu->mapping_L = (unsigned*)malloc(n * sizeof(unsigned));
-        mgu->mapping_R = (unsigned*)malloc(n * sizeof(unsigned));
-
-        if (!mgu->columns || !mgu->mapping_L || !mgu->mapping_R) {
-            fprintf(stderr, "Unable to allocate memory inside mgu_schema\n");
-            free_mgu_schema(mgu);
-            exit(EXIT_FAILURE);
-        }
-
-        // Fill the mgu_schema
-        unsigned index = 0;
-        for (unsigned i = 0; i < ms1->m; i++) {
-            for (unsigned j = 0; j < ms2->m; j++) {
-                if (ms1->columns[i] == ms2->columns[j]) {
-                    mgu->columns[index] = ms1->columns[i];
-                    mgu->mapping_L[index] = ms1->mapping[i];
-                    mgu->mapping_R[index] = ms2->mapping[j];
-                    index++;
-                    break;
-                }
-            }
-        }
+        // 0 value in mapping means '_'
+        if (mapping[i] && mapping[i+1]) {n_common++;} 
     }
 
-    return mgu;
+    mgu_schema *ms = create_empty_mgu_schema(n_common, n_L-n_common, n_R-n_common);
+
+    unsigned last_uncommon_L = 0;
+    unsigned last_uncommon_R = 0;
+    unsigned last_common = 0;
+
+    bool was_last_uncommon_L = false;
+    bool was_last_uncommon_R = false;
+
+    for (i=0; i<n; i+=2)
+    {
+        // Column taken from right main term, uncommon in R
+        if (!mapping[i])
+        {
+            if (was_last_uncommon_R)
+            {
+                ms->uncommon_R[last_uncommon_R-1]++;
+            }
+            else
+            {
+                ms->uncommon_R[last_uncommon_R] = mapping[i+1];
+                ms->uncommon_R[last_uncommon_R+1] = 1;
+                last_uncommon_R += 2;
+                was_last_uncommon_R = true;
+                was_last_uncommon_L = false;
+            }
+        }
+        // Column taken from left main term, uncommon in L
+        else if (!mapping[i+1])
+        {
+            if (was_last_uncommon_L)
+            {
+                ms->uncommon_L[last_uncommon_L-1]++;
+            }
+            else
+            {
+                ms->uncommon_L[last_uncommon_L] = mapping[i];
+                ms->uncommon_L[last_uncommon_L+1] = 1;
+                last_uncommon_L += 2;
+                was_last_uncommon_R = false;
+                was_last_uncommon_L = true;
+            }
+        }
+        // Column in common
+        else
+        {
+            ms->common_columns[last_common] = (i/2) + 1;
+            ms->common_L[last_common] = mapping[i];
+            ms->common_R[last_common] = mapping[i+1];
+            last_common++;
+            was_last_uncommon_R = false;
+            was_last_uncommon_L = false;
+        }
+    }
+    return ms;
+}
+
+mgu_schema* deep_copy_mgu_schema(const mgu_schema* ms) {
+    if (!ms) return NULL;
+
+    mgu_schema* result = create_empty_mgu_schema(ms->n_common, ms->n_uncommon_L, ms->n_uncommon_R);
+
+    memcpy(result->common_columns, ms->common_columns, ms->n_common * sizeof(unsigned));
+    memcpy(result->common_L,       ms->common_L,       ms->n_common * sizeof(unsigned));
+    memcpy(result->common_R,       ms->common_R,       ms->n_common * sizeof(unsigned));
+    memcpy(result->uncommon_L,     ms->uncommon_L,     2 * ms->n_uncommon_L * sizeof(unsigned));
+    memcpy(result->uncommon_R,     ms->uncommon_R,     2 * ms->n_uncommon_R * sizeof(unsigned));
+
+    return result;
 }
 
 void free_mgu_schema(mgu_schema* ms) {
     if (ms) {
-        free(ms->mapping_L);
-        free(ms->mapping_R);
-        free(ms->columns);
+        free(ms->common_columns);
+        free(ms->common_L);
+        free(ms->common_R);
+        free(ms->uncommon_L);
+        free(ms->uncommon_R);
         free(ms);
     }
 }
 
 void print_mgu_schema(mgu_schema* ms) {
-    printf("columns:   [");
-    for (unsigned i = 0; i < ms->m - 1; i++) {
-        printf("%d, ", ms->columns[i]);
-    }    
-    printf("%d]\n", ms->columns[ms->m - 1]);
+    printf("common_columns: [");
+    for (unsigned i = 0; i < ms->n_common - 1; i++) {
+        printf("%u, ", ms->common_columns[i]);
+    }
+    if (ms->n_common > 0) printf("%u", ms->common_columns[ms->n_common - 1]);
+    printf("]\n");
 
-    printf("mapping_L: [");
-    for (unsigned i = 0; i < ms->m - 1; i++) {
-        printf("%d, ", ms->mapping_L[i]);
-    }    
-    printf("%d]\n", ms->mapping_L[ms->m - 1]);
+    printf("common_L: [");
+    for (unsigned i = 0; i < ms->n_common - 1; i++) {
+        printf("%u, ", ms->common_L[i]);
+    }
+    if (ms->n_common > 0) printf("%u", ms->common_L[ms->n_common - 1]);
+    printf("]\n");
 
-    printf("mapping_R: [");
-    for (unsigned i = 0; i < ms->m - 1; i++) {
-        printf("%d, ", ms->mapping_R[i]);
-    }    
-    printf("%d]\n", ms->mapping_R[ms->m - 1]);
+    printf("common_R: [");
+    for (unsigned i = 0; i < ms->n_common - 1; i++) {
+        printf("%u, ", ms->common_R[i]);
+    }
+    if (ms->n_common > 0) printf("%u", ms->common_R[ms->n_common - 1]);
+    printf("]\n");
+
+    printf("uncommon_L: [");
+    for (unsigned i = 0; i < 2 * ms->n_uncommon_L; i += 2) {
+        printf("(%u, %u)", ms->uncommon_L[i], ms->uncommon_L[i + 1]);
+        if (i + 2 < 2 * ms->n_uncommon_L) printf(", ");
+    }
+    printf("]\n");
+
+    printf("uncommon_R: [");
+    for (unsigned i = 0; i < 2 * ms->n_uncommon_R; i += 2) {
+        printf("(%u, %u)", ms->uncommon_R[i], ms->uncommon_R[i + 1]);
+        if (i + 2 < 2 * ms->n_uncommon_R) printf(", ");
+    }
+    printf("]\n");
 }
 // ===<<< END MGU SCHEMA >>>=== //
 
