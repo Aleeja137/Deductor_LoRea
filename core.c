@@ -305,6 +305,7 @@ void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
 
         // Skip end exception subset line
         getline(&line, &len, stream);
+        // printf("skiped line in read_exception_blocks is : %s\n",line); // Check
     }
     
     free(line);
@@ -364,9 +365,6 @@ void read_result_matrix(FILE *stream, result_block *rb) {
     ssize_t read;
     unsigned row = 0;
 
-    // Skip matrix header // TODO: Change the logic to do this elsewhere
-    getline(&line, &len, stream);
-
     // Read block header
     getline(&line, &len, stream);
     // printf("line to be matched is: %s\n",line); // Check
@@ -374,6 +372,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
                          &rb->t1, &rb->t2, &rb->r1, &rb->r2, &rb->c1, &rb->c2, &rb->c);
 
     if (matched != 7) {
+        printf("line: %s\n",line); // Check
         fprintf(stderr, "Could not read matrix subset info, matched: %d\n",matched);
         free_result_block(rb);
         free(line);
@@ -499,8 +498,18 @@ result_block read_result_block(FILE *stream) {
     // Create the operand_block structure for later populating it
     result_block rb = create_null_result_block();
 
+    char *line = NULL;
+    size_t len = 0;
+
+    // Skip matrix header
+    getline(&line, &len, stream);
+    if (strstr(line, "END: Matrix M1 & M2 + MGU") != NULL) return rb;
+
     // Read the operand block and fill the struct
     read_result_matrix(stream, &rb);
+
+    // Skip matrix header 
+    // getline(&line, &len, stream);
 
     return rb;
 }
@@ -876,27 +885,20 @@ int main(int argc, char *argv[]){
     printf("M2 end ---------\n"); // Check
     printf("Ignore, for avoiding optimization: %d\n",ob.r);
 
+    // Read the corresponding pair of blocks from M3
+    result_block rb;
+    rb = read_result_block(stream_M3);
+    print_result_block(&rb,0); // Check
+    rb = read_result_block(stream_M3);
+    if (!rb.t1) printf("No more result blocks");
+    print_result_block(&rb,0); // Check
     
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_total);
     timespec_subtract(&elapsed, &end_total, &start_total);
     printf("Total time:                    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
 
-
-
-    // Read the corresponding pair of blocks from M3
-
-    result_block rb;
-    rb = read_result_block(stream_M3);
-    print_result_block(&rb,2); // Check
-
     exit(EXIT_SUCCESS);
-    // NEW: Read one by one blocks from M1 and M2
-        // For each pair of blocks, read:
-            // Their schemas
-            // The number of exception blocks
-            // The exceptions blocks
-                // Their schemas and their schemas mappings
 
 
     int *mat0=NULL, *mat1=NULL, *mat2=NULL, n0,n1,n2,m0,m1,m2;
