@@ -242,6 +242,24 @@ void read_line(char *line, int *row, bool skip_first) {
     }
 }
 
+void get_mapping(char *line, unsigned n_pairs, unsigned *mapping){
+    char *tok = strtok(line, " ,\n");
+    unsigned count = 0;
+
+    while (tok != NULL && count < n_pairs * 2) {
+        char *dash = strchr(tok, '-');
+        if (dash) {
+            *dash = '\0'; 
+            char *first = tok;
+            char *second = dash + 1;
+
+            mapping[count++] = (strcmp(first, "_") == 0)  ? 0 : (unsigned)atoi(first);
+            mapping[count++] = (strcmp(second, "_") == 0) ? 0 : (unsigned)atoi(second);
+        }
+        tok = strtok(NULL, " ,\n");
+    }
+}
+
 void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
     unsigned n, m;
     unsigned e = mt->e;
@@ -264,7 +282,11 @@ void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
 
         // Read mapping (Skip for now)
         getline(&line, &len, stream);
-        // read_mapping(stream, eb->ms, m);
+        // printf("%s\n",line); // Check
+        unsigned *mapping = (unsigned*)malloc(eb->m*2*sizeof(unsigned));
+        get_mapping(line,eb->m, mapping);
+        eb->ms = create_mgu_from_mapping(mapping, eb->m*2, mt->c, eb->m);
+        // print_mapping_compact(eb->ms, eb->m*2); // Check
 
         // Skip flatened schema if reading from operand
         if (!result) getline(&line, &len, stream);
@@ -336,24 +358,6 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
     free(line);
 }
 
-void get_mapping(char *line, unsigned n_pairs, unsigned *mapping){
-    char *tok = strtok(line, " ,\n");
-    unsigned count = 0;
-
-    while (tok != NULL && count < n_pairs * 2) {
-        char *dash = strchr(tok, '-');
-        if (dash) {
-            *dash = '\0'; 
-            char *first = tok;
-            char *second = dash + 1;
-
-            mapping[count++] = (strcmp(first, "_") == 0)  ? 0 : (unsigned)atoi(first);
-            mapping[count++] = (strcmp(second, "_") == 0) ? 0 : (unsigned)atoi(second);
-        }
-        tok = strtok(NULL, " ,\n");
-    }
-}
-
 void read_result_matrix(FILE *stream, result_block *rb) {
     char *line = NULL;
     size_t len = 0;
@@ -391,9 +395,11 @@ void read_result_matrix(FILE *stream, result_block *rb) {
 
     // Get mapping info
     getline(&line, &len, stream);
+    // printf("%s\n",line); // Check
     unsigned *mapping = (unsigned*)malloc(rb->c*2*sizeof(unsigned));
     get_mapping(line, rb->c, mapping);
-    rb->ms = create_mgu_from_mapping(mapping, rb->c, rb->c1, rb->c2);
+    rb->ms = create_mgu_from_mapping(mapping, rb->c*2, rb->c1, rb->c2);
+    // print_mapping_compact(rb->ms, rb->c*2); // Check
 
     // Skip flattened schema
     getline(&line, &len, stream);
@@ -448,14 +454,8 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         // Skip the unifier line
         getline(&line, &len, stream);
 
-        // Read the exception blocks
-
-        // TODO HERE: Change this to read the new exception format (with unifiers) and handle unifiers in the rest of the function too.
         // Read one by one the exception blocks
         if (e) read_exception_blocks(stream, mt, true);
-
-        // Skip '% End: Exception subsetX' line
-        // if (e) getline(&line, &len, stream);
 
         // Increment the row by 1
         row++;
@@ -821,8 +821,6 @@ void prepare_unified(int *row_a, int *row_b, int *unified, matrix_schema* ms1, m
 }
 // --------------------- CORE END --------------------- //
 
-
-
 int main(int argc, char *argv[]){
     struct timespec start_total, start_reading, start_unifiers, start_unification;
     struct timespec end_total, end_reading, end_unifiers, end_unification;     
@@ -864,7 +862,7 @@ int main(int argc, char *argv[]){
     for (size_t s = 0; s < s1; s++)
     {
         ob = read_operand_block(stream_M1);
-        // printf("%lu: - ",s+1); print_operand_block(&ob, 0); // Check
+        // printf("%lu: - ",s+1); print_operand_block(&ob, 2); // Check
     }
     printf("Ignore, for avoiding optimization: %d\n",ob.r);
     printf("M1 end ---------\n"); // Check
@@ -890,7 +888,7 @@ int main(int argc, char *argv[]){
 
     result_block rb;
     rb = read_result_block(stream_M3);
-    print_result_block(&rb,2);
+    print_result_block(&rb,2); // Check
 
     exit(EXIT_SUCCESS);
     // NEW: Read one by one blocks from M1 and M2

@@ -47,7 +47,8 @@ void free_exception_block(exception_block* eb) {
 
 void print_exception_block(exception_block* eb) {
     printf("%% BEGIN: Exception subset (%u,%u)\n",eb->n,eb->m);
-    // print_mgu_schema(eb->ms);
+    // print_mgu_schema(eb->ms); // Too much
+    print_mapping_compact(eb->ms,eb->m*2);
 
     for (unsigned i = 0; i < eb->n; i++) {
         printf("Row %u: ",i);
@@ -106,21 +107,6 @@ void free_main_term(main_term* mt) {
 }
 
 void print_main_term(main_term* mt, int verbosity) {
-    // printf("Main Term:\n");
-    // printf("row: [");
-    // for (unsigned i = 0; i < mt->c - 1; i++)
-    //     printf("%d, ", mt->row[i]);
-    // printf("%d]\n", mt->row[mt->c - 1]);
-
-    // printf("Exceptions: %u\n", mt->e);
-    // if (verbosity)
-    // {
-    //     for (unsigned i = 0; i < mt->e; i++) {
-    //         printf("\tException Block %u:\n", i);
-    //         print_exception_block(&mt->exceptions[i]);
-    //     }
-    // }
-
     // Print line
     printf("%u,",mt->e);
     for (unsigned i = 0; i < mt->c - 1; i++)
@@ -134,7 +120,6 @@ void print_main_term(main_term* mt, int verbosity) {
             print_exception_block(&mt->exceptions[i]);
         }
     }
-
 }
 // ===<<< END MAIN TERM >>>=== //
 
@@ -431,6 +416,67 @@ void print_mgu_schema(mgu_schema* ms) {
     }
     printf("]\n");
 }
+
+void print_mapping_compact(mgu_schema *ms, unsigned total_columns) {
+    // Create a flat mapping array
+    unsigned *mapping = calloc(total_columns, sizeof(unsigned));
+    if (!mapping) {
+        fprintf(stderr, "Memory allocation failed\n");
+        return;
+    }
+    
+    // print_mgu_schema(ms); // Check
+
+    // Fill common entries
+    for (unsigned i = 0; i < ms->n_common; i++) {
+        unsigned idx = ms->common_columns[i] - 1;
+        mapping[2 * idx]     = ms->common_L[i];
+        mapping[2 * idx + 1] = ms->common_R[i];
+    }
+
+    // Fill uncommon_L blocks
+    unsigned pos = 0;
+    for (unsigned i = 0; i < ms->n_uncommon_L; i++) {
+        unsigned start = ms->uncommon_L[2 * i];
+        unsigned length = ms->uncommon_L[2 * i + 1];
+        for (unsigned j = 0; j < length; j++) {
+            // Find next empty slot (i.e., both values are zero)
+            while (mapping[2 * pos] || mapping[2 * pos + 1]) pos++;
+            mapping[2 * pos] = start + j;
+            // mapping[2 * pos + 1] = 0; // Already zero
+            pos++;
+        }
+    }
+
+    // Fill uncommon_R blocks
+    pos = 0;
+    for (unsigned i = 0; i < ms->n_uncommon_R; i++) {
+        unsigned start = ms->uncommon_R[2 * i];
+        unsigned length = ms->uncommon_R[2 * i + 1];
+        for (unsigned j = 0; j < length; j++) {
+            while (mapping[2 * pos] || mapping[2 * pos + 1]) pos++;
+            // mapping[2 * pos] = 0; // Already zero
+            mapping[2 * pos + 1] = start + j;
+            pos++;
+        }
+    }
+
+    // Print reconstructed mapping
+    for (unsigned i = 0; i < total_columns/2; i++) {
+        unsigned left = mapping[2 * i];
+        unsigned right = mapping[2 * i + 1];
+        if (left == 0) printf("_");
+        else printf("%u", left);
+        printf("-");
+        if (right == 0) printf("_");
+        else printf("%u", right);
+        if (i + 1 < total_columns/2) printf(",");
+    }
+    printf("\n");
+
+    free(mapping);
+}
+
 // ===<<< END MGU SCHEMA >>>=== //
 
 // ===<<< BEGIN MATRIX SCHEMA >>>=== //
