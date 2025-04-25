@@ -97,7 +97,7 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
 mgu_schema* deep_copy_mgu_schema(const mgu_schema* ms);
 void free_mgu_schema(mgu_schema* ms);
 void print_mgu_schema(mgu_schema* ms);
-void print_mapping_compact(mgu_schema *ms, unsigned total_columns);
+void print_mgu_compact(mgu_schema *ms, unsigned total_columns);
 
 matrix_schema* create_empty_matrix_schema(const unsigned m);
 matrix_schema* create_matrix_schema(const unsigned m, unsigned* columns, unsigned* mappings);

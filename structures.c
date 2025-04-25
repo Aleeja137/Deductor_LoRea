@@ -48,7 +48,7 @@ void free_exception_block(exception_block* eb) {
 void print_exception_block(exception_block* eb) {
     printf("%% BEGIN: Exception subset (%u,%u)\n",eb->n,eb->m);
     // print_mgu_schema(eb->ms); // Too much
-    print_mapping_compact(eb->ms,eb->m*2);
+    print_mgu_compact(eb->ms,eb->m*2);
 
     for (unsigned i = 0; i < eb->n; i++) {
         printf("Row %u: ",i);
@@ -417,7 +417,7 @@ void print_mgu_schema(mgu_schema* ms) {
     printf("]\n");
 }
 
-void print_mapping_compact(mgu_schema *ms, unsigned total_columns) {
+void print_mgu_compact(mgu_schema *ms, unsigned total_columns) {
     // Create a flat mapping array
     unsigned *mapping = calloc(total_columns, sizeof(unsigned));
     if (!mapping) {
