@@ -421,11 +421,14 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         // check if line is unifiable, subsumed or not unifiable
         if (strncmp(line, "Rows ", 5) == 0) {
             if (strstr(line, "subsumed by exception") != NULL) {
+                rb->terms[row] = create_null_main_term();
                 rb->valid[row] = 1;
                 unified_counter++; // Check
                 subsumed_csv++;
                 // printf("Reading line %u is subsumed by exception\n",row); // Check
             } else if (strstr(line, "not unifiable") != NULL) {
+                rb->terms[row] = create_null_main_term();
+                rb->terms[row].c = 1; // for Distinction between subsumed and not unifiable
                 rb->valid[row] = 2;
                 // printf("Reading line %u is not unifiable\n",row); // Check
             }
@@ -554,8 +557,7 @@ int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, unsigned *unifie
 // Return the unifier of two rows (naive) or -1 if not unificable
 int unifier_rows(int *row_a, int *row_b, unsigned *unifier, mgu_schema* ms3, const unsigned mA){
     int result;
-    static unsigned m;
-    m = ms3->n_common;
+    const unsigned m = ms3->n_common;
 	for (unsigned i=0; i<m; i++)
 	{
 		result = unifier_a_b(row_a, ms3->common_L[i]-1, row_b, ms3->common_R[i]-1, unifier, 2*i, mA);
@@ -705,7 +707,7 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
     // printf("n_substitutions: %u\n",n_substitutions); // Check
 
     // Free lst
-    for ( i = 0; i < 2*n_col_unifier; i++)
+    for ( i = 0; i < (m1+m2); i++)
     {
         free_L2(lst[i]);
     }
@@ -736,7 +738,7 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
             code = unifier_rows(ob1->terms[i].row, ob2->terms[j].row, unifier, rb->ms, m1);
             if (code != 0) continue; // Rows cannot be unified
 
-            code = correct_unifier(ob1->terms[i].row, ob2->terms[j].row, unifier, m, m1, m2);
+            code = correct_unifier(ob1->terms[i].row, ob2->terms[j].row, unifier, 2*m, m1, m2);
             if (code != 0) continue; // Rows cannot be unified
             
             unifier[1+(2*m)]   = i;
@@ -839,6 +841,7 @@ void prepare_unified(int *unified, unsigned n_col_unified, int *row_b, mgu_schem
 // - All changes in A are done by distinct variables of B (extended)
 bool subsums(const unsigned* unifier, const int *rowB, const unsigned m1, const unsigned m2)
 {
+    printf("----------m1: %u, m2: %u-------------\n",m1,m2); // Check
     bool *used = calloc(m2, sizeof(bool));
     if (!used) {
         fprintf(stderr, "Error allocating used\n");
@@ -853,16 +856,16 @@ bool subsums(const unsigned* unifier, const int *rowB, const unsigned m1, const 
         if (x < m1) {
 
             // If change comes from A too
-            if (y < m1) {free(used); return false;}
+            if (y < m1) {free(used); printf("caso A-> x:%u, y:%u <- Cambio de A en A",x,y); return false;}
             // If change comes from B
             else 
             {
                 // If constant, does not subsum
-                if (rowB[y-m1] > 0) {free(used); return false;}
+                if (rowB[y-m1] > 0) {free(used); printf("caso B-> x:%u, y:%u <- Cambio de A por constante %d",x,y,rowB[y-m1]); return false;}
                 // If first use of variable, set it as used
                 else if (!used[y-m1]) {used[y-m1] = true;}
                 // If not first use, does not subsum
-                else {free(used); return false;}
+                else {free(used); printf("caso C-> x:%u, y:%u <- Variable y usada antes",x,y);return false;}
             }
         }
     }
@@ -881,7 +884,6 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
                 // If they unify, check if the subsums new_mt
                     // If so, return 1 (subsumed by exception)
                     // If not, apply unifier to exception and add to new_mt exception block (need read_mt mapping for this)
-    if (read_mt->c==0) return 2; // Not unifiable
 
     unsigned i, j;
 	unsigned unifier_size, *unifier = NULL;
@@ -919,7 +921,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
 			code = unifier_rows(exception, new_mt->row, unifier, read_mt->exceptions[i].ms, n_columns);
 			if (code != 0) continue; // If they do not unify, skip
                 
-			code = correct_unifier(exception, new_mt->row, unifier, new_n_columns, n_columns, new_mt->c);
+			code = correct_unifier(exception, new_mt->row, unifier, 2*n_columns, n_columns, new_mt->c);
 			if (code != 0) continue; // If they do not unify, skip
 
             // printf("Number of unifier pairs: %u\n",unifier[0]); // Check
@@ -975,7 +977,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
 			if (code != 0) continue; // If they do not unify, skip
                 
 
-			code = correct_unifier(exception, new_mt->row, unifier, new_n_columns, n_columns, new_mt->c);
+			code = correct_unifier(exception, new_mt->row, unifier, new_n_columns, 2*n_columns, new_mt->c);
 			if (code != 0) continue; // If they do not unify, skip
 
             // If they unify, check if the subsums new_mt
@@ -1044,7 +1046,7 @@ int main(int argc, char *argv[]){
 
     printf("M1 blocks %u, M2 blocks %u\n",s1,s2); // Check
 
-    printf("M1 start ---------\n"); // Check
+    // printf("M1 start ---------\n"); // Check
     operand_block ob1;
     s1 = 1; // For now
     for (size_t s = 0; s < s1; s++)
@@ -1052,10 +1054,10 @@ int main(int argc, char *argv[]){
         ob1 = read_operand_block(stream_M1);
         // printf("%lu: - ",s+1); print_operand_block(&ob1, 2); // Check
     }
-    printf("Ignore, for avoiding optimization: %d\n",ob1.r);
-    printf("M1 end ---------\n"); // Check
+    // printf("Ignore, for avoiding optimization: %d\n",ob1.r); // Check
+    // printf("M1 end ---------\n"); // Check
     
-    printf("M2 start ---------\n"); // Check
+    // printf("M2 start ---------\n"); // Check
     operand_block ob2;
     s2 = 1; // For now
     for (size_t s = 0; s < s2; s++)
@@ -1063,8 +1065,8 @@ int main(int argc, char *argv[]){
         ob2 = read_operand_block(stream_M2);
         // printf("%lu: - ",s+1); print_operand_block(&ob2, 0); // Check
     }
-    printf("M2 end ---------\n"); // Check
-    printf("Ignore, for avoiding optimization: %d\n",ob2.r);
+    // printf("M2 end ---------\n"); // Check
+    // printf("Ignore, for avoiding optimization: %d\n",ob2.r); // Check
 
     // Read the corresponding pair of blocks from M3
     result_block rb;
@@ -1145,17 +1147,35 @@ int main(int argc, char *argv[]){
         memcpy(line_A,ob1.terms[ind_A].row,ob1.c*sizeof(int));
         memcpy(line_B,ob2.terms[ind_B].row,ob2.c*sizeof(int));
         apply_unifier_left(line_A,line_B,&unifiers[i*unifier_size],ob1.c);
+        printf("line_A:    ");print_mat_line(line_A,ob1.c); // Check
         main_term mt = create_empty_main_term(my_rb.c, ob1.terms[ind_A].e + ob2.terms[ind_B].e);
+        // printf("number of columns new_mt: %u\n",mt.c); // Check
         memcpy(mt.row, line_A, ob1.c*sizeof(int));
         // print_mgu_compact(rb.ms,rb.c*2); // Check
         // print_mgu_schema(rb.ms); // Check
         prepare_unified(mt.row, my_rb.c,line_B, rb.ms);
         unsigned index_mt = ind_A*my_rb.r2+ind_B;
         my_rb.terms[index_mt] = mt;
-        my_rb.valid[index_mt] = check_exceptions(&ob1.terms[ind_A], &ob2.terms[ind_B], &mt, &rb.terms[index_mt]);
+        printf("main term: "); print_main_term(&mt,0); // Check
+        // if (rb.terms[index_mt].exceptions==NULL) {my_rb.valid[index_mt] = 1; printf("Catch <---------\n");} // Check
+        if (rb.terms[index_mt].exceptions==NULL) {my_rb.valid[index_mt] = 1;}
+        else {my_rb.valid[index_mt] = check_exceptions(&ob1.terms[ind_A], &ob2.terms[ind_B], &mt, &rb.terms[index_mt]);}
         // if (chivato) 
         // print_main_term(&mt,0); // Check
         // if (i>3) chivato=false;
+
+        if (my_rb.valid[index_mt] != rb.valid[index_mt]) 
+        {
+            printf("valid me: %u, valid csv: %u (Row %u-%u)\n",my_rb.valid[index_mt],rb.valid[index_mt],ind_A+1, ind_B+1);
+            printf("My result block:\n\t"); print_main_term(&my_rb.terms[index_mt],0);
+            printf("Main term in M1:\n\t"); print_main_term(&ob1.terms[ind_A+1],0);
+            printf("Main term in M2:\n\t"); print_main_term(&ob2.terms[ind_B+1],0);
+            printf("Unifier:\n\t");         print_unifier(&unifiers[i*unifier_size],m);
+            printf("Mapping:\n\t");         print_mgu_compact(my_rb.ms,my_rb.c*2);
+            print_mgu_schema(my_rb.ms);
+            return 0;
+        }
+
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);

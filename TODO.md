@@ -26,6 +26,7 @@ A mejorar:
     - Mirar si es subconjunto, easier copy
     - Meter memory handling, arreglar memory leaks, añadir documentación y limpiar/mejorar/actualizar comentarios
     - Meter const/unsigned donde sea necesario, usar size_t también para recorrer posiciones de memoria si son necesarios (preguntar a Jose sino)
+    - Podríamos meter una función que simplifique el unificador (var<-var que no se repiten más)
 
 
 Siguientes pasos:  
