@@ -572,7 +572,7 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
     
     unsigned i;
     L2 *lst = (L2*) malloc ((m1+m2)*sizeof(L2));
-    for (i=0;i<(m1+m2);i++){
+    for (i=0;i<(m1+m2+1);i++){
         lst[i] = create_L2_empty();
     }
 
@@ -593,7 +593,7 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
             x = -row_b[x-m1] + m1 - 1;
         if (y < m1 && row_a[y] < 0) 
             y = -row_a[y] - 1;
-        else if (y > m1 && row_b[y-m1] < 0)
+        else if (y >= m1 && row_b[y-m1] < 0)
             y = -row_b[y-m1] + m1 - 1; 
 
         // If any of them was substituted before, get the corresponding elements
@@ -634,6 +634,7 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
             // Add the replacement list of y, and y itself, to replacement list of x
             if (lst[x].head)
             {
+                if (!lst[x].tail) lst[x].tail = lst[x].head;
                 lst[x].tail->next = create_L3(y,lst[y].head);
                 if (lst[y].head) lst[x].tail = lst[y].tail;
             }
@@ -643,7 +644,8 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
                 lst[x].tail = lst[x].head;
                 if (lst[y].head) lst[x].tail = lst[y].tail;
             } 
-            lst[y].head = lst[y].tail = NULL;
+            lst[y].head = NULL;
+            lst[y].tail = NULL;
         }
         // If x is variable
         else // (x<-y)
@@ -653,7 +655,7 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
             lst[x].by    = y;
             lst[x].ind   = x;
 
-            // Update all variables replaced by y to be replaced by x
+            // Update all variables replaced by x to be replaced by y
             L3 *current = lst[x].head;
             while (current != NULL)
             {
@@ -663,11 +665,11 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
                 current = current->next;
             }
 
-            // Add the replacement list of y, and y itself, to replacement list of x
+            // Add the replacement list of x, and x itself, to replacement list of y
             if (lst[y].head)
             {
-                lst[y].tail->next = create_L3(x,lst[x].head);
-                lst[y].tail = lst[y].tail->next;
+                if (!lst[y].tail) lst[y].tail = lst[y].head;
+                lst[y].tail->next = create_L3(x,lst[x].head); // <----- HERE
                 if (lst[x].head) lst[y].tail = lst[x].tail;
 
             }
@@ -677,14 +679,15 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
                 lst[y].tail = lst[y].head;
                 if (lst[x].head) lst[y].tail = lst[x].tail;
             }
-            lst[x].head = lst[x].tail = NULL;
+            lst[x].head = NULL;
+            lst[x].tail = NULL;
         }
     }
 
     int last_unifier = 0;
     unsigned n_substitutions = 0;
     // For each element, add the substitutions to the unifier
-    for (i=0; i<(m1+m2); i++)
+    for (i=0; i<(m1+m2+1); i++)
     {
         int y = i;
         int x;
@@ -707,7 +710,7 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
     // printf("n_substitutions: %u\n",n_substitutions); // Check
 
     // Free lst
-    for ( i = 0; i < (m1+m2); i++)
+    for ( i = 0; i < (m1+m2+1); i++)
     {
         free_L2(lst[i]);
     }
@@ -837,23 +840,30 @@ void prepare_unified(int *unified, unsigned n_col_unified, int *row_b, mgu_schem
 }
 
 // A subsums B if any of the two is true:
-// - No changes in A (strict)
-// - All changes in A are done by distinct variables of B (extended)
+// - No changes in A (strict) or ALL changes are in A, and are done by distinct variables of B (extended)
 bool subsums(const unsigned* unifier, const int *rowB, const unsigned m1, const unsigned m2)
 {
     printf("----------m1: %u, m2: %u-------------\n",m1,m2); // Check
     bool *used = calloc(m2, sizeof(bool));
+    bool change_in_B=false;
     if (!used) {
         fprintf(stderr, "Error allocating used\n");
         exit(EXIT_FAILURE);
     }
 
-    for (unsigned i = 0; i < unifier[0]; i++) {
-        unsigned x = unifier[1+2*i];
-        unsigned y = unifier[1+2*i + 1];
+    for (unsigned i = 1; i < unifier[0]*2; i+=2) {
+        unsigned x = unifier[i];
+        unsigned y = unifier[i+1];
 
         // If change done in A
         if (x < m1) {
+
+            // All changes need to happen in A
+            if (change_in_B) {
+                free(used);
+                printf("caso D-> x:%u, y:%u <- Cambio en B antes de cambio en A\n", x, y); // Check
+                return false;
+            }
 
             // If change comes from A too
             if (y < m1) {free(used); printf("caso A-> x:%u, y:%u <- Cambio de A en A",x,y); return false;}
@@ -868,12 +878,12 @@ bool subsums(const unsigned* unifier, const int *rowB, const unsigned m1, const 
                 else {free(used); printf("caso C-> x:%u, y:%u <- Variable y usada antes",x,y);return false;}
             }
         }
+        else change_in_B = true;
     }
 
     free(used);
     return true;
 }
-
 
 int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_term *read_mt)
 {
@@ -921,14 +931,19 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
 			code = unifier_rows(exception, new_mt->row, unifier, read_mt->exceptions[i].ms, n_columns);
 			if (code != 0) continue; // If they do not unify, skip
                 
-			code = correct_unifier(exception, new_mt->row, unifier, 2*n_columns, n_columns, new_mt->c);
+			code = correct_unifier(exception, new_mt->row, unifier, 2*n_common, n_columns, new_mt->c);
 			if (code != 0) continue; // If they do not unify, skip
 
             // printf("Number of unifier pairs: %u\n",unifier[0]); // Check
             // If they unify, check if the subsums new_mt
             if (subsums(unifier,new_mt->row,n_columns,new_mt->c)) 
             {
+                printf("SUBSUMPTION EQUAL TRUE; PRINTING UNIFIER\n"); // Check
+                print_unifier(unifier,n_columns); // Check
+                printf("Main term in exception:\n\t"); print_mat_line(exception,n_columns);
+                printf("Main term in new_mt   :\n\t"); print_main_term(new_mt,0);
                 subsumed_me++;
+                free(new_exc_mat);
                 free(exception);
                 free(unifier);
                 return 1;
@@ -983,6 +998,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
             // If they unify, check if the subsums new_mt
             if (subsums(unifier,new_mt->row,n_columns,new_mt->c)) 
             {
+                free(new_exc_mat);
                 free(exception);
                 free(unifier);
                 return 1;
@@ -1156,7 +1172,7 @@ int main(int argc, char *argv[]){
         prepare_unified(mt.row, my_rb.c,line_B, rb.ms);
         unsigned index_mt = ind_A*my_rb.r2+ind_B;
         my_rb.terms[index_mt] = mt;
-        printf("main term: "); print_main_term(&mt,0); // Check
+        // printf("main term: "); print_main_term(&mt,0); // Check
         // if (rb.terms[index_mt].exceptions==NULL) {my_rb.valid[index_mt] = 1; printf("Catch <---------\n");} // Check
         if (rb.terms[index_mt].exceptions==NULL) {my_rb.valid[index_mt] = 1;}
         else {my_rb.valid[index_mt] = check_exceptions(&ob1.terms[ind_A], &ob2.terms[ind_B], &mt, &rb.terms[index_mt]);}
@@ -1167,9 +1183,10 @@ int main(int argc, char *argv[]){
         if (my_rb.valid[index_mt] != rb.valid[index_mt]) 
         {
             printf("valid me: %u, valid csv: %u (Row %u-%u)\n",my_rb.valid[index_mt],rb.valid[index_mt],ind_A+1, ind_B+1);
-            printf("My result block:\n\t"); print_main_term(&my_rb.terms[index_mt],0);
-            printf("Main term in M1:\n\t"); print_main_term(&ob1.terms[ind_A+1],0);
-            printf("Main term in M2:\n\t"); print_main_term(&ob2.terms[ind_B+1],0);
+            printf("My result block: \n\t"); print_main_term(&my_rb.terms[index_mt],0);
+            printf("CSV result block:\n\t"); print_main_term(&rb.terms[index_mt],0);
+            printf("Main term in M1:\n\t"); print_main_term(&ob1.terms[ind_A],0);
+            printf("Main term in M2:\n\t"); print_main_term(&ob2.terms[ind_B],0);
             printf("Unifier:\n\t");         print_unifier(&unifiers[i*unifier_size],m);
             printf("Mapping:\n\t");         print_mgu_compact(my_rb.ms,my_rb.c*2);
             print_mgu_schema(my_rb.ms);
