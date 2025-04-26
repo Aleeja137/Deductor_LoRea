@@ -304,7 +304,7 @@ void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
         // }
         // // Check end
         eb->ms = create_mgu_from_mapping(mapping, eb->m*2, mt->c, eb->m);
-        print_mgu_compact(eb->ms, eb->m*2); // Check
+        // print_mgu_compact(eb->ms, eb->m*2); // Check
 
         // Skip flatened schema if reading from operand
         if (!result) getline(&line, &len, stream);
@@ -420,7 +420,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
     unsigned *mapping = (unsigned*)malloc(rb->c*2*sizeof(unsigned));
     get_mapping(line, rb->c, mapping);
     rb->ms = create_mgu_from_mapping(mapping, rb->c*2, rb->c1, rb->c2);
-    print_mgu_compact(rb->ms, rb->c*2); // Check
+    // print_mgu_compact(rb->ms, rb->c*2); // Check
 
     // Skip flattened schema
     getline(&line, &len, stream);
@@ -435,7 +435,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         
         // Get line indexes from row
 
-        // check if line is unifiable, subsumed or not unifiable
+        // Inspect if line is unifiable, subsumed or not unifiable
         if (strncmp(line, "Rows ", 5) == 0) {
             if (strstr(line, "subsumed by exception") != NULL) {
                 rb->terms[row] = create_null_main_term();
@@ -572,12 +572,13 @@ int unifier_a_b(int *row_a, int indexA, int *row_b, int indexB, unsigned *unifie
 }
 
 // Return the unifier of two rows (naive) or -1 if not unificable
-int unifier_rows(int *row_a, int *row_b, unsigned *unifier, mgu_schema* ms3, const unsigned mA){
+int unifier_rows(int *row_a, int *row_b, unsigned *unifier, mgu_schema* ms3, const unsigned mA, bool reverse){
     int result;
     const unsigned m = ms3->n_common;
 	for (unsigned i=0; i<m; i++)
 	{
-		result = unifier_a_b(row_a, ms3->common_L[i]-1, row_b, ms3->common_R[i]-1, unifier, 2*i, mA);
+		if (!reverse) result = unifier_a_b(row_a, ms3->common_L[i]-1, row_b, ms3->common_R[i]-1, unifier, 2*i, mA);
+		else          result = unifier_a_b(row_a, ms3->common_R[i]-1, row_b, ms3->common_L[i]-1, unifier, 2*i, mA);
 		if (result != 0) return result;
 	}
 
@@ -756,7 +757,7 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
         for (j=0; j<ob2->r; j++)
         {
             memset(unifier,0,unifier_size*sizeof(unsigned));  
-            code = unifier_rows(ob1->terms[i].row, ob2->terms[j].row, unifier, rb->ms, m1);
+            code = unifier_rows(ob1->terms[i].row, ob2->terms[j].row, unifier, rb->ms, m1, false);
             if (code != 0) continue; // Rows cannot be unified
 
             code = correct_unifier(ob1->terms[i].row, ob2->terms[j].row, unifier, 2*m, m1, m2);
@@ -849,8 +850,8 @@ void prepare_unified(int *unified, unsigned n_col_unified, int *row_b, mgu_schem
 
     for (i = 0; i < n*2; i+=2)
     {
-        unsigned start  = ms->uncommon_array[i];
-        unsigned length = ms->uncommon_array[i+1];
+        unsigned start  = uncommon_array[i];
+        unsigned length = uncommon_array[i+1];
         memcpy(&unified[last_appended],&row_b[start],length*sizeof(int));
         last_appended+=length;
     }
@@ -932,7 +933,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
 {
     // For each exception exception block from mt1
         // For each exception within the exception block
-            // Check unifier with new_mt
+            // Inspect unifier with new_mt
                 // If they do not unify, skip
                 // If they unify, check if the subsums new_mt
                     // If so, return 1 (subsumed by exception)
@@ -966,12 +967,12 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
         // For each exception within the exception block
         for (j = 0; j < n_exceptions; j++)
         {
-            // Check unifier with new_mt
+            // Inspect unifier with new_mt
             memcpy(exception,&exc_mat[j*n_columns],n_columns*sizeof(int)); // Get exception to process (could be done after checking no subsumtion)
 
             memset(unifier,0,unifier_size*sizeof(int)); // Reset unifier
 
-			code = unifier_rows(exception, new_mt->row, unifier, read_mt->exceptions[i].ms, n_columns);
+			code = unifier_rows(exception, new_mt->row, unifier, read_mt->exceptions[i].ms, n_columns, true);
 			if (code != 0) continue; // If they do not unify, skip
                 
 			code = correct_unifier(exception, new_mt->row, unifier, 2*n_common, n_columns, new_mt->c);
@@ -996,7 +997,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
             apply_unifier_left(exception,new_mt->row,unifier,n_columns);
             memcpy(&new_exc_mat[last_exc*new_n_columns], exception, n_columns*sizeof(int));
             // print_mgu_compact(read_mt->exceptions[i].ms,(read_mt->exceptions[i].m)*2); // Check
-            prepare_unified(&new_exc_mat[last_exc*new_n_columns], new_n_columns, new_mt->row, read_mt->exceptions[i].ms);
+            prepare_unified(&new_exc_mat[last_exc*new_n_columns], new_n_columns, new_mt->row, read_mt->exceptions[i].ms, true);
             last_exc++;
         }
 
@@ -1027,12 +1028,12 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
         // For each exception within the exception block
         for (j = 0; j < n_exceptions; j++)
         {
-            // Check unifier with new_mt
+            // Inspect unifier with new_mt
             memcpy(exception,&exc_mat[j*n_columns],n_columns*sizeof(int)); // Get exception to process (could be done after checking no subsumtion)
 
             memset(unifier,0,unifier_size*sizeof(int)); // Reset unifier
 
-			code = unifier_rows(exception, new_mt->row, unifier, read_mt->exceptions[mt1->e+i].ms, n_columns);
+			code = unifier_rows(exception, new_mt->row, unifier, read_mt->exceptions[mt1->e+i].ms, n_columns, true);
 			if (code != 0) continue; // If they do not unify, skip
                 
 
@@ -1056,7 +1057,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
             // If it does not subsum, apply unifier to exception and save exception for later creating the exception_block
             apply_unifier_left(exception,new_mt->row,unifier,n_columns);
             memcpy(&new_exc_mat[last_exc*new_n_columns], exception, n_columns*sizeof(int));
-            prepare_unified(&new_exc_mat[last_exc*new_n_columns], new_n_columns, new_mt->row, read_mt->exceptions[mt1->e+i].ms);
+            prepare_unified(&new_exc_mat[last_exc*new_n_columns], new_n_columns, new_mt->row, read_mt->exceptions[mt1->e+i].ms, true);
             last_exc++;
         }
 
@@ -1218,7 +1219,7 @@ int main(int argc, char *argv[]){
         memcpy(mt.row, line_A, ob1.c*sizeof(int));
         // print_mgu_compact(rb.ms,rb.c*2); // Check
         // print_mgu_schema(rb.ms); // Check
-        prepare_unified(mt.row, my_rb.c,line_B, rb.ms);
+        prepare_unified(mt.row, my_rb.c,line_B, rb.ms, false);
         unsigned index_mt = ind_A*my_rb.r2+ind_B;
         my_rb.terms[index_mt] = mt;
         // printf("main term: "); print_main_term(&mt,0); // Check
