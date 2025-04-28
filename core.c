@@ -800,7 +800,7 @@ void apply_unifier_left(int *row_a, int *row_b, unsigned *unifier, unsigned m1){
             if (y < m1) val_y = row_a[y];
             else val_y = row_b[y-m1];
 
-            if (val_y > 0) // y is a constant, substitute first x reference for the constant in y
+            if (val_y > 0) // y is a constant, substitute all x references for the constant in y
             {
                 row_a[x] = val_y;
                 for (j=0;j<m1;j++) if (row_a[j]==(int)(-(x+1))) row_a[j] = val_y;
@@ -839,14 +839,12 @@ void prepare_unified(int *unified, unsigned n_col_unified, int *row_b, mgu_schem
     // The mapping in ms is for main_term-main_term or main_term-exception
     // So for applying to one case or the other, we need to consider right and left rows accordingly
     // Use uncommon_array pointer for common code
-    unsigned *uncommon_array = ms->uncommon_R;
-    if (reverse) uncommon_array = ms->uncommon_L;
 
-    unsigned n = ms->n_uncommon_R;
-    if (reverse) n = ms->n_uncommon_L;
-
-    unsigned last_appended = ms->n_uncommon_L + ms->n_common;
-    if (reverse) last_appended = ms->n_uncommon_R + ms->n_common;
+    // Blind pointers to abstract reverse logic onwards
+    unsigned *uncommon_array = reverse ? ms->uncommon_L   : ms->uncommon_R; 
+    unsigned n               = reverse ? ms->n_uncommon_L : ms->n_uncommon_R; 
+    unsigned last_appended   = reverse ? (ms->n_uncommon_R + ms->n_common) : (ms->n_uncommon_L + ms->n_common); 
+    unsigned row_a_end       = last_appended;
 
     for (i = 0; i < n*2; i+=2)
     {
@@ -856,19 +854,83 @@ void prepare_unified(int *unified, unsigned n_col_unified, int *row_b, mgu_schem
         last_appended+=length;
     }
 
-    // Need an additional pass for reference-fixing
-    // TODO: This does not fulfill all cases
-    for (i = 0; i < n_col_unified; i++)
+    // Need an additional pass for reference-fixing, only in row_b by previous design
+    // Only need to check variables that are references. Must determine if the reference is to a variable which is part of the common columns or not
+    // If a reference to common column, take the same column from row_a, that is, from unified. 3 possible cases here:
+        // 1.1. A reference to const -> change reference for const
+        // 1.2. A reference to another reference -> change for reference (no need to check anything else)
+        // 1.3. A reference to initial appearance of variable -> update reference index (just negate the common index)
+    // If the reference is to uncommon column, just use the column from row_b. 3 possible cases here:
+        // 2.1. A reference to const -> change reference for const
+        // 2.2. A reference to another reference -> change for reference (not happening here)
+        // 2.3. A reference to initial appearance of variable -> update reference index (find to which uncommon_R block the index belongs to, add n_common+n_uncommon_L and prev_unsommon_blk_R.length to the reference)
+
+    for (i = row_a_end; i < n_col_unified; i++)
     {
-        int point_to = unified[i];
-        if (point_to < 0)
+        int ref = unified[i];
+        if (ref < 0) // If variable reference
         {
-            int pointed_at = unified[-(point_to-1)];
-            if (pointed_at < 0) unified[i] = pointed_at;
+            unsigned reference       = -(ref-1); // Get proper reference (non-negative index)
+            unsigned *common_arr     = reverse ? ms->common_L : ms->common_R; // Blind pointer to abstract reverse logic onwards
+            unsigned *neg_common_arr = reverse ? ms->common_R : ms->common_L; // Blind pointer to abstract reverse logic onwards
+
+            // Check if the reference is part of the common columns
+            unsigned j = 0;
+            bool found=false;
+            while (j<ms->n_common && !found)
+            {
+                if (common_arr[j]==reference) {
+                    // The common_arr holding the correct column index in the unified row is the opposite to the one used to check if reference is common or not
+                    reference = neg_common_arr[j]; 
+                    found=true;
+                }
+                j++;
+            }
+
+            if (found)
+            {
+                if (chivato) {printf("Cases 1 entered!\n"); // Check
+                // chivato=false; // Check
+                } // Check
+                if (unified[reference]!=0) {unified[i] = unified[reference];} // Cases 1.1 & 1.2
+                else {unified[i] = -((int)reference - 1);} // Case 1.3
+            }
+            else
+            {
+                if (chivato) {printf("Cases 2 entered!\n");  // Check
+                    // chivato=false; // Check
+                } // Check
+                // At this point, reference is pointing to a point in original row_b
+                if (unified[reference]>0) {unified[i] = unified[reference];} // Case 2.1
+                else if (unified[reference] < 0) {fprintf(stderr, "Not possible, check logic\n"); return;} // Case 2.2 (should not happend)
+                else { // Case 2.3
+                    if (chivato) {printf("Case 2.3 entered!\n");  // Check
+                        // chivato=false; // Check
+                    } // Check
+                    // Need to traverse uncommon_blocks, accumulating length, until finding the block it belngs to. Then, add this accumulation to the reference, plus the unifiers_length
+                    j = 0;
+                    found = false;
+                    int accum = row_a_end;
+                    while (j < n*2 && !found)
+                    {
+                        // start+length > reference
+                        unsigned start  = uncommon_array[j*2];
+                        unsigned length = uncommon_array[j*2+1];
+                        
+                        // If the reference belongs to this block
+                        if ((start+length)>reference)
+                        {
+                            accum += reference-start; // Accumulate distance within the block
+                            found=true;
+                            unified[i] = -((int)reference-1+accum);
+                        }
+                        accum+=length; // Accumulate previous block length
+                        j += 2;
+                    }
+                }
+            }
         }
     }
-    
-
 }
 
 // A subsums B if any of the two is true:

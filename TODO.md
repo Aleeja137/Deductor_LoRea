@@ -34,3 +34,5 @@ Siguientes pasos:
     - Aplicar la lógica de unificación con excepciones  
     - La comparación para ver si es correcto o no podría ser únicamente el número de filas nuevas (ya que es muy muy sensible y puede ser sufi), ya que con dos variables X e Y, que no toman valor y se repiten, las dos opciones (x<-y / y<-x) son equivalentes pero las detecta como mal.
         - Hay otro caso donde la unificación está 'bien' y detecta mal, que es cuando hacemos append de las clumnas en r_B que no son en común al final, y prolog suele hacer el append en 'orden'; aunque esto se podría arreglar con un 'orden' a la hora de comparar
+
+    - Voy a tener que generar muy buena documentación cuando acabe para el siguiente que trabaje en esto (o para mí si sigo trabajando en esto)
