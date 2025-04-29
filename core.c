@@ -19,6 +19,7 @@
 Dictionary *const_dict;
 Dictionary *var_dict;
 Dictionary *unif_dict;
+bool first_rb = true;
 bool chivato = true; // Check
 unsigned unified_counter = 0; // Check
 unsigned subsumed_csv=0; // Check
@@ -120,6 +121,47 @@ int compare_mgus(int *my_mgu, int *other_mgu, int n, int m){
         }
     }
     return same; 
+}
+
+int compare_main_terms(main_term *mt1, main_term *mt2){
+    // Quick check
+    if ((mt1->c != mt2->c) || (mt1->e != mt2->e))
+    {
+       printf("compare_main_terms quick test failed\n"); // Check
+       return 0;
+    }
+
+    return 1;
+    
+}
+
+// Return 0 if they are not the same
+int compare_results(result_block *rb1, result_block *rb2){
+    
+    // Quick check
+    if ((rb1->c1 != rb2->c1) || (rb1->c2 != rb2->c2) || (rb1->c != rb2->c) || 
+       (rb1->r1 != rb2->r1) || (rb1->r2 != rb2->r2) || (rb1->r != rb2->r) || 
+       (rb1->t1 != rb2->t1) || (rb1->t2 != rb2->t2))
+    {
+       printf("compare_results quick test failed\n");
+       return 0;
+    }
+
+    // Iterate the main terms, and check the rows, exceptions bloks, etc
+    for (unsigned i = 0; i < rb1->r; i++)
+    {
+        if (rb1->valid[i] != rb2->valid[i]) {printf("compare_results valid test failed at term %u (%u-%u)\n",i, i/rb1->r2+1, i%rb1->r2+1); return 0;}
+        if (rb1->valid[i] == 0) // Only in this case, otherwise rows and exceptions will be empty
+        {
+            if (!compare_main_terms(&rb1->terms[i], &rb2->terms[i]))
+            {
+                printf("compare_results main term test failed at term %u (%u-%u)\n",i, i/rb1->r2+1, i%rb1->r2+1);
+                return 0;
+            }
+
+        }
+    }
+    return 1;
 }
 // ---------------------- UTILS END ---------------------- //
 
@@ -389,9 +431,6 @@ void read_result_matrix(FILE *stream, result_block *rb) {
     // printf("line to be matched is: %s\n",line); // Check
     int matched = sscanf(line, "%% BEGIN: Matrix subset %u-%u (%u-%u,%u-%u,%u)",
                          &rb->t1, &rb->t2, &rb->r1, &rb->r2, &rb->c1, &rb->c2, &rb->c);
-
-    rb->t1--;
-    rb->t2--;
     
     if (matched != 7) {
         printf("line: %s\n",line); // Check
@@ -490,6 +529,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         unified_counter++; // Check
     }
 
+    printf("Line at end of read_result_block is: %s",line); // Check
     free(line);
     free(mapping);
 }
@@ -532,8 +572,11 @@ result_block read_result_block(FILE *stream) {
     size_t len = 0;
 
     // Skip matrix header
-    getline(&line, &len, stream);
-    if (strstr(line, "END: Matrix M1 & M2 + MGU") != NULL) return rb;
+    if (first_rb) {
+        first_rb=false; 
+        getline(&line, &len, stream);
+        if (strstr(line, "END: Matrix M1 & M2 + MGU") != NULL) return rb;
+    }
 
     // Read the operand block and fill the struct
     read_result_matrix(stream, &rb);
@@ -1197,15 +1240,18 @@ int main(int argc, char *argv[]){
     // printf("Ignore, for avoiding optimization: %d\n",ob2.r); // Check
 
     // Read the corresponding pair of blocks from M3
+    unsigned rb_index=0;
     result_block rb;
-    rb = read_result_block(stream_M3);
-    // do {
-    //     rb = read_result_block(stream_M3);
-    //     print_result_block(&rb, 0); // Check
-    // } while (rb.t1);
+    do {
+        printf("Reading result_block %u\n",rb_index+1); // Check
+        rb = read_result_block(stream_M3);
+        print_result_block(&rb, 0); // Check
+        rb_index++;
+    } while (rb.t1);
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
 
+    exit(EXIT_SUCCESS);
     // TODO: Modify this section, since we will be working with one M1,M2 and M3 block at a time
     // if (verbose)
     // {
