@@ -131,8 +131,40 @@ int compare_main_terms(main_term *mt1, main_term *mt2){
        return 0;
     }
 
+    for (size_t i = 0; i < mt1->c; i++)
+    {
+        if (mt1->row[i]!=mt2->row[i])
+        {
+            printf("compare_main_terms row test failed at element in column %lu\n",i); // Check
+            printf("mt1:\t"); print_main_term(mt1,0);
+            printf("mt2:\t"); print_main_term(mt2,0);
+            return 0;
+        }
+    }
+
+
+    for (size_t i = 0; i < mt1->e; i++)
+    {
+        unsigned n = mt1->exceptions[i].n;
+        unsigned m = mt1->exceptions[i].m;
+
+        for (size_t j = 0; j < n; j++)
+        {
+            for (size_t k = 0; k < m; k++)
+            {
+                if (mt1->exceptions[i].mat[j*m+k] != mt2->exceptions[i].mat[j*m+k])
+                {
+                    printf("compare_main_terms exception test failed at exception block %lu, at exception %lu in column %lu\n",i,j,k); // Check
+                    printf("mt1:\t"); print_exception_block(&mt1->exceptions[i]);
+                    printf("mt2:\t"); print_exception_block(&mt2->exceptions[i]);
+                    return 0;
+                }
+            }
+            
+        }
+        
+    }
     return 1;
-    
 }
 
 // Return 0 if they are not the same
@@ -1242,16 +1274,18 @@ int main(int argc, char *argv[]){
     // Read the corresponding pair of blocks from M3
     unsigned rb_index=0;
     result_block rb;
-    do {
-        printf("Reading result_block %u\n",rb_index+1); // Check
-        rb = read_result_block(stream_M3);
-        print_result_block(&rb, 0); // Check
-        rb_index++;
-    } while (rb.t1);
+    rb = read_result_block(stream_M3);
+    print_result_block(&rb, 0); // Check
+    // do {
+    //     printf("Reading result_block %u\n",rb_index+1); // Check
+    //     rb = read_result_block(stream_M3);
+    //     print_result_block(&rb, 0); // Check
+    //     rb_index++;
+    // } while (rb.t1);
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
 
-    exit(EXIT_SUCCESS);
+    // exit(EXIT_SUCCESS);
     // TODO: Modify this section, since we will be working with one M1,M2 and M3 block at a time
     // if (verbose)
     // {
@@ -1308,7 +1342,8 @@ int main(int argc, char *argv[]){
     int *line_A  = (int*) malloc (ob1.c*sizeof(int));
     int *line_B  = (int*) malloc (ob2.c*sizeof(int));
     result_block my_rb = create_empty_result_block(ob1.r,ob2.r,ob1.c,ob2.c,m,rb.ms);
-
+    my_rb.t1 = 1;
+    my_rb.t2 = 1;
     unsigned i, ind_A, ind_B;
     printf("Applying all unifiers . . . \n");
     for (i=0; i<my_rb.r; i++) my_rb.valid[i] = 2;
@@ -1388,7 +1423,8 @@ int main(int argc, char *argv[]){
         }
     }
     
-    if (same) printf("Unification is correct :)\n");
+    int same_int = compare_results(&my_rb,&rb);
+    if (same_int) printf("Unification is correct :)\n");
     else printf("Unification is NOT correct :(\n");
     // ----- test unification correct end   ---- //
     
