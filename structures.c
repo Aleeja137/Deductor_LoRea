@@ -45,8 +45,8 @@ void free_exception_block(exception_block* eb) {
     }
 }
 
-void print_exception_block(exception_block* eb) {
-    printf("%% BEGIN: Exception subset (%u,%u)\n",eb->n,eb->m);
+void print_exception_block(exception_block* eb, unsigned matrix_idx, unsigned exc_blk_idx) {
+    printf("%% BEGIN: Exception subset%u.%u (%u,%u)\n",matrix_idx,exc_blk_idx,eb->n,eb->m);
     // print_mgu_schema(eb->ms); // Too much
     print_mgu_compact(eb->ms,eb->m*2);
 
@@ -56,7 +56,7 @@ void print_exception_block(exception_block* eb) {
             printf("%d,", eb->mat[i * eb->m + j]);
         printf("%d\n", eb->mat[i * eb->m + eb->m - 1]);
     }
-    printf("%% END: Exception subset\n");
+    printf("%% END: Exception subset%u.%u\n",matrix_idx,exc_blk_idx);
 }
 // ===<<< END EXCEPTION BLOCK >>>=== //
 
@@ -106,7 +106,7 @@ void free_main_term(main_term* mt) {
     }
 }
 
-void print_main_term(main_term* mt, int verbosity) {
+void print_main_term(main_term* mt, unsigned matrix_idx, int verbosity) {
     // Print line
     printf("%u,",mt->e);
     for (unsigned i = 0; i < mt->c - 1; i++)
@@ -117,7 +117,7 @@ void print_main_term(main_term* mt, int verbosity) {
     if (verbosity)
     {
         for (unsigned i = 0; i < mt->e; i++) {
-            print_exception_block(&mt->exceptions[i]);
+            print_exception_block(&mt->exceptions[i], matrix_idx, i+1);
         }
     }
 }
@@ -161,13 +161,13 @@ void free_operand_block(operand_block* ob) {
     }
 }
 
-void print_operand_block(operand_block* ob, int verbosity) {
+void print_operand_block(operand_block* ob, unsigned matrix_idx, int verbosity) {
     printf("Operand Block: %u terms, %u columns\n", ob->r, ob->c);
     if (verbosity)
     {
         for (unsigned i = 0; i < ob->r; i++) {
             printf("== Main Term %u ==\n", i);
-            print_main_term(&ob->terms[i], verbosity - 1);
+            print_main_term(&ob->terms[i], matrix_idx, verbosity - 1);
         }
     }
 }
@@ -247,7 +247,7 @@ void print_result_block(result_block* rb, int verbosity) {
             if (rb->valid[i]==0) 
             {
                 printf("Row %u-%u: ",i/rb->r2+1, i%rb->r2+1);
-                print_main_term(&rb->terms[i], verbosity - 1);
+                print_main_term(&rb->terms[i], 3, verbosity - 1);
             }
             else if (rb->valid[i]==1) printf("Rows %u-%u subsumed by exception\n",i/rb->r2+1, i%rb->r2+1);
             else printf("Rows %u-%u not unifiable\n",i/rb->r2+1, i%rb->r2+1);
@@ -273,6 +273,8 @@ mgu_schema* create_empty_mgu_schema(const unsigned n_common, const unsigned n_un
     ms->n_uncommon_R = n_uncommon_R;
     ms->uncommon_L = (unsigned*)malloc(2 * n_uncommon_L * sizeof(unsigned));
     ms->uncommon_R = (unsigned*)malloc(2 * n_uncommon_R * sizeof(unsigned));
+    ms->new = 0; // ??
+    ms->new_indices = NULL;
 
     if (!ms->common_columns || !ms->common_L || !ms->common_R || !ms->uncommon_L || !ms->uncommon_R) {
         fprintf(stderr, "Unable to allocate memory inside mgu_schema\n");
@@ -291,18 +293,23 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
 {
     unsigned i;
     unsigned n_common = 0;
+    unsigned news = 0;
 
     for (i=0; i<n; i+=2)
     {
         // 0 value in mapping means '_'
         if (mapping[i] && mapping[i+1]) {n_common++;} 
+        else if (!mapping[i] && !mapping[i+1]) {news++;}
     }
 
     mgu_schema *ms = create_empty_mgu_schema(n_common, n_L-n_common, n_R-n_common);
+    ms->new_indices = (unsigned*)malloc(news*sizeof(unsigned));
+    ms->new = news; 
 
     unsigned last_uncommon_L = 0;
     unsigned last_uncommon_R = 0;
     unsigned last_common = 0;
+    unsigned last_new = 0;
 
     bool was_last_uncommon_L = false;
     bool was_last_uncommon_R = false;
@@ -310,7 +317,7 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
     for (i=0; i<n; i+=2)
     {
         // Column taken from right main term, uncommon in R
-        if (!mapping[i])
+        if (!mapping[i] && mapping[i+1]) // X-_ pattern
         {
             if (was_last_uncommon_R)
             {
@@ -326,7 +333,7 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
             }
         }
         // Column taken from left main term, uncommon in L
-        else if (!mapping[i+1])
+        else if (mapping[i] && !mapping[i+1]) // _-X pattern
         {
             if (was_last_uncommon_L)
             {
@@ -342,7 +349,12 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
             }
         }
         // Column in common
-        else
+        else if (!mapping[i] && !mapping[i+1]) // _-_ pattern
+        {
+            ms->new_indices[last_new]=i;
+            last_new++;
+        }
+        else // X-Y pattern
         {
             ms->common_columns[last_common] = (i/2) + 1;
             ms->common_L[last_common] = mapping[i];
@@ -365,6 +377,7 @@ mgu_schema* deep_copy_mgu_schema(const mgu_schema* ms) {
     memcpy(result->common_R,       ms->common_R,       ms->n_common * sizeof(unsigned));
     memcpy(result->uncommon_L,     ms->uncommon_L,     2 * ms->n_uncommon_L * sizeof(unsigned));
     memcpy(result->uncommon_R,     ms->uncommon_R,     2 * ms->n_uncommon_R * sizeof(unsigned));
+    memcpy(result->new_indices,    ms->new_indices,    ms->new * sizeof(unsigned));
 
     return result;
 }
@@ -376,6 +389,7 @@ void free_mgu_schema(mgu_schema* ms) {
         free(ms->common_R);
         free(ms->uncommon_L);
         free(ms->uncommon_R);
+        free(ms->new_indices);
         free(ms);
     }
 }
@@ -415,6 +429,13 @@ void print_mgu_schema(mgu_schema* ms) {
         if (i + 2 < 2 * ms->n_uncommon_R) printf(", ");
     }
     printf("]\n");
+
+    printf("%u new_indices: [",ms->new);
+    for (unsigned i = 0; i < ms->new; i++) {
+        if (i==(ms->new-1)) printf("%u", ms->new_indices[i]);
+        else printf("%u, ", ms->new_indices[i]);
+    }
+    printf("]\n");
 }
 
 void print_mgu_compact(mgu_schema *ms, unsigned total_columns) {
@@ -427,14 +448,14 @@ void print_mgu_compact(mgu_schema *ms, unsigned total_columns) {
     
     // print_mgu_schema(ms); // Check
 
-    // Fill common entries
+    // Fill common entries // X-Y schema
     for (unsigned i = 0; i < ms->n_common; i++) {
         unsigned idx = ms->common_columns[i] - 1;
         mapping[2 * idx]     = ms->common_L[i];
         mapping[2 * idx + 1] = ms->common_R[i];
     }
 
-    // Fill uncommon_L blocks
+    // Fill uncommon_L blocks // X-_ schema
     unsigned pos = 0;
     for (unsigned i = 0; i < ms->n_uncommon_L; i++) {
         unsigned start = ms->uncommon_L[2 * i];
@@ -448,7 +469,7 @@ void print_mgu_compact(mgu_schema *ms, unsigned total_columns) {
         }
     }
 
-    // Fill uncommon_R blocks
+    // Fill uncommon_R blocks // _-Y schema
     pos = 0;
     for (unsigned i = 0; i < ms->n_uncommon_R; i++) {
         unsigned start = ms->uncommon_R[2 * i];
@@ -459,6 +480,14 @@ void print_mgu_compact(mgu_schema *ms, unsigned total_columns) {
             mapping[2 * pos + 1] = start + j;
             pos++;
         }
+    }
+
+    // Fill new columns // _-_ schema
+    pos = 0;
+    for (unsigned i = 0; i < ms->new; i++) {
+        unsigned idx = ms->new_indices[i] - 1;
+        mapping[2 * idx]     = 0;
+        mapping[2 * idx + 1] = 0;
     }
 
     // Print reconstructed mapping

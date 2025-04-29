@@ -136,8 +136,8 @@ int compare_main_terms(main_term *mt1, main_term *mt2){
         if (mt1->row[i]!=mt2->row[i])
         {
             printf("compare_main_terms row test failed at element in column %lu\n",i); // Check
-            printf("mt1:\t"); print_main_term(mt1,0);
-            printf("mt2:\t"); print_main_term(mt2,0);
+            printf("mt1:\t"); print_main_term(mt1,1,0);
+            printf("mt2:\t"); print_main_term(mt2,2,0);
             return 0;
         }
     }
@@ -155,8 +155,8 @@ int compare_main_terms(main_term *mt1, main_term *mt2){
                 if (mt1->exceptions[i].mat[j*m+k] != mt2->exceptions[i].mat[j*m+k])
                 {
                     printf("compare_main_terms exception test failed at exception block %lu, at exception %lu in column %lu\n",i,j,k); // Check
-                    printf("mt1:\t"); print_exception_block(&mt1->exceptions[i]);
-                    printf("mt2:\t"); print_exception_block(&mt2->exceptions[i]);
+                    printf("mt1:\t"); print_exception_block(&mt1->exceptions[i],1,i);
+                    printf("mt2:\t"); print_exception_block(&mt2->exceptions[i],2,i);
                     return 0;
                 }
             }
@@ -507,20 +507,20 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         // Get line indexes from row
 
         // Inspect if line is unifiable, subsumed or not unifiable
-        if (strncmp(line, "Rows ", 5) == 0) {
-            if (strstr(line, "subsumed by exception") != NULL) {
-                rb->terms[row] = create_null_main_term();
-                rb->valid[row] = 1;
-                unified_counter++; // Check
-                subsumed_csv++;
-                // printf("Reading line %u is subsumed by exception\n",row); // Check
-            } else if (strstr(line, "not unifiable") != NULL) {
-                rb->terms[row] = create_null_main_term();
-                rb->terms[row].c = 1; // for Distinction between subsumed and not unifiable
-                rb->valid[row] = 2;
-                // printf("Reading line %u is not unifiable\n",row); // Check
-            }
+        if (strstr(line, "subsumed by exception") != NULL)
+        {
+            rb->valid[row] = 1;
+            unified_counter++; // Check
+            subsumed_csv++;
+            // printf("Reading line %u is subsumed by exception\n",row); // Check
+            continue;
+        }
+        else if (strstr(line, "not unifiable") != NULL)
+        {
             // rb->terms[row] = NULL; // This not necessary I would say
+            // printf("Reading line %u is not unifiable\n",row); // Check
+            rb->terms[row] = create_null_main_term();
+            rb->valid[row] = 2;
             row++;
             continue;
         }
@@ -528,8 +528,10 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         // If unifiable, read number of exception blocks
         unsigned d1, d2, e;
         // printf("Line is: %s\n",line); // Check
-        if (sscanf(line, "Row %u-%u: %u", &d1, &d2, &e) != 3) 
+        if (sscanf(line, "Row %u-%u: %u", &d1, &d2, &e) != 3 &&
+            sscanf(line, "Rows %u-%u: %u", &d1, &d2, &e) != 3) 
         {
+            printf("Line is: %s\n",line); // Check
             fprintf(stderr, "Could not read number of exception blocks in row\n");
             free_result_block(rb);
             free(line);
@@ -1122,7 +1124,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
                 printf("SUBSUMPTION EQUAL TRUE for MT1; PRINTING UNIFIER\n"); // Check
                 print_unifier(unifier,n_columns); // Check
                 printf("Main term in exception:\n\t"); print_mat_line(exception,n_columns);
-                printf("Main term in new_mt   :\n\t"); print_main_term(new_mt,0);
+                printf("Main term in new_mt   :\n\t"); print_main_term(new_mt,3,0);
                 subsumed_me++;
                 free(new_exc_mat);
                 free(exception);
@@ -1183,7 +1185,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
                 printf("SUBSUMPTION EQUAL TRUE for MT2; PRINTING UNIFIER\n"); // Check
                 print_unifier(unifier,n_columns); // Check
                 printf("Main term in exception:\n\t"); print_mat_line(exception,n_columns);
-                printf("Main term in new_mt   :\n\t"); print_main_term(new_mt,0);
+                printf("Main term in new_mt   :\n\t"); print_main_term(new_mt,3,0);
                 subsumed_me++;
                 free(new_exc_mat);
                 free(exception);
@@ -1285,7 +1287,8 @@ int main(int argc, char *argv[]){
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
 
-    // exit(EXIT_SUCCESS);
+    print_main_term(&rb.terms[0],3,1);
+    exit(EXIT_SUCCESS);
     // TODO: Modify this section, since we will be working with one M1,M2 and M3 block at a time
     // if (verbose)
     // {
@@ -1376,10 +1379,10 @@ int main(int argc, char *argv[]){
         if (my_rb.valid[index_mt] != rb.valid[index_mt]) 
         {
             printf("valid me: %u, valid csv: %u (Row %u-%u)\n",my_rb.valid[index_mt],rb.valid[index_mt],ind_A+1, ind_B+1);
-            printf("My result block: \n\t"); print_main_term(&my_rb.terms[index_mt],0);
-            printf("CSV result block:\n\t"); print_main_term(&rb.terms[index_mt],0);
-            printf("Main term in M1:\n\t"); print_main_term(&ob1.terms[ind_A],0);
-            printf("Main term in M2:\n\t"); print_main_term(&ob2.terms[ind_B],0);
+            printf("My result block: \n\t"); print_main_term(&my_rb.terms[index_mt],3,0);
+            printf("CSV result block:\n\t"); print_main_term(&rb.terms[index_mt],3,0);
+            printf("Main term in M1:\n\t"); print_main_term(&ob1.terms[ind_A],1,0);
+            printf("Main term in M2:\n\t"); print_main_term(&ob2.terms[ind_B],2,0);
             printf("Unifier:\n\t");         print_unifier(&unifiers[i*unifier_size],m);
             printf("Mapping:\n\t");         print_mgu_compact(my_rb.ms,my_rb.c*2);
             print_mgu_schema(my_rb.ms);
@@ -1412,9 +1415,9 @@ int main(int argc, char *argv[]){
         if (my_rb.valid[i] != rb.valid[i]) 
         {
             printf("valid me: %u, valid csv: %u (Row %u-%u)\n",my_rb.valid[i],rb.valid[i],i/my_rb.r2+1,i%my_rb.r2+1);
-            printf("My result block:\n\t"); print_main_term(&my_rb.terms[i],0);
-            printf("Main term in M1:\n\t"); print_main_term(&ob1.terms[i/my_rb.r2],0);
-            printf("Main term in M2:\n\t"); print_main_term(&ob2.terms[i%my_rb.r2],0);
+            printf("My result block:\n\t"); print_main_term(&my_rb.terms[i],3,0);
+            printf("Main term in M1:\n\t"); print_main_term(&ob1.terms[i/my_rb.r2],1,0);
+            printf("Main term in M2:\n\t"); print_main_term(&ob2.terms[i%my_rb.r2],2,0);
             printf("Unifier:\n\t");         print_unifier(&unifiers[i*unifier_size],m);
             printf("Mapping:\n\t");         print_mgu_compact(my_rb.ms,my_rb.c*2);
             print_mgu_schema(my_rb.ms);

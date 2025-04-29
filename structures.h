@@ -30,6 +30,8 @@ typedef struct {
     unsigned n_uncommon_R;    // Number of blocks of columns that the right main term does not have in common with the left main term
     unsigned *uncommon_L;     // 1D array of length (2*n_uncommon_L), having the start of a block of columns not in common with right main term and the length of said block
     unsigned *uncommon_R;     // 1D array of length (2*n_uncommon_R), having the start of a block of columns not in common with left main term and the length of said block
+    unsigned new;             // Number of '_-_' columns, that is, the number of 'empty' columns that are to be appended at the end
+    unsigned *new_indices;    // Array holding the indexes of '_-_' columns, used during the M3 reading process to actually check that these variables are not repeated in the code
 } mgu_schema;
 
 typedef struct {
@@ -71,19 +73,19 @@ exception_block create_null_exception_block();
 exception_block create_empty_exception_block(unsigned n, unsigned m);
 exception_block create_exception_block(unsigned n, unsigned m, mgu_schema *ms, int* mat);
 void free_exception_block(exception_block* eb);
-void print_exception_block(exception_block* eb);
+void print_exception_block(exception_block* eb, unsigned matrix_idx, unsigned exc_blk_idx);
 
 main_term create_null_main_term();
 main_term create_empty_main_term(unsigned c, unsigned e);
 main_term create_main_term(unsigned c, unsigned* row, unsigned e, exception_block* exceptions);
 void free_main_term(main_term* mt);
-void print_main_term(main_term* mt, int verbosity);
+void print_main_term(main_term* mt, unsigned matrix_idx, int verbosity);
 
 operand_block create_null_operand_block();
 operand_block create_empty_operand_block(unsigned r, unsigned c);
 operand_block create_operand_block(unsigned r, unsigned c, main_term* terms);
 void free_operand_block(operand_block* ob);
-void print_operand_block(operand_block* ob, int verbosity);
+void print_operand_block(operand_block* ob, unsigned matrix_idx, int verbosity);
 
 result_block create_null_result_block();
 result_block create_empty_result_block(unsigned r1, unsigned r2, unsigned c1, unsigned c2, unsigned c, mgu_schema *ms);
