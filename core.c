@@ -16,7 +16,6 @@
 #include "COM_hash.h"
 
 #define ROW_STR_SIZE (snprintf(NULL, 0, "%d", INT_MAX) + 1)
-Dictionary *const_dict;
 Dictionary *var_dict;
 Dictionary *unif_dict;
 bool first_rb = true;
@@ -29,6 +28,8 @@ int verbose = 0;
 // but row still needs to start from 0 each read_matrix call, so additional variable
 int read_mat_row = 0; 
 int last_int = 1;
+
+struct timespec read_file_elapsed, unifiers_elapsed, unification_elapsed;
 
 // #define malloc(X) my_malloc( X, __FILE__, __LINE__, __FUNCTION__)
 
@@ -1201,26 +1202,95 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
     return 0;
 }
 
+// Given two operand blocks and a result block, performs the matrix intersection and returns the time 
+void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *rb){
+
+    struct timespec start_unifiers, start_unification;
+    struct timespec end_unifiers, end_unification;     
+    struct timespec elapsed, elapsed2;   
+    
+    // ----- Calculate unifiers start ----- //
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start_unifiers);
+    
+    const unsigned m = rb->ms->n_common;
+	unsigned *unifiers = NULL, unifier_size = 1+(2*m)+2;
+    unifiers = (unsigned*) malloc (ob1->r*ob2->r*unifier_size*sizeof(unsigned));
+    unsigned unif_count = unifier_matrices(ob1, ob2, rb, unifiers);
+
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end_unifiers);
+    // ----- Calculate unifiers end ----- //
+    
+    // ----- Perform unification start ----- //
+    printf("Applying all unifiers . . . \n");
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start_unification);
+    int *line_A  = (int*) malloc (ob1->c*sizeof(int));
+    int *line_B  = (int*) malloc (ob2->c*sizeof(int));
+    result_block my_rb = create_empty_result_block(ob1->r,ob2->r,ob1->c,ob2->c,m,rb->ms);
+    my_rb.t1 = 1;
+    my_rb.t2 = 1;
+    unsigned i, ind_A, ind_B;
+    // for (i=0; i<my_rb.r; i++) my_rb.valid[i] = 2;
+    memset(my_rb.valid, 2, my_rb.r*sizeof(unsigned));
+
+    for (i=0; i<unif_count; i++)
+    {
+        ind_A = unifiers[i*unifier_size+unifier_size-2];
+        ind_B = unifiers[i*unifier_size+unifier_size-1];
+        
+        memcpy(line_A,ob1->terms[ind_A].row,ob1->c*sizeof(int));
+        memcpy(line_B,ob2->terms[ind_B].row,ob2->c*sizeof(int));
+        apply_unifier_left(line_A,line_B,&unifiers[i*unifier_size],ob1->c);
+        
+        main_term mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
+        
+        memcpy(mt.row, line_A, ob1->c*sizeof(int));
+        
+        prepare_unified(mt.row, my_rb.c,line_B, rb->ms, false);
+        unsigned index_mt = ind_A*my_rb.r2+ind_B;
+        my_rb.terms[index_mt] = mt;
+        
+        if (rb->terms[index_mt].exceptions==NULL) {my_rb.valid[index_mt] = 1;}
+        else {my_rb.valid[index_mt] = check_exceptions(&ob1->terms[ind_A], &ob2->terms[ind_B], &mt, &rb->terms[index_mt]);}
+    }
+
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);
+
+    printf("Applied all unifiers\n");
+    if (verbose) print_result_block(&my_rb,0);
+    // ----- Perform unification end ----- //
+
+    // ----- Check correctness start ---- //
+    
+    printf("Comparing unification results. . . \n");
+    int same_int = compare_results(&my_rb,rb);
+    if (same_int) printf("Unification is correct :)\n");
+    else printf("Unification is NOT correct :(\n");
+    // ----- Check correctness end   ---- //
+
+    // Accumulate the times
+    timespec_subtract(&elapsed, &end_unifiers, &start_unifiers);
+    timespec_add(&unifiers_elapsed, &unifiers_elapsed, &elapsed);
+
+    timespec_subtract(&elapsed2, &end_unification, &start_unification);
+    timespec_add(&unification_elapsed, &unification_elapsed, &elapsed2);
+    
+}
 // --------------------- CORE END --------------------- //
 
 int main(int argc, char *argv[]){
-    struct timespec start_total, start_reading, start_unifiers, start_unification;
-    struct timespec end_total, end_reading, end_unifiers, end_unification;     
-    struct timespec elapsed, elapsed2;         
+    struct timespec start_total, start_reading;
+    struct timespec end_total, end_reading;     
+    struct timespec elapsed;         
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_total);
 
-    const_dict = create_dictionary(1001);
-    var_dict = create_dictionary(1001);
-    unif_dict = create_dictionary(1001);
+    var_dict = create_dictionary(501);
+    unif_dict = create_dictionary(501);
 
     char *M1_file = argv[1];
     char *M2_file = argv[2];
     char *M3_file = argv[3];
     if (argc>4) verbose = 1;
-
-    // ----- read file start ----- //
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
 
     // Open the files and check so
     FILE *stream_M1 = fopen(M1_file, "r");
@@ -1239,66 +1309,43 @@ int main(int argc, char *argv[]){
     unsigned s1, s2;
     if (read_num_blocks(stream_M1,&s1)) fprintf(stderr, "Could not read number of blocks in %s\n",M1_file);
     if (read_num_blocks(stream_M2,&s2)) fprintf(stderr, "Could not read number of blocks in %s\n",M2_file);
-
     printf("M1 blocks %u, M2 blocks %u\n",s1,s2); // Check
 
-    // printf("M1 start ---------\n"); // Check
-    operand_block ob1;
-    s1 = 1; // For now
-    for (size_t s = 0; s < s1; s++)
-    {
-        ob1 = read_operand_block(stream_M1);
-        // printf("%lu: - ",s+1); print_operand_block(&ob1, 2); // Check
-    }
-    // printf("Ignore, for avoiding optimization: %d\n",ob1.r); // Check
-    // printf("M1 end ---------\n"); // Check
-    
-    // printf("M2 start ---------\n"); // Check
-    operand_block ob2;
-    s2 = 1; // For now
-    for (size_t s = 0; s < s2; s++)
-    {
-        ob2 = read_operand_block(stream_M2);
-        // printf("%lu: - ",s+1); print_operand_block(&ob2, 0); // Check
-    }
-    // printf("M2 end ---------\n"); // Check
-    // printf("Ignore, for avoiding optimization: %d\n",ob2.r); // Check
-
-    // Read the corresponding pair of blocks from M3
-    unsigned rb_index=0;
+    operand_block *obs1 = (operand_block*)malloc(s1*sizeof(operand_block));
+    operand_block *obs2 = (operand_block*)malloc(s2*sizeof(operand_block));
     result_block rb;
-    rb = read_result_block(stream_M3);
-    print_result_block(&rb, 0); // Check
-    // do {
-    //     printf("Reading result_block %u\n",rb_index+1); // Check
-    //     rb = read_result_block(stream_M3);
-    //     print_result_block(&rb, 0); // Check
-    //     rb_index++;
-    // } while (rb.t1);
+
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
+
+    // ----- Read file start ----- //
+    for (size_t i = 0; i < s1; i++)
+    {
+        obs1[i] = read_operand_block(stream_M1);
+    }
+
+    for (size_t i = 0; i < s2; i++)
+    {
+        obs2[i] = read_operand_block(stream_M2);
+    }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
+    timespec_subtract(&read_file_elapsed, &end_reading, &start_reading);    
+    // ----- Read file end ----- //
 
-    // print_main_term(&rb.terms[0],3,1);
-    // exit(EXIT_SUCCESS);
-    // TODO: Modify this section, since we will be working with one M1,M2 and M3 block at a time
-    // if (verbose)
-    // {
-    //     print_matrix_schema(ms1);
-    //     print_matrix_schema(ms2);
-    //     if (ms3->n_common != 0) print_mgu_schema(ms3);
+    // ----- Matrix intersection start ----- //
+    do {
+        clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
+        rb = read_result_block(stream_M3);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
+        timespec_subtract(&elapsed, &end_reading, &start_reading);    
+        timespec_add(&read_file_elapsed, &read_file_elapsed, &elapsed);
 
-    //     printf("\nValues and metadata for M1 from %s\n",M1_file);
-    //     print_mat_values(mat0,n0,m0);
+        matrix_intersection(&obs1[rb.t1],&obs2[rb.t2],&rb);
 
-    //     printf("\nValues and metadata for M2 from %s\n",M1_file);
-    //     print_mat_values(mat1,n1,m1);
+    } while (rb.t1);
+    // ----- Matrix intersection end ----- //
 
-    //     printf("\nValues and metadata for MGU from %s\n",M1_file);
-    //     print_mat_values(mat2,n2,m2);
-    // }
-
-    // ----- read file end ----- //
-
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end_total);
 
     // MAÑANA:
     // 1. Read file fuera (DONE)
@@ -1316,112 +1363,17 @@ int main(int argc, char *argv[]){
 
 
 
-    // ----- test all matrix start ----- //
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start_unifiers);
-    
-    const unsigned m = rb.ms->n_common;
-	unsigned *unifiers = NULL, unifier_size = 1+(2*m)+2;
-    unifiers = (unsigned*) malloc (ob1.r*ob2.r*unifier_size*sizeof(unsigned));
-    unsigned unif_count = unifier_matrices(&ob1, &ob2, &rb, unifiers);
-
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end_unifiers);
-
-    if (verbose) print_unifier_list(unifiers,unif_count,m);
-    else printf("Number of unifiers: %u\n",unif_count);
-    // printf("unif_count from read M3: %u\n",unified_counter); // Check
-    // ----- test all matrix end ----- //
-    
-    // ----- test unification start ----- //
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start_unification);
-    int *line_A  = (int*) malloc (ob1.c*sizeof(int));
-    int *line_B  = (int*) malloc (ob2.c*sizeof(int));
-    result_block my_rb = create_empty_result_block(ob1.r,ob2.r,ob1.c,ob2.c,m,rb.ms);
-    my_rb.t1 = 1;
-    my_rb.t2 = 1;
-    unsigned i, ind_A, ind_B;
-    printf("Applying all unifiers . . . \n");
-    for (i=0; i<my_rb.r; i++) my_rb.valid[i] = 2;
-    for (i=0; i<unif_count; i++)
-    {
-        ind_A = unifiers[i*unifier_size+unifier_size-2];
-        ind_B = unifiers[i*unifier_size+unifier_size-1];
-        // if (chivato) 
-        // printf("ind_A: %u, ind_B: %u\n",ind_A+1, ind_B+1); // Check
-        memcpy(line_A,ob1.terms[ind_A].row,ob1.c*sizeof(int));
-        memcpy(line_B,ob2.terms[ind_B].row,ob2.c*sizeof(int));
-        apply_unifier_left(line_A,line_B,&unifiers[i*unifier_size],ob1.c);
-        // printf("line_A:    ");print_mat_line(line_A,ob1.c); // Check
-        main_term mt = create_empty_main_term(my_rb.c, ob1.terms[ind_A].e + ob2.terms[ind_B].e);
-        // printf("number of columns new_mt: %u\n",mt.c); // Check
-        memcpy(mt.row, line_A, ob1.c*sizeof(int));
-        // print_mgu_compact(rb.ms,rb.c*2); // Check
-        // print_mgu_schema(rb.ms); // Check
-        prepare_unified(mt.row, my_rb.c,line_B, rb.ms, false);
-        unsigned index_mt = ind_A*my_rb.r2+ind_B;
-        my_rb.terms[index_mt] = mt;
-        // printf("main term: "); print_main_term(&mt,0); // Check
-        // if (rb.terms[index_mt].exceptions==NULL) {my_rb.valid[index_mt] = 1; printf("Catch <---------\n");} // Check
-        if (rb.terms[index_mt].exceptions==NULL) {my_rb.valid[index_mt] = 1;}
-        else {my_rb.valid[index_mt] = check_exceptions(&ob1.terms[ind_A], &ob2.terms[ind_B], &mt, &rb.terms[index_mt]);}
-        // if (chivato) 
-        // print_main_term(&mt,0); // Check
-        // if (i>3) chivato=false;
-
-        if (my_rb.valid[index_mt] != rb.valid[index_mt]) 
-        {
-            printf("valid me: %u, valid csv: %u (Row %u-%u)\n",my_rb.valid[index_mt],rb.valid[index_mt],ind_A+1, ind_B+1);
-            printf("My result block: \n\t"); print_main_term(&my_rb.terms[index_mt],3,0);
-            printf("CSV result block:\n\t"); print_main_term(&rb.terms[index_mt],3,0);
-            printf("Main term in M1:\n\t"); print_main_term(&ob1.terms[ind_A],1,0);
-            printf("Main term in M2:\n\t"); print_main_term(&ob2.terms[ind_B],2,0);
-            printf("Unifier:\n\t");         print_unifier(&unifiers[i*unifier_size],m);
-            printf("Mapping:\n\t");         print_mgu_compact(my_rb.ms,my_rb.c*2);
-            print_mgu_schema(my_rb.ms);
-            return 0;
-        }
-
-    }
-
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);
-
-    printf("Applied all unifiers\n");
-    if (verbose) print_result_block(&my_rb,0);
-    // ----- test unification end ----- //
-
-    // ----- test unification correct start ---- //
-    
-    printf("Comparing unification results. . . \n");
-    // Quick check
-    printf("My result block: \n\t");
-    print_result_block(&my_rb,0);
-    printf("Read result block: \n\t");
-    print_result_block(&rb,0);    
-
-    // 'Deeper check'
-    int same_int = compare_results(&my_rb,&rb);
-    if (same_int) printf("Unification is correct :)\n");
-    else printf("Unification is NOT correct :(\n");
-    // ----- test unification correct end   ---- //
-    
-    clock_gettime(CLOCK_MONOTONIC_RAW, &end_total);
 
     printf("-------- TIME MEASUREMENTS --------\n");
-    timespec_subtract(&elapsed, &end_reading, &start_reading);
-    printf("Time for reading from file:    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
+    printf("Time for reading from file:    %ld.%0*ld sec\n",read_file_elapsed.tv_sec, 9, read_file_elapsed.tv_nsec);
+    printf("Time for calculating unifiers: %ld.%0*ld sec\n",unifiers_elapsed.tv_sec, 9, unifiers_elapsed.tv_nsec);
+    printf("Time for applying unifiers:    %ld.%0*ld sec\n",unification_elapsed.tv_sec, 9, unification_elapsed.tv_nsec);
 
-    timespec_subtract(&elapsed, &end_unifiers, &start_unifiers);
-    printf("Time for calculating unifiers: %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
-
-    timespec_subtract(&elapsed2, &end_unification, &start_unification);
-    printf("Time for applying unifiers:    %ld.%0*ld sec\n",elapsed2.tv_sec, 9, elapsed2.tv_nsec);
-    
-    timespec_add(&elapsed, &elapsed, &elapsed2);
-    printf("Time for unification total:    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
+    timespec_add(&unifiers_elapsed, &unifiers_elapsed, &unification_elapsed);
+    printf("Time for unification total:    %ld.%0*ld sec\n",unifiers_elapsed.tv_sec, 9, unifiers_elapsed.tv_nsec);
 
     timespec_subtract(&elapsed, &end_total, &start_total);
     printf("Total time:                    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
 
-    free(line_A);
-    free(line_B);
 	return 0;
 }
