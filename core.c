@@ -20,10 +20,7 @@ Dictionary *const_dict;
 Dictionary *var_dict;
 Dictionary *unif_dict;
 bool first_rb = true;
-bool chivato = true; // Check
-unsigned unified_counter = 0; // Check
-unsigned subsumed_csv=0; // Check
-unsigned subsumed_me=0; // Check
+// bool chivato = true; // Check
 
 struct nlist *dict;
 int verbose = 0;
@@ -141,7 +138,6 @@ int compare_main_terms(main_term *mt1, main_term *mt2){
             return 0;
         }
     }
-
 
     for (size_t i = 0; i < mt1->e; i++)
     {
@@ -510,8 +506,6 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         if (strstr(line, "subsumed by exception") != NULL)
         {
             rb->valid[row] = 1;
-            unified_counter++; // Check
-            subsumed_csv++;
             // printf("Reading line %u is subsumed by exception\n",row); // Check
             continue;
         }
@@ -542,7 +536,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
 
         // Initialize the exception blocks
         rb->terms[row] = create_empty_main_term(rb->c,e);
-        rb->valid[row] = 0;
+        if (rb->valid[row]!=1) rb->valid[row] = 0;
 
         // Get a pointer to the main term for easier working
         main_term *mt = &(rb->terms[row]);
@@ -560,10 +554,9 @@ void read_result_matrix(FILE *stream, result_block *rb) {
 
         // Increment the row by 1
         row++;
-        unified_counter++; // Check
     }
 
-    printf("Line at end of read_result_block is: %s",line); // Check
+    // printf("Line at end of read_result_block is: %s",line); // Check
     free(line);
     free(mapping);
 }
@@ -951,7 +944,7 @@ void prepare_unified(int *unified, unsigned n_col_unified, int *row_b, mgu_schem
             unsigned *common_arr     = reverse ? ms->common_L : ms->common_R; // Blind pointer to abstract reverse logic onwards
             unsigned *neg_common_arr = reverse ? ms->common_R : ms->common_L; // Blind pointer to abstract reverse logic onwards
 
-            // Check if the reference is part of the common columns
+            // See if the reference is part of the common columns
             unsigned j = 0;
             bool found=false;
             while (j<ms->n_common && !found)
@@ -966,24 +959,24 @@ void prepare_unified(int *unified, unsigned n_col_unified, int *row_b, mgu_schem
 
             if (found)
             {
-                if (chivato) {printf("Cases 1 entered!\n"); // Check
-                // chivato=false; // Check
-                } // Check
+                // if (chivato) {printf("Cases 1 entered!\n"); // Check
+                // // chivato=false; // Check
+                // } // Check
                 if (unified[reference]!=0) {unified[i] = unified[reference];} // Cases 1.1 & 1.2
                 else {unified[i] = -((int)reference - 1);} // Case 1.3
             }
             else
             {
-                if (chivato) {printf("Cases 2 entered!\n");  // Check
-                    // chivato=false; // Check
-                } // Check
+                // if (chivato) {printf("Cases 2 entered!\n");  // Check
+                //     // chivato=false; // Check
+                // } // Check
                 // At this point, reference is pointing to a point in original row_b
                 if (unified[reference]>0) {unified[i] = unified[reference];} // Case 2.1
                 else if (unified[reference] < 0) {fprintf(stderr, "Not possible, check logic\n"); return;} // Case 2.2 (should not happend)
                 else { // Case 2.3
-                    if (chivato) {printf("Case 2.3 entered!\n");  // Check
-                        // chivato=false; // Check
-                    } // Check
+                    // if (chivato) {printf("Case 2.3 entered!\n");  // Check
+                    //     // chivato=false; // Check
+                    // } // Check
                     // Need to traverse uncommon_blocks, accumulating length, until finding the block it belngs to. Then, add this accumulation to the reference, plus the unifiers_length
                     j = 0;
                     found = false;
@@ -1121,11 +1114,10 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
             // If they unify, check if the subsums new_mt
             if (subsums(unifier,new_mt->row,n_columns,new_mt->c)) 
             {
-                printf("SUBSUMPTION EQUAL TRUE for MT1; PRINTING UNIFIER\n"); // Check
-                print_unifier(unifier,n_columns); // Check
-                printf("Main term in exception:\n\t"); print_mat_line(exception,n_columns);
-                printf("Main term in new_mt   :\n\t"); print_main_term(new_mt,3,0);
-                subsumed_me++;
+                // printf("SUBSUMPTION EQUAL TRUE for MT1; PRINTING UNIFIER\n"); // Check
+                // print_unifier(unifier,n_columns); // Check
+                // printf("Main term in exception:\n\t"); print_mat_line(exception,n_columns); // Check
+                // printf("Main term in new_mt   :\n\t"); print_main_term(new_mt,3,0); // Check
                 free(new_exc_mat);
                 free(exception);
                 free(unifier);
@@ -1182,11 +1174,10 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
             // If they unify, check if the subsums new_mt
             if (subsums(unifier,new_mt->row,n_columns,new_mt->c)) 
             {
-                printf("SUBSUMPTION EQUAL TRUE for MT2; PRINTING UNIFIER\n"); // Check
-                print_unifier(unifier,n_columns); // Check
-                printf("Main term in exception:\n\t"); print_mat_line(exception,n_columns);
-                printf("Main term in new_mt   :\n\t"); print_main_term(new_mt,3,0);
-                subsumed_me++;
+                // printf("SUBSUMPTION EQUAL TRUE for MT2; PRINTING UNIFIER\n"); // Check
+                // print_unifier(unifier,n_columns); // Check
+                // printf("Main term in exception:\n\t"); print_mat_line(exception,n_columns); // Check
+                // printf("Main term in new_mt   :\n\t"); print_main_term(new_mt,3,0); // Check
                 free(new_exc_mat);
                 free(exception);
                 free(unifier);
@@ -1287,8 +1278,8 @@ int main(int argc, char *argv[]){
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
 
-    print_main_term(&rb.terms[0],3,1);
-    exit(EXIT_SUCCESS);
+    // print_main_term(&rb.terms[0],3,1);
+    // exit(EXIT_SUCCESS);
     // TODO: Modify this section, since we will be working with one M1,M2 and M3 block at a time
     // if (verbose)
     // {
@@ -1337,7 +1328,7 @@ int main(int argc, char *argv[]){
 
     if (verbose) print_unifier_list(unifiers,unif_count,m);
     else printf("Number of unifiers: %u\n",unif_count);
-    printf("unif_count from read M3: %u\n",unified_counter); // Check
+    // printf("unif_count from read M3: %u\n",unified_counter); // Check
     // ----- test all matrix end ----- //
     
     // ----- test unification start ----- //
@@ -1406,26 +1397,7 @@ int main(int argc, char *argv[]){
     printf("Read result block: \n\t");
     print_result_block(&rb,0);    
 
-    printf("Subsumed me vs csv: %u-%u\n",subsumed_me,subsumed_csv);
     // 'Deeper check'
-    // int same = compare_mgus(unified,mat2,unif_count,m);
-    bool same = true;
-    for (i = 0; i < my_rb.r; i++)
-    {
-        if (my_rb.valid[i] != rb.valid[i]) 
-        {
-            printf("valid me: %u, valid csv: %u (Row %u-%u)\n",my_rb.valid[i],rb.valid[i],i/my_rb.r2+1,i%my_rb.r2+1);
-            printf("My result block:\n\t"); print_main_term(&my_rb.terms[i],3,0);
-            printf("Main term in M1:\n\t"); print_main_term(&ob1.terms[i/my_rb.r2],1,0);
-            printf("Main term in M2:\n\t"); print_main_term(&ob2.terms[i%my_rb.r2],2,0);
-            printf("Unifier:\n\t");         print_unifier(&unifiers[i*unifier_size],m);
-            printf("Mapping:\n\t");         print_mgu_compact(my_rb.ms,my_rb.c*2);
-            print_mgu_schema(my_rb.ms);
-            same=false;
-            break;
-        }
-    }
-    
     int same_int = compare_results(&my_rb,&rb);
     if (same_int) printf("Unification is correct :)\n");
     else printf("Unification is NOT correct :(\n");
