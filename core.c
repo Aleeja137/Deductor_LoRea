@@ -1335,13 +1335,12 @@ int main(int argc, char *argv[]){
     // ----- Matrix intersection start ----- //
     do {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
-        rb = read_result_block(stream_M3);
+            rb = read_result_block(stream_M3);
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
         timespec_subtract(&elapsed, &end_reading, &start_reading);    
         timespec_add(&read_file_elapsed, &read_file_elapsed, &elapsed);
-
-        matrix_intersection(&obs1[rb.t1],&obs2[rb.t2],&rb);
-
+        print_result_block(&rb,0);
+        matrix_intersection(&obs1[rb.t1-1],&obs2[rb.t2-1],&rb);
     } while (rb.t1);
     // ----- Matrix intersection end ----- //
 
@@ -1351,10 +1350,10 @@ int main(int argc, char *argv[]){
     // 1. Read file fuera (DONE)
     // 2. unifier_matrices tiuene que trabajar con operand blocks y el mgu_schema del result_block (DONE)
     // 3. Cherry pick los commits the master para la unificación con excepciones (DONE)
-        // 3.1 Comprobar en godbolt que la función subsums funciona correctamente
-    // 4. Comprobar los resultados del result block creado con el result block leído
+        // 3.1 Comprobar en godbolt que la función subsums funciona correctamente 
+    // 4. Comprobar los resultados del result block creado con el result block leído (DONE(?))
         // 4.1 Hace falta comprobar las columnas en orden, mucho cuidado con el mgu_schema
-    // 5. Comprobar y arreglar memory leaks
+    // 5. Comprobar y arreglar memory leaks 
     // 6. Añadir documentación
     // 7. Actualizar/quitar todos los comentarios y líneas de check
     // 8. Subir al main, documentación del README a punto
