@@ -429,6 +429,7 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
         
         // Initialize the exception blocks
         ob->terms[row] = create_empty_main_term(ob->c,e);
+        // if (e==0) printf("Main term created with 0 exceptions\n"); // Check
 
         // Get a pointer to the main term for easier working
         main_term *mt = &(ob->terms[row]);
@@ -537,6 +538,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
 
         // Initialize the exception blocks
         rb->terms[row] = create_empty_main_term(rb->c,e);
+        // if (e==0) printf("Main term created with 0 exceptions\n"); // Check
         if (rb->valid[row]!=1) rb->valid[row] = 0;
 
         // Get a pointer to the main term for easier working
@@ -1242,6 +1244,8 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
         apply_unifier_left(line_A,line_B,&unifiers[i*unifier_size],ob1->c);
         
         main_term mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
+        // if ((ob1->terms[ind_A].e + ob2->terms[ind_B].e)==0) printf("Main term created with 0 exceptions\n"); // Check
+
         
         memcpy(mt.row, line_A, ob1->c*sizeof(int));
         
@@ -1273,6 +1277,12 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
 
     timespec_subtract(&elapsed2, &end_unification, &start_unification);
     timespec_add(&unification_elapsed, &unification_elapsed, &elapsed2);
+
+    // Free memory
+    free(line_A);
+    free(line_B);
+    free(unifiers);
+    free_result_block(&my_rb);
     
 }
 // --------------------- CORE END --------------------- //
@@ -1374,5 +1384,24 @@ int main(int argc, char *argv[]){
     timespec_subtract(&elapsed, &end_total, &start_total);
     printf("Total time:                    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
 
+    // Free memory
+    // Free operand blocks
+    for (size_t i = 0; i < s1; i++) {
+        free_operand_block(&obs1[i]);
+    }
+    for (size_t i = 0; i < s2; i++) {
+        free_operand_block(&obs2[i]);
+    }
+    free(obs1);
+    free(obs2);
+
+    // Free dictionaries
+    free_dictionary(var_dict);
+    free_dictionary(unif_dict);
+
+    fclose(stream_M1);
+    fclose(stream_M2);
+    fclose(stream_M3);
+    
 	return 0;
 }

@@ -75,9 +75,10 @@ main_term create_empty_main_term(unsigned c, unsigned e) {
     mt.c = c;
     mt.e = e;
     mt.row = (int*)malloc(c * sizeof(int));
-    mt.exceptions = (exception_block*)malloc(e * sizeof(exception_block));
-
-    if (!mt.row || !mt.exceptions) {
+    if (e!=0) mt.exceptions = (exception_block*)malloc(e * sizeof(exception_block));
+    else mt.exceptions = NULL;
+    
+    if (((e!=0 && (!mt.row || !mt.exceptions))) || (e==0 && !mt.row)) {
         fprintf(stderr, "Failed to allocate main_term\n");
         free(mt.row);
         free(mt.exceptions);
