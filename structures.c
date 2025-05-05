@@ -21,25 +21,30 @@ exception_block create_empty_exception_block(unsigned n, unsigned m) {
     eb.m = m;
     eb.ms = NULL;
     // printf("n,m: %u, %u\n",n,m); // Check
-    eb.mat = (int*)malloc(n * m * sizeof(int));
+    if (n!=0)
+    {
+        eb.mat = (int*)malloc(n * m * sizeof(int));
 
-    if (!eb.mat) {
-        fprintf(stderr, "Failed to allocate exception_block\n");
-        free(eb.mat);
-        exit(EXIT_FAILURE);
+        if (!eb.mat) {
+            fprintf(stderr, "Failed to allocate exception_block\n");
+            free(eb.mat);
+            exit(EXIT_FAILURE);
+        }
     }
+    else eb.mat = NULL;
     return eb;
 }
 
 exception_block create_exception_block(unsigned n, unsigned m, mgu_schema *ms, int* mat) {
     exception_block eb = create_empty_exception_block(n,m);
     eb.ms = deep_copy_mgu_schema(ms);
-    memcpy(eb.mat, mat, n * m * sizeof(int));
+    if (n!=0) memcpy(eb.mat, mat, n * m * sizeof(int));
     return eb;
 }
 
 void free_exception_block(exception_block* eb) {
     if (eb) {
+        // print_exception_block(eb,3,0); // Check
         free_mgu_schema(eb->ms);
         free(eb->mat);
     }
@@ -100,6 +105,7 @@ main_term create_main_term(unsigned c, unsigned* row, unsigned e, exception_bloc
 
 void free_main_term(main_term* mt) {
     if (mt) {
+        // print_main_term(mt,3,1); // Check
         for (unsigned i = 0; i < mt->e; i++)
             free_exception_block(&mt->exceptions[i]);
         free(mt->exceptions);
@@ -229,6 +235,7 @@ result_block create_result_block(unsigned t1, unsigned t2, unsigned r1, unsigned
 
 void free_result_block(result_block* rb) {
     if (rb) {
+        // print_result_block(rb,1); // Check
         for (unsigned i = 0; i < rb->r; i++)
             free_main_term(&rb->terms[i]);
 
@@ -288,10 +295,10 @@ mgu_schema* create_empty_mgu_schema(const unsigned n_common, const unsigned n_un
     return ms;
 }
 
-// n must be the total number of elements, that is,n_pairs*2
-// mapping must not have '_-_' entry, but not checked (maybe should)
+// n must be the total number of elements, that is,n_pairs*2, mapping can have '_-_' entry
 mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const unsigned n_L, const unsigned n_R) 
 {
+    // printf("create_mgu_from_mapping input parameters: n: %u, n_L: %u, n_R: %u, ",n,n_L,n_R); // Check
     unsigned i;
     unsigned n_common = 0;
     unsigned news = 0;
@@ -303,6 +310,7 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
         else if (!mapping[i] && !mapping[i+1]) {news++;}
     }
 
+    // printf("ms.n_common: %u\n",n_common); //Check
     mgu_schema *ms = create_empty_mgu_schema(n_common, n_L-n_common, n_R-n_common);
     ms->new_indices = (unsigned*)malloc(news*sizeof(unsigned));
     ms->new = news; 
@@ -373,12 +381,18 @@ mgu_schema* deep_copy_mgu_schema(const mgu_schema* ms) {
 
     mgu_schema* result = create_empty_mgu_schema(ms->n_common, ms->n_uncommon_L, ms->n_uncommon_R);
 
-    memcpy(result->common_columns, ms->common_columns, ms->n_common * sizeof(unsigned));
-    memcpy(result->common_L,       ms->common_L,       ms->n_common * sizeof(unsigned));
-    memcpy(result->common_R,       ms->common_R,       ms->n_common * sizeof(unsigned));
-    memcpy(result->uncommon_L,     ms->uncommon_L,     2 * ms->n_uncommon_L * sizeof(unsigned));
-    memcpy(result->uncommon_R,     ms->uncommon_R,     2 * ms->n_uncommon_R * sizeof(unsigned));
-    memcpy(result->new_indices,    ms->new_indices,    ms->new * sizeof(unsigned));
+    result->new = ms->new;
+    if (ms->new > 0) result->new_indices = malloc(ms->new * sizeof(unsigned));
+    else result->new_indices = NULL;
+
+    memcpy(result->common_columns, ms->common_columns,   ms->n_common           * sizeof(unsigned));
+    memcpy(result->common_L,       ms->common_L,         ms->n_common           * sizeof(unsigned));
+    memcpy(result->common_R,       ms->common_R,         ms->n_common           * sizeof(unsigned));
+    memcpy(result->uncommon_L,     ms->uncommon_L, 2 * ms->n_uncommon_L       * sizeof(unsigned));
+    memcpy(result->uncommon_R,     ms->uncommon_R, 2 * ms->n_uncommon_R       * sizeof(unsigned));
+    if (ms->new > 0) {
+        memcpy(result->new_indices, ms->new_indices, ms->new * sizeof(unsigned));
+    }
 
     return result;
 }
@@ -441,6 +455,13 @@ void print_mgu_schema(mgu_schema* ms) {
 
 void print_mgu_compact(mgu_schema *ms, unsigned total_columns) {
     // Create a flat mapping array
+    printf("DEBUG: n_common=%u, n_uncommon_L=%u, n_uncommon_R=%u, new=%u, total_columns=%u\n",
+        ms->n_common,
+        ms->n_uncommon_L,
+        ms->n_uncommon_R,
+        ms->new,
+        total_columns);
+
     unsigned *mapping = calloc(total_columns, sizeof(unsigned));
     if (!mapping) {
         fprintf(stderr, "Memory allocation failed\n");

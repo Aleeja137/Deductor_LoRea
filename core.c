@@ -354,7 +354,7 @@ void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
         // Skip unflatened schema
         getline(&line, &len, stream);
 
-        // Read mapping (Skip for now)
+        // Read mapping
         getline(&line, &len, stream);
         // printf("%s\n",line); // Check
         unsigned *mapping = (unsigned*)malloc(eb->m*2*sizeof(unsigned));
@@ -435,7 +435,7 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
         main_term *mt = &(ob->terms[row]);
 
         // Read the rest of the line
-        // printf("Line: %s\n",line); // Check
+        if (row==2485) printf("Line: %s\n",line); // Check
         read_line(line, mt->row, true);
         // print_mat_line(mt->row,mt->c); // Check
 
@@ -557,6 +557,8 @@ void read_result_matrix(FILE *stream, result_block *rb) {
 
         // Increment the row by 1
         row++;
+
+        // if (rb->valid[row-1]==1) {print_main_term(mt,3,1); exit(EXIT_SUCCESS);} // Check
     }
 
     // printf("Line at end of read_result_block is: %s",line); // Check
@@ -1252,9 +1254,7 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
         prepare_unified(mt.row, my_rb.c,line_B, rb->ms, false);
         unsigned index_mt = ind_A*my_rb.r2+ind_B;
         my_rb.terms[index_mt] = mt;
-        
-        if (rb->terms[index_mt].exceptions==NULL) {my_rb.valid[index_mt] = 1;}
-        else {my_rb.valid[index_mt] = check_exceptions(&ob1->terms[ind_A], &ob2->terms[ind_B], &mt, &rb->terms[index_mt]);}
+        my_rb.valid[index_mt] = check_exceptions(&ob1->terms[ind_A], &ob2->terms[ind_B], &mt, &rb->terms[index_mt]);
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);
