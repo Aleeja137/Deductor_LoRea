@@ -326,8 +326,7 @@ void get_mapping(char *line, unsigned n_pairs, unsigned *mapping){
             *dash = '\0'; 
             char *first = tok;
             char *second = dash + 1;
-
-            mapping[count++] = (strcmp(first, "_") == 0)  ? 0 : (unsigned)atoi(first);
+            mapping[count++] = (strcmp(first,  "_") == 0) ? 0 : (unsigned)atoi(first);
             mapping[count++] = (strcmp(second, "_") == 0) ? 0 : (unsigned)atoi(second);
         }
         tok = strtok(NULL, " ,\n");
@@ -356,7 +355,7 @@ void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
 
         // Read mapping
         getline(&line, &len, stream);
-        // printf("%s\n",line); // Check
+        // printf("Line for mapping for exception block:\n%s",line); // Check
         unsigned *mapping = (unsigned*)malloc(eb->m*2*sizeof(unsigned));
         // if (chivato) printf("line with mapping before get_mapping: %s\n",line); // Check
         get_mapping(line,eb->m, mapping);
@@ -375,6 +374,13 @@ void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
         // }
         // // Check end
         eb->ms = create_mgu_from_mapping(mapping, eb->m*2, mt->c, eb->m);
+        // printf("["); // Check
+        // for (size_t kk = 0; kk < eb->m; kk++) // Check
+        // { // Check
+        //     if (kk<eb->m-1) printf("%u-%u,",mapping[2*kk],mapping[2*kk+1]); // Check
+        //     else              printf("%u-%u]\n" ,mapping[2*kk],mapping[2*kk+1]); // Check
+        // } // Check
+        
         // print_mgu_compact(eb->ms, eb->m*2); // Check
 
         // Skip flatened schema if reading from operand
@@ -435,7 +441,7 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
         main_term *mt = &(ob->terms[row]);
 
         // Read the rest of the line
-        if (row==2485) printf("Line: %s\n",line); // Check
+        // if (row==2485) printf("Line: %s\n",line); // Check
         read_line(line, mt->row, true);
         // print_mat_line(mt->row,mt->c); // Check
 
@@ -463,7 +469,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
                          &rb->t1, &rb->t2, &rb->r1, &rb->r2, &rb->c1, &rb->c2, &rb->c);
     
     if (matched != 7) {
-        printf("line: %s\n",line); // Check
+        printf("line: %s\n",line);
         fprintf(stderr, "Could not read matrix subset info, matched: %d\n",matched);
         free_result_block(rb);
         free(line);
@@ -485,7 +491,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
 
     // Get mapping info
     getline(&line, &len, stream);
-    // printf("%s\n",line); // Check
+    // printf("Line for mapping in result matrix main term mapping:\n%s",line); // Check
     unsigned *mapping = (unsigned*)malloc(rb->c*2*sizeof(unsigned));
     get_mapping(line, rb->c, mapping);
     rb->ms = create_mgu_from_mapping(mapping, rb->c*2, rb->c1, rb->c2);
@@ -527,7 +533,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         if (sscanf(line, "Row %u-%u: %u", &d1, &d2, &e) != 3 &&
             sscanf(line, "Rows %u-%u: %u", &d1, &d2, &e) != 3) 
         {
-            printf("Line is: %s\n",line); // Check
+            printf("Line is: %s\n",line);
             fprintf(stderr, "Could not read number of exception blocks in row\n");
             free_result_block(rb);
             free(line);
@@ -1331,15 +1337,18 @@ int main(int argc, char *argv[]){
     for (size_t i = 0; i < s1; i++)
     {
         obs1[i] = read_operand_block(stream_M1);
+        print_operand_block(&obs1[i],1,2);
     }
 
     for (size_t i = 0; i < s2; i++)
     {
         obs2[i] = read_operand_block(stream_M2);
+        print_operand_block(&obs2[i],2,2);
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
     timespec_subtract(&read_file_elapsed, &end_reading, &start_reading);    
+
     // ----- Read file end ----- //
 
     // ----- Matrix intersection start ----- //
