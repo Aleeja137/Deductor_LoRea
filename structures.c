@@ -45,8 +45,13 @@ exception_block create_exception_block(unsigned n, unsigned m, mgu_schema *ms, i
 void free_exception_block(exception_block* eb) {
     if (eb) {
         // print_exception_block(eb,3,0); // Check
-        free_mgu_schema(eb->ms);
+        if (eb->ms) 
+        {
+            free_mgu_schema(eb->ms);
+            eb->ms = NULL;
+        }
         free(eb->mat);
+        eb->mat = NULL;
     }
 }
 
@@ -106,10 +111,15 @@ main_term create_main_term(unsigned c, unsigned* row, unsigned e, exception_bloc
 void free_main_term(main_term* mt) {
     if (mt) {
         // print_main_term(mt,3,1); // Check
-        for (unsigned i = 0; i < mt->e; i++)
-            free_exception_block(&mt->exceptions[i]);
-        free(mt->exceptions);
+
+        if (mt->exceptions)
+        {
+            for (unsigned i = 0; i < mt->e; i++) {free_exception_block(&mt->exceptions[i]);}
+            free(mt->exceptions);
+            mt->exceptions = NULL;
+        }
         free(mt->row);
+        mt->row = NULL;
     }
 }
 
@@ -163,8 +173,11 @@ operand_block create_operand_block(unsigned r, unsigned c, main_term* terms) {
 void free_operand_block(operand_block* ob) {
     if (ob) {
         for (unsigned i = 0; i < ob->r; i++)
+        {
             free_main_term(&ob->terms[i]);
+        }
         free(ob->terms);
+        ob->terms = NULL;
     }
 }
 
@@ -207,7 +220,7 @@ result_block create_empty_result_block(unsigned r1, unsigned r2, unsigned c1, un
     rb.c1 = c1;
     rb.c2 = c2;
     rb.c = c;
-    rb.ms = ms;
+    rb.ms = deep_copy_mgu_schema(ms);
 
     rb.terms = (main_term*)malloc(rb.r * sizeof(main_term));
     rb.valid = (unsigned*)malloc(rb.r * sizeof(unsigned));
@@ -237,11 +250,12 @@ void free_result_block(result_block* rb) {
     if (rb) {
         // print_result_block(rb,1); // Check
         for (unsigned i = 0; i < rb->r; i++)
-            free_main_term(&rb->terms[i]);
+            if (rb->valid[i]!=2) free_main_term(&rb->terms[i]);
 
         free(rb->terms);
         free(rb->valid);
         free_mgu_schema(rb->ms);
+        rb->ms = NULL;
     }
 }
 
@@ -273,24 +287,24 @@ mgu_schema* create_empty_mgu_schema(const unsigned n_common, const unsigned n_un
     }
 
     ms->n_common = n_common;
-    ms->common_columns = (unsigned*)malloc(n_common * sizeof(unsigned));
-    ms->common_L = (unsigned*)malloc(n_common * sizeof(unsigned));
-    ms->common_R = (unsigned*)malloc(n_common * sizeof(unsigned));
+    ms->common_columns = n_common ? (unsigned*)malloc(n_common * sizeof(unsigned)) : NULL;
+    ms->common_L       = n_common ? (unsigned*)malloc(n_common * sizeof(unsigned)) : NULL;
+    ms->common_R       = n_common ? (unsigned*)malloc(n_common * sizeof(unsigned)) : NULL;
 
     ms->n_uncommon_L = n_uncommon_L;
     ms->n_uncommon_R = n_uncommon_R;
-    ms->uncommon_L = (unsigned*)malloc(2 * n_uncommon_L * sizeof(unsigned));
-    ms->uncommon_R = (unsigned*)malloc(2 * n_uncommon_R * sizeof(unsigned));
-    ms->new = 0; // ??
+    ms->uncommon_L = n_uncommon_L ? (unsigned*)malloc(2 * n_uncommon_L * sizeof(unsigned)) : NULL;
+    ms->uncommon_R = n_uncommon_R ? (unsigned*)malloc(2 * n_uncommon_R * sizeof(unsigned)) : NULL;
+    ms->new = 0; 
     ms->new_indices = NULL;
 
-    if (!ms->common_columns || !ms->common_L || !ms->common_R || !ms->uncommon_L || !ms->uncommon_R) {
-        fprintf(stderr, "Unable to allocate memory inside mgu_schema\n");
-        free(ms->common_columns); free(ms->common_L); free(ms->common_R); 
-        free(ms->uncommon_L); free(ms->uncommon_R);
-        free(ms);
-        exit(EXIT_FAILURE);
-    }
+    // if (!ms->common_columns || !ms->common_L || !ms->common_R || !ms->uncommon_L || !ms->uncommon_R) {
+    //     fprintf(stderr, "Unable to allocate memory inside mgu_schema\n");
+    //     free(ms->common_columns); free(ms->common_L); free(ms->common_R); 
+    //     free(ms->uncommon_L); free(ms->uncommon_R);
+    //     free(ms);
+    //     exit(EXIT_FAILURE);
+    // }
 
     return ms;
 }
@@ -312,7 +326,7 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
 
     // printf("n_common: %u, n_L: %u, n_R: %u, n_L-n_common: %u, n_R-n_common: %u\n",n_common, n_L, n_R, n_L-n_common, n_R-n_common); //Check
     mgu_schema *ms = create_empty_mgu_schema(n_common, n_L-n_common, n_R-n_common);
-    ms->new_indices = (unsigned*)malloc(news*sizeof(unsigned));
+    ms->new_indices = news ? (unsigned*)malloc(news*sizeof(unsigned)) : NULL;
     ms->new = news; 
 
     unsigned last_uncommon_L = 0;

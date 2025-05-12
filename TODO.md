@@ -1,3 +1,7 @@
+```  
+^\s*(?!.*//.*//).*// Check.*  
+```  
+
 V0 - Sólo unificar
     - Arreglar versión 1 (low priority)
     - Comprobar con representación interna si unifico bien
@@ -36,3 +40,18 @@ Siguientes pasos:
         - Hay otro caso donde la unificación está 'bien' y detecta mal, que es cuando hacemos append de las clumnas en r_B que no son en común al final, y prolog suele hacer el append en 'orden'; aunque esto se podría arreglar con un 'orden' a la hora de comparar
 
     - Voy a tener que generar muy buena documentación cuando acabe para el siguiente que trabaje en esto (o para mí si sigo trabajando en esto)
+
+
+TODO
+// 1. Read file fuera (DONE)
+// 2. unifier_matrices tiuene que trabajar con operand blocks y el mgu_schema del result_block (DONE)
+// 3. Cherry pick los commits the master para la unificación con excepciones (DONE)
+    // 3.1 Comprobar en godbolt que la función subsums funciona correctamente 
+// 4. Comprobar los resultados del result block creado con el result block leído (DONE(?))
+    // 4.1 Hace falta comprobar las columnas en orden, mucho cuidado con el mgu_schema
+// 5. Comprobar y arreglar memory leaks (DONE)
+// 6. Añadir documentación
+// 7. Actualizar/quitar todos los comentarios y líneas de check
+// 8. Subir al main, documentación del README a punto
+// 9. Repasar el código para posibles optimizaciones (preguntar)
+// 10. Pedir a Jose cuenta en el cluster nuevo (DONE)

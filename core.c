@@ -19,7 +19,6 @@
 Dictionary *var_dict;
 Dictionary *unif_dict;
 bool first_rb = true;
-// bool chivato = true; // Check
 
 struct nlist *dict;
 int verbose = 0;
@@ -72,15 +71,15 @@ void print_mat_values(int *mat, int n, int m){
 void print_unifier(unsigned *unifier, unsigned m){
     unsigned i;
     unsigned n_elem = unifier[0]*2;
-    unsigned rowA = unifier[1+2*m];
-    unsigned rowB = unifier[1+2*m+1];
+    unsigned idxA = unifier[1+2*m];
+    unsigned idxB = unifier[1+2*m+1];
     
     printf("%d elements: [",n_elem);
 	for (i = 0; i < n_elem; i+=2)
 	{
         printf("%u<-%u ", unifier[1+i],unifier[1+i+1]);
 	}
-    printf("],\t\t\trowA: %u, rowB: %u\n",rowA+1, rowB+1);
+    printf("],\t\tidxA: %u, idxB: %u\n",idxA+1, idxB+1);
 }
 
 void print_unifier_list(unsigned *unifiers, unsigned unif_count, unsigned m){
@@ -179,7 +178,10 @@ int compare_results(result_block *rb1, result_block *rb2){
     // Iterate the main terms, and check the rows, exceptions bloks, etc
     for (unsigned i = 0; i < rb1->r; i++)
     {
-        if (rb1->valid[i] != rb2->valid[i]) {printf("compare_results valid test failed at term %u (%u-%u)\n",i, i/rb1->r2+1, i%rb1->r2+1); return 0;}
+        if (rb1->valid[i] != rb2->valid[i]) {
+            printf("compare_results valid test failed at term %u (%u-%u)\n",i, i/rb1->r2+1, i%rb1->r2+1); 
+            printf("my valid: %u, csv valid: %u\n",rb1->valid[i], rb2->valid[i]); // Check
+            return 0;}
         if (rb1->valid[i] == 0) // Only in this case, otherwise rows and exceptions will be empty
         {
             if (!compare_main_terms(&rb1->terms[i], &rb2->terms[i]))
@@ -228,7 +230,6 @@ matrix_schema* read_matrix_schema_from_csv(const char* line, int m) {
         mapping[i] = (unsigned)i;
         tok = strtok(NULL, ",");
         i++;
-        // printf("tok: %s,",tok); // Check
     }
     free(line_copy);
 
@@ -252,7 +253,6 @@ void read_dimensions(FILE *stream, unsigned *n, unsigned *m) {
     long int num;
 
     getline(&line, &len, stream);
-    // printf("Line in read_dimensions is: %s\n",line); // Check
     if (strstr(line, "BEGIN") == NULL) {
         fprintf(stderr, "Could not read matrix dimensions\n");
         exit(EXIT_FAILURE);
@@ -288,27 +288,21 @@ void read_dimensions(FILE *stream, unsigned *n, unsigned *m) {
 }
 
 void read_line(char *line, int *row, bool skip_first) {
-    // printf("Line is '%s'\n",line); // Check
     char *tok = strtok(line, ",");
     if (skip_first) tok = strtok(NULL, ",\n");
 
     int col = 1;
     clear(var_dict);
     while (tok) {
-        // printf("'%s' - ",tok); // Check
         if (!isupper(tok[0])) { // If no uppercase appears, it is a constant
-            // printf("suspected constant tok: %s\n",tok); // Check
             const struct Symbol* s = get_value(tok, strlen(tok));
-            // printf("CONSTANT VALUE: %d\n",s->value); // Check
             row[col-1] = s->value;
         } else { // It is a variable
             if (lookup(var_dict, tok) == NULL) {
                 row[col-1] = 0;
                 install(var_dict, tok, col);
-                // if (verbose) printf("VARIABLE read element '%s' first appearance, assigned column %d\n", tok, col); // Check
             } else {
                 row[col-1] = -(lookup(var_dict, tok)->defn);
-                // if (verbose) printf("VARIABLE read element '%s' NOT first appearance, assigned index %d\n", tok, (*matrix)[index]); // Check
             }
         }
         tok = strtok(NULL, ",\n");
@@ -339,12 +333,11 @@ void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
     exception_block *eb;
     char *line = NULL;
     size_t len = 0;
-    // printf("Number of exceptions is %u\n",e); // Check
+
     for (unsigned i = 0; i < e; i++)
     {
         // Read dimensions of exception block (subset)
         read_dimensions(stream,&n,&m);
-        // printf("n: %u, m: %u\n",n,m); // Check
 
         // Create empty exception block to be populated later
         mt->exceptions[i] = create_empty_exception_block(n,m);
@@ -355,33 +348,10 @@ void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
 
         // Read mapping
         getline(&line, &len, stream);
-        // printf("Line for mapping for exception block:\n%s",line); // Check
         unsigned *mapping = (unsigned*)malloc(eb->m*2*sizeof(unsigned));
-        // if (chivato) printf("line with mapping before get_mapping: %s\n",line); // Check
         get_mapping(line,eb->m, mapping);
-        // // Check start
-        // if (chivato) 
-        // {
-        //     printf("line with mapping after get_mapping: %s\n",line);
-        //     printf("n_L: %u, n_R: %u; printing_mapping:\n",mt->c, eb->m);
-        //     printf("[");
-        //     for (unsigned map_ind = 0; map_ind < eb->m*2; map_ind += 2) {
-        //         printf("(%u,%u)", mapping[map_ind], mapping[map_ind+1]);
-        //         if (map_ind + 2 < eb->m*2)
-        //             printf(", ");
-        //     }
-        //     printf("]\n");
-        // }
-        // // Check end
         eb->ms = create_mgu_from_mapping(mapping, eb->m*2, mt->c, eb->m);
-        // printf("["); // Check
-        // for (size_t kk = 0; kk < eb->m; kk++) // Check
-        // { // Check
-        //     if (kk<eb->m-1) printf("%u-%u,",mapping[2*kk],mapping[2*kk+1]); // Check
-        //     else              printf("%u-%u]\n" ,mapping[2*kk],mapping[2*kk+1]); // Check
-        // } // Check
-        
-        // print_mgu_compact(eb->ms, eb->m*2); // Check
+        free(mapping);
 
         // Skip flatened schema if reading from operand
         if (!result) getline(&line, &len, stream);
@@ -390,17 +360,15 @@ void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
         {            
             getline(&line, &len, stream);
             char *line_ptr = line;  
-            // printf("Line before moving past Row: %s\n",line); // Check
             if (result) line_ptr = strchr(line_ptr, ':') + 2;
-            // printf("Line after moving past Row:  %s\n\n",line_ptr); // Check
             read_line(line_ptr, &eb->mat[j*m], false);
+
             // Skip unifier if reading from result file
             if (result) getline(&line, &len, stream);
         }
 
         // Skip end exception subset line
         getline(&line, &len, stream);
-        // printf("skiped line in read_exception_blocks is : %s\n",line); // Check
     }
     
     free(line);
@@ -427,27 +395,21 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
             break;
         
         // Get first token, which tells the number of exception blocks
-        // printf("Line is before tok '%s'\n",line); // Check
-        char *tok = strtok(strdup(line), ",");
-        // printf("Line is after tok '%s'\n",line); // Check
+        char *line_copy = strdup(line);
+        char *tok = strtok(line_copy, ",");
         unsigned e = (unsigned)strtoul(tok, NULL, 10);
-        // printf("The main term %u has %u exception blocks\n",row,e); // Check
+        free(line_copy);
         
         // Initialize the exception blocks
         ob->terms[row] = create_empty_main_term(ob->c,e);
-        // if (e==0) printf("Main term created with 0 exceptions\n"); // Check
 
         // Get a pointer to the main term for easier working
         main_term *mt = &(ob->terms[row]);
 
         // Read the rest of the line
-        // if (row==2485) printf("Line: %s\n",line); // Check
         read_line(line, mt->row, true);
-        // print_mat_line(mt->row,mt->c); // Check
 
         // Read one by one the exception blocks
-        // if (row==2590) chivato=true; // Check
-        // else chivato=false; // Check
         if (e) read_exception_blocks(stream, mt, false);
 
         // Increment the row by 1
@@ -464,11 +426,11 @@ void read_result_matrix(FILE *stream, result_block *rb) {
 
     // Read block header
     getline(&line, &len, stream);
-    // printf("line to be matched is: %s\n",line); // Check
     int matched = sscanf(line, "%% BEGIN: Matrix subset %u-%u (%u-%u,%u-%u,%u)",
                          &rb->t1, &rb->t2, &rb->r1, &rb->r2, &rb->c1, &rb->c2, &rb->c);
     
     if (matched != 7) {
+        if (strstr(line, "END: Matrix M1 & M2 + MGU") != NULL) {free(line); return;}
         printf("line: %s\n",line);
         fprintf(stderr, "Could not read matrix subset info, matched: %d\n",matched);
         free_result_block(rb);
@@ -491,11 +453,9 @@ void read_result_matrix(FILE *stream, result_block *rb) {
 
     // Get mapping info
     getline(&line, &len, stream);
-    // printf("Line for mapping in result matrix main term mapping:\n%s",line); // Check
     unsigned *mapping = (unsigned*)malloc(rb->c*2*sizeof(unsigned));
     get_mapping(line, rb->c, mapping);
     rb->ms = create_mgu_from_mapping(mapping, rb->c*2, rb->c1, rb->c2);
-    // print_mgu_compact(rb->ms, rb->c*2); // Check
 
     // Skip flattened schema
     getline(&line, &len, stream);
@@ -514,13 +474,10 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         if (strstr(line, "subsumed by exception") != NULL)
         {
             rb->valid[row] = 1;
-            // printf("Reading line %u is subsumed by exception\n",row); // Check
             continue;
         }
         else if (strstr(line, "not unifiable") != NULL)
         {
-            // rb->terms[row] = NULL; // This not necessary I would say
-            // printf("Reading line %u is not unifiable\n",row); // Check
             rb->terms[row] = create_null_main_term();
             rb->valid[row] = 2;
             row++;
@@ -529,7 +486,6 @@ void read_result_matrix(FILE *stream, result_block *rb) {
 
         // If unifiable, read number of exception blocks
         unsigned d1, d2, e;
-        // printf("Line is: %s\n",line); // Check
         if (sscanf(line, "Row %u-%u: %u", &d1, &d2, &e) != 3 &&
             sscanf(line, "Rows %u-%u: %u", &d1, &d2, &e) != 3) 
         {
@@ -537,23 +493,18 @@ void read_result_matrix(FILE *stream, result_block *rb) {
             fprintf(stderr, "Could not read number of exception blocks in row\n");
             free_result_block(rb);
             free(line);
-            // TODO: free other things too
             exit(EXIT_FAILURE);
         }
-        // printf("The main term %u-%u has %u exception blocks\n",row/rb->r2+1, row%rb->r2+1,e); // Check
 
         // Initialize the exception blocks
         rb->terms[row] = create_empty_main_term(rb->c,e);
-        // if (e==0) printf("Main term created with 0 exceptions\n"); // Check
         if (rb->valid[row]!=1) rb->valid[row] = 0;
 
         // Get a pointer to the main term for easier working
         main_term *mt = &(rb->terms[row]);
 
         // Read the rest of the line
-        // printf("Line: %s\n",line); // Check
         read_line(line, mt->row, true);
-        // print_mat_line(mt->row,mt->c); // Check
 
         // Skip the unifier line
         getline(&line, &len, stream);
@@ -564,10 +515,8 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         // Increment the row by 1
         row++;
 
-        // if (rb->valid[row-1]==1) {print_main_term(mt,3,1); exit(EXIT_SUCCESS);} // Check
     }
 
-    // printf("Line at end of read_result_block is: %s",line); // Check
     free(line);
     free(mapping);
 }
@@ -583,7 +532,6 @@ void read_result_matrix(FILE *stream, result_block *rb) {
     // Read operand block dimensions
     unsigned r, c;
     read_dimensions(stream, &r, &c);
-    // printf("Operand block dimensions: %u rows, %u columns\n",r,c); // Check
 
     // Create the operand_block structure for later populating it
     operand_block ob = create_empty_operand_block(r, c);
@@ -613,15 +561,13 @@ result_block read_result_block(FILE *stream) {
     if (first_rb) {
         first_rb=false; 
         getline(&line, &len, stream);
-        if (strstr(line, "END: Matrix M1 & M2 + MGU") != NULL) return rb;
+        if (strstr(line, "END: Matrix M1 & M2 + MGU") != NULL) {free(line); return rb;}
     }
 
     // Read the operand block and fill the struct
     read_result_matrix(stream, &rb);
 
-    // Skip matrix header 
-    // getline(&line, &len, stream);
-
+    free(line);
     return rb;
 }
 
@@ -708,9 +654,6 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
         if (x >= m1) val_x = row_b[x-m1];
         else val_x = row_a[x];
 
-        // printf("x: %d, val_x: %d\n",x,val_x); // Check
-        // printf("y: %d, val_y: %d\n",y,val_y); // Check
-
         // If both constants 
         if (val_x > 0 && val_y > 0 && val_x!=val_y) return -1; // And don't match
         else if (val_x > 0 && val_y > 0) continue;             // And match
@@ -760,7 +703,6 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
             while (current != NULL)
             {
                 int current_index = current->ind;
-                // printf("Altering by of index %d\n",current_index); // Check
                 lst[current_index].by = y;
                 current = current->next;
             }
@@ -769,7 +711,7 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
             if (lst[y].head)
             {
                 if (!lst[y].tail) lst[y].tail = lst[y].head;
-                lst[y].tail->next = create_L3(x,lst[x].head); // <----- HERE
+                lst[y].tail->next = create_L3(x,lst[x].head);
                 if (lst[x].head) lst[y].tail = lst[x].tail;
 
             }
@@ -807,7 +749,6 @@ int correct_unifier(int *row_a, int *row_b, unsigned *unifier, const unsigned n_
         }
     }
     unifier[0] = n_substitutions;
-    // printf("n_substitutions: %u\n",n_substitutions); // Check
 
     // Free lst
     for ( i = 0; i < lst_length; i++)
@@ -868,8 +809,6 @@ void apply_unifier_left(int *row_a, int *row_b, unsigned *unifier, unsigned m1){
     // Stuff needed if y is a variable
     int length = (int)log10(2*m1) + 2;
     char *y_str = (char *)malloc(length * sizeof(char));
-    // clear(unif_dict); // Clean dictionary
-    // printf("m1: %d, n: %d, length: %d\n",m1,n,length); // Check
     
     for (i = 1; i < n; i+=2)
     {
@@ -912,8 +851,6 @@ void prepare_unified(int *unified, unsigned n_col_unified, int *row_b, mgu_schem
 {
     if (ms->n_uncommon_L == ms->n_uncommon_R && ms->n_uncommon_L == 0) return;
 
-    // print_mgu_schema(ms); // Check
-    // print_mgu_compact(ms,(ms->n_common+ms->n_uncommon_L+ms->n_uncommon_R)*2); // Check
     // Append all elements not in common of row_b to new row
     unsigned i;
 
@@ -970,24 +907,15 @@ void prepare_unified(int *unified, unsigned n_col_unified, int *row_b, mgu_schem
 
             if (found)
             {
-                // if (chivato) {printf("Cases 1 entered!\n"); // Check
-                // // chivato=false; // Check
-                // } // Check
                 if (unified[reference]!=0) {unified[i] = unified[reference];} // Cases 1.1 & 1.2
                 else {unified[i] = -((int)reference - 1);} // Case 1.3
             }
             else
             {
-                // if (chivato) {printf("Cases 2 entered!\n");  // Check
-                //     // chivato=false; // Check
-                // } // Check
                 // At this point, reference is pointing to a point in original row_b
                 if (unified[reference]>0) {unified[i] = unified[reference];} // Case 2.1
                 else if (unified[reference] < 0) {fprintf(stderr, "Not possible, check logic\n"); return;} // Case 2.2 (should not happend)
                 else { // Case 2.3
-                    // if (chivato) {printf("Case 2.3 entered!\n");  // Check
-                    //     // chivato=false; // Check
-                    // } // Check
                     // Need to traverse uncommon_blocks, accumulating length, until finding the block it belngs to. Then, add this accumulation to the reference, plus the unifiers_length
                     j = 0;
                     found = false;
@@ -1018,7 +946,6 @@ void prepare_unified(int *unified, unsigned n_col_unified, int *row_b, mgu_schem
 // - No changes in A (strict) or ALL changes are in A, and are done by distinct variables of B (extended)
 bool subsums(const unsigned* unifier, const int *rowB, const unsigned m1, const unsigned m2)
 {
-    // printf("----------m1: %u, m2: %u-------------\n",m1,m2); // Check
     bool *used = calloc(m2, sizeof(bool));
     bool change_in_B=false;
     if (!used) {
@@ -1036,14 +963,12 @@ bool subsums(const unsigned* unifier, const int *rowB, const unsigned m1, const 
             // All changes need to happen in A
             if (change_in_B) {
                 free(used);
-                // printf("caso D-> x:%u, y:%u <- Cambio en B antes de cambio en A\n", x, y); // Check
                 return false;
             }
 
             // If change comes from A too
             if (y < m1) {
                 free(used); 
-                // printf("caso A-> x:%u, y:%u <- Cambio de A en A",x,y); // Check
                 return false;
             }
             // If change comes from B
@@ -1052,7 +977,6 @@ bool subsums(const unsigned* unifier, const int *rowB, const unsigned m1, const 
                 // If constant, does not subsum
                 if (rowB[y-m1] > 0) {
                     free(used); 
-                    // printf("caso B-> x:%u, y:%u <- Cambio de A por constante %d",x,y,rowB[y-m1]); // Check
                     return false;
                 }
                 // If first use of variable, set it as used
@@ -1060,7 +984,6 @@ bool subsums(const unsigned* unifier, const int *rowB, const unsigned m1, const 
                 // If not first use, does not subsum
                 else {
                     free(used); 
-                    // printf("caso C-> x:%u, y:%u <- Variable y usada antes",x,y); // Check
                     return false;
                 }
             }
@@ -1087,6 +1010,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
 
     unsigned n_exceptions, n_columns, new_n_columns;
     unsigned last_exc, n_common;
+    unsigned total_exceptions = 0; // the number of exceptions added to the new_mt
     
     int *exception, *exc_mat, *new_exc_mat;
     int code;
@@ -1121,14 +1045,9 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
 			code = correct_unifier(exception, new_mt->row, unifier, 2*n_common, n_columns, new_mt->c);
 			if (code != 0) continue; // If they do not unify, skip
 
-            // printf("Number of unifier pairs: %u\n",unifier[0]); // Check
             // If they unify, check if the subsums new_mt
             if (subsums(unifier,new_mt->row,n_columns,new_mt->c)) 
             {
-                // printf("SUBSUMPTION EQUAL TRUE for MT1; PRINTING UNIFIER\n"); // Check
-                // print_unifier(unifier,n_columns); // Check
-                // printf("Main term in exception:\n\t"); print_mat_line(exception,n_columns); // Check
-                // printf("Main term in new_mt   :\n\t"); print_main_term(new_mt,3,0); // Check
                 free(new_exc_mat);
                 free(exception);
                 free(unifier);
@@ -1138,14 +1057,15 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
             // If it does not subsum, apply unifier to exception and save exception for later creating the exception_block
             apply_unifier_left(exception,new_mt->row,unifier,n_columns);
             memcpy(&new_exc_mat[last_exc*new_n_columns], exception, n_columns*sizeof(int));
-            // print_mgu_compact(read_mt->exceptions[i].ms,(read_mt->exceptions[i].m)*2); // Check
             prepare_unified(&new_exc_mat[last_exc*new_n_columns], new_n_columns, new_mt->row, read_mt->exceptions[i].ms, true);
             last_exc++;
+            total_exceptions++;
         }
 
         // After all exceptions have been checked and unified, create the exception block
         new_mt->exceptions[i] = create_exception_block(last_exc,new_n_columns,read_mt->exceptions[i].ms,new_exc_mat);
 
+        free(new_exc_mat);
         free(exception);
         free(unifier);
     }
@@ -1185,10 +1105,6 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
             // If they unify, check if the subsums new_mt
             if (subsums(unifier,new_mt->row,n_columns,new_mt->c)) 
             {
-                // printf("SUBSUMPTION EQUAL TRUE for MT2; PRINTING UNIFIER\n"); // Check
-                // print_unifier(unifier,n_columns); // Check
-                // printf("Main term in exception:\n\t"); print_mat_line(exception,n_columns); // Check
-                // printf("Main term in new_mt   :\n\t"); print_main_term(new_mt,3,0); // Check
                 free(new_exc_mat);
                 free(exception);
                 free(unifier);
@@ -1200,11 +1116,13 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
             memcpy(&new_exc_mat[last_exc*new_n_columns], exception, n_columns*sizeof(int));
             prepare_unified(&new_exc_mat[last_exc*new_n_columns], new_n_columns, new_mt->row, read_mt->exceptions[mt1->e+i].ms, true);
             last_exc++;
+            total_exceptions++;
         }
 
         // After all exceptions have been checked and unified, create the exception block
         new_mt->exceptions[mt1->e+i] = create_exception_block(last_exc,new_n_columns,read_mt->exceptions[mt1->e+i].ms,new_exc_mat);
 
+        free(new_exc_mat);
         free(exception);
         free(unifier);
     }
@@ -1239,9 +1157,7 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     my_rb.t1 = 1;
     my_rb.t2 = 1;
     unsigned i, ind_A, ind_B;
-    // for (i=0; i<my_rb.r; i++) my_rb.valid[i] = 2;
-    memset(my_rb.valid, 2, my_rb.r*sizeof(unsigned));
-
+    for (i=0; i<my_rb.r; i++) my_rb.valid[i] = 2;
     for (i=0; i<unif_count; i++)
     {
         ind_A = unifiers[i*unifier_size+unifier_size-2];
@@ -1252,8 +1168,6 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
         apply_unifier_left(line_A,line_B,&unifiers[i*unifier_size],ob1->c);
         
         main_term mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
-        // if ((ob1->terms[ind_A].e + ob2->terms[ind_B].e)==0) printf("Main term created with 0 exceptions\n"); // Check
-
         
         memcpy(mt.row, line_A, ob1->c*sizeof(int));
         
@@ -1261,6 +1175,7 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
         unsigned index_mt = ind_A*my_rb.r2+ind_B;
         my_rb.terms[index_mt] = mt;
         my_rb.valid[index_mt] = check_exceptions(&ob1->terms[ind_A], &ob2->terms[ind_B], &mt, &rb->terms[index_mt]);
+
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);
@@ -1270,7 +1185,6 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     // ----- Perform unification end ----- //
 
     // ----- Check correctness start ---- //
-    
     printf("Comparing unification results. . . \n");
     int same_int = compare_results(&my_rb,rb);
     if (same_int) printf("Unification is correct :)\n");
@@ -1337,13 +1251,11 @@ int main(int argc, char *argv[]){
     for (size_t i = 0; i < s1; i++)
     {
         obs1[i] = read_operand_block(stream_M1);
-        print_operand_block(&obs1[i],1,2);
     }
 
     for (size_t i = 0; i < s2; i++)
     {
         obs2[i] = read_operand_block(stream_M2);
-        print_operand_block(&obs2[i],2,2);
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
@@ -1356,31 +1268,19 @@ int main(int argc, char *argv[]){
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
             rb = read_result_block(stream_M3);
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
-        timespec_subtract(&elapsed, &end_reading, &start_reading);    
-        timespec_add(&read_file_elapsed, &read_file_elapsed, &elapsed);
-        print_result_block(&rb,0);
-        matrix_intersection(&obs1[rb.t1-1],&obs2[rb.t2-1],&rb);
-    } while (rb.t1);
+        if (rb.t1)
+        {
+            timespec_subtract(&elapsed, &end_reading, &start_reading);    
+            timespec_add(&read_file_elapsed, &read_file_elapsed, &elapsed);
+            print_result_block(&rb,0);
+            matrix_intersection(&obs1[rb.t1-1],&obs2[rb.t2-1],&rb);
+            free_result_block(&rb);
+        }
+        else break;
+    } while (true);
     // ----- Matrix intersection end ----- //
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_total);
-
-    // MAÑANA:
-    // 1. Read file fuera (DONE)
-    // 2. unifier_matrices tiuene que trabajar con operand blocks y el mgu_schema del result_block (DONE)
-    // 3. Cherry pick los commits the master para la unificación con excepciones (DONE)
-        // 3.1 Comprobar en godbolt que la función subsums funciona correctamente 
-    // 4. Comprobar los resultados del result block creado con el result block leído (DONE(?))
-        // 4.1 Hace falta comprobar las columnas en orden, mucho cuidado con el mgu_schema
-    // 5. Comprobar y arreglar memory leaks 
-    // 6. Añadir documentación
-    // 7. Actualizar/quitar todos los comentarios y líneas de check
-    // 8. Subir al main, documentación del README a punto
-    // 9. Repasar el código para posibles optimizaciones (preguntar)
-    // 10. Pedir a Jose cuenta en el cluster nuevo (DONE)
-
-
-
 
     printf("-------- TIME MEASUREMENTS --------\n");
     printf("Time for reading from file:    %ld.%0*ld sec\n",read_file_elapsed.tv_sec, 9, read_file_elapsed.tv_nsec);
