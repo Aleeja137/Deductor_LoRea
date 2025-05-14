@@ -55,3 +55,8 @@ TODO
 // 8. Subir al main, documentación del README a punto
 // 9. Repasar el código para posibles optimizaciones (preguntar)
 // 10. Pedir a Jose cuenta en el cluster nuevo (DONE)
+
+- Implementar lógica con _-_
+- Implementar lógica de comparación de resultados
+- Leer nuevo formato de archivos (columnas para comprbar subsums en excepciones)
+- Testear todo y acabar la lista de arriba

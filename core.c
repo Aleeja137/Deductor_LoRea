@@ -124,7 +124,7 @@ int compare_main_terms(main_term *mt1, main_term *mt2){
     // Quick check
     if ((mt1->c != mt2->c) || (mt1->e != mt2->e))
     {
-       printf("compare_main_terms quick test failed\n"); // Check
+       printf("compare_main_terms quick test failed\n");
        return 0;
     }
 
@@ -132,9 +132,9 @@ int compare_main_terms(main_term *mt1, main_term *mt2){
     {
         if (mt1->row[i]!=mt2->row[i])
         {
-            printf("compare_main_terms row test failed at element in column %lu\n",i); // Check
-            printf("mt1:\t"); print_main_term(mt1,1,0);
-            printf("mt2:\t"); print_main_term(mt2,2,0);
+            printf("compare_main_terms row test failed at element in column %lu\n",i);
+            printf("my_rb:\t"); print_main_term(mt1,3,0);
+            printf("rb   :\t"); print_main_term(mt2,3,0);
             return 0;
         }
     }
@@ -150,9 +150,9 @@ int compare_main_terms(main_term *mt1, main_term *mt2){
             {
                 if (mt1->exceptions[i].mat[j*m+k] != mt2->exceptions[i].mat[j*m+k])
                 {
-                    printf("compare_main_terms exception test failed at exception block %lu, at exception %lu in column %lu\n",i,j,k); // Check
-                    printf("mt1:\t"); print_exception_block(&mt1->exceptions[i],1,i);
-                    printf("mt2:\t"); print_exception_block(&mt2->exceptions[i],2,i);
+                    printf("compare_main_terms exception test failed at exception block %lu, at exception %lu in column %lu\n",i,j,k);
+                    printf("my_rb:\t"); print_exception_block(&mt1->exceptions[i],3,i+1);
+                    printf("rb   :\t"); print_exception_block(&mt2->exceptions[i],3,i+1);
                     return 0;
                 }
             }
@@ -164,7 +164,7 @@ int compare_main_terms(main_term *mt1, main_term *mt2){
 }
 
 // Return 0 if they are not the same
-int compare_results(result_block *rb1, result_block *rb2){
+int compare_results(result_block *rb1, result_block *rb2, operand_block *ob1, operand_block *ob2){
     
     // Quick check
     if ((rb1->c1 != rb2->c1) || (rb1->c2 != rb2->c2) || (rb1->c != rb2->c) || 
@@ -180,13 +180,17 @@ int compare_results(result_block *rb1, result_block *rb2){
     {
         if (rb1->valid[i] != rb2->valid[i]) {
             printf("compare_results valid test failed at term %u (%u-%u)\n",i, i/rb1->r2+1, i%rb1->r2+1); 
-            printf("my valid: %u, csv valid: %u\n",rb1->valid[i], rb2->valid[i]); // Check
+            printf("my valid: %u, csv valid: %u\n",rb1->valid[i], rb2->valid[i]);
             return 0;}
         if (rb1->valid[i] == 0) // Only in this case, otherwise rows and exceptions will be empty
         {
             if (!compare_main_terms(&rb1->terms[i], &rb2->terms[i]))
             {
                 printf("compare_results main term test failed at term %u (%u-%u)\n",i, i/rb1->r2+1, i%rb1->r2+1);
+                printf("mt1:\t"); print_main_term(&ob1->terms[i/rb1->r2],1,1);
+                printf("mt2:\t"); print_main_term(&ob2->terms[i%rb1->r2],2,1);
+                printf("mt3  (me):\t"); print_main_term(&rb1->terms[i],3,0);
+                printf("mt3 (csv):\t"); print_main_term(&rb2->terms[i],3,0);
                 return 0;
             }
 
@@ -433,7 +437,6 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         if (strstr(line, "END: Matrix M1 & M2 + MGU") != NULL) {free(line); return;}
         printf("line: %s\n",line);
         fprintf(stderr, "Could not read matrix subset info, matched: %d\n",matched);
-        free_result_block(rb);
         free(line);
         exit(EXIT_FAILURE);
     }
@@ -491,7 +494,6 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         {
             printf("Line is: %s\n",line);
             fprintf(stderr, "Could not read number of exception blocks in row\n");
-            free_result_block(rb);
             free(line);
             exit(EXIT_FAILURE);
         }
@@ -861,7 +863,7 @@ void prepare_unified(int *unified, unsigned n_col_unified, int *row_b, mgu_schem
     // Blind pointers to abstract reverse logic onwards
     unsigned *uncommon_array = reverse ? ms->uncommon_L   : ms->uncommon_R; 
     unsigned n               = reverse ? ms->n_uncommon_L : ms->n_uncommon_R; 
-    unsigned last_appended   = reverse ? (ms->n_uncommon_R + ms->n_common) : (ms->n_uncommon_L + ms->n_common); 
+    unsigned last_appended   = reverse ? (ms->tot_n_uncommon_R + ms->n_common) : (ms->tot_n_uncommon_L + ms->n_common); 
     unsigned row_a_end       = last_appended;
 
     for (i = 0; i < n*2; i+=2)
@@ -886,12 +888,12 @@ void prepare_unified(int *unified, unsigned n_col_unified, int *row_b, mgu_schem
     for (i = row_a_end; i < n_col_unified; i++)
     {
         int ref = unified[i];
+        unsigned *common_arr     = reverse ? ms->common_L : ms->common_R; // Blind pointer to abstract reverse logic onwards
+        unsigned *neg_common_arr = reverse ? ms->common_R : ms->common_L; // Blind pointer to abstract reverse logic onwards
+
         if (ref < 0) // If variable reference
         {
             unsigned reference       = -(ref-1); // Get proper reference (non-negative index)
-            unsigned *common_arr     = reverse ? ms->common_L : ms->common_R; // Blind pointer to abstract reverse logic onwards
-            unsigned *neg_common_arr = reverse ? ms->common_R : ms->common_L; // Blind pointer to abstract reverse logic onwards
-
             // See if the reference is part of the common columns
             unsigned j = 0;
             bool found=false;
@@ -1051,6 +1053,13 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
                 free(new_exc_mat);
                 free(exception);
                 free(unifier);
+                
+                for (size_t _ = 0; _ < i; _++)
+                {
+                    free_exception_block(&new_mt->exceptions[_]);
+                }
+                free(new_mt->exceptions);
+                new_mt->exceptions = NULL;
                 return 1;
             }
 
@@ -1098,7 +1107,6 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
 			code = unifier_rows(exception, new_mt->row, unifier, read_mt->exceptions[mt1->e+i].ms, n_columns, true);
 			if (code != 0) continue; // If they do not unify, skip
                 
-
 			code = correct_unifier(exception, new_mt->row, unifier, 2*n_common, n_columns, new_mt->c);
 			if (code != 0) continue; // If they do not unify, skip
 
@@ -1108,6 +1116,13 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
                 free(new_exc_mat);
                 free(exception);
                 free(unifier);
+
+                for (size_t _ = 0; _ < mt1->e+i; _++)
+                {
+                    free_exception_block(&new_mt->exceptions[_]);
+                }
+                free(new_mt->exceptions);
+                new_mt->exceptions = NULL;
                 return 1;
             }
 
@@ -1140,8 +1155,7 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     // ----- Calculate unifiers start ----- //
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_unifiers);
     
-    const unsigned m = rb->ms->n_common;
-	unsigned *unifiers = NULL, unifier_size = 1+(2*m)+2;
+	unsigned *unifiers = NULL, unifier_size = 1+(2*rb->ms->n_common)+2;
     unifiers = (unsigned*) malloc (ob1->r*ob2->r*unifier_size*sizeof(unsigned));
     unsigned unif_count = unifier_matrices(ob1, ob2, rb, unifiers);
 
@@ -1153,7 +1167,7 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_unification);
     int *line_A  = (int*) malloc (ob1->c*sizeof(int));
     int *line_B  = (int*) malloc (ob2->c*sizeof(int));
-    result_block my_rb = create_empty_result_block(ob1->r,ob2->r,ob1->c,ob2->c,m,rb->ms);
+    result_block my_rb = create_empty_result_block(ob1->r,ob2->r,ob1->c,ob2->c,rb->c,rb->ms);
     my_rb.t1 = 1;
     my_rb.t2 = 1;
     unsigned i, ind_A, ind_B;
@@ -1162,20 +1176,22 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     {
         ind_A = unifiers[i*unifier_size+unifier_size-2];
         ind_B = unifiers[i*unifier_size+unifier_size-1];
-        
+        unsigned index_mt = ind_A*my_rb.r2+ind_B;
+
         memcpy(line_A,ob1->terms[ind_A].row,ob1->c*sizeof(int));
         memcpy(line_B,ob2->terms[ind_B].row,ob2->c*sizeof(int));
-        apply_unifier_left(line_A,line_B,&unifiers[i*unifier_size],ob1->c);
-        
-        main_term mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
-        
-        memcpy(mt.row, line_A, ob1->c*sizeof(int));
-        
-        prepare_unified(mt.row, my_rb.c,line_B, rb->ms, false);
-        unsigned index_mt = ind_A*my_rb.r2+ind_B;
-        my_rb.terms[index_mt] = mt;
-        my_rb.valid[index_mt] = check_exceptions(&ob1->terms[ind_A], &ob2->terms[ind_B], &mt, &rb->terms[index_mt]);
 
+        apply_unifier_left(line_A,line_B,&unifiers[i*unifier_size],ob1->c);
+
+        main_term *mt = &my_rb.terms[index_mt];
+        *mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
+        
+        memcpy(mt->row, line_A, ob1->c*sizeof(int));
+        
+        prepare_unified(mt->row, my_rb.c,line_B, rb->ms, false);
+
+        my_rb.valid[index_mt] = check_exceptions(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &rb->terms[index_mt]);
+        
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);
@@ -1186,7 +1202,7 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
 
     // ----- Check correctness start ---- //
     printf("Comparing unification results. . . \n");
-    int same_int = compare_results(&my_rb,rb);
+    int same_int = compare_results(&my_rb,rb,ob1,ob2);
     if (same_int) printf("Unification is correct :)\n");
     else printf("Unification is NOT correct :(\n");
     // ----- Check correctness end   ---- //
