@@ -67,6 +67,21 @@ void print_mat_values(int *mat, int n, int m){
 	}
 }
 
+// Print the mapping in a pretty way, taken from print_mgu_compact
+void print_mapping(unsigned n_tl, unsigned *map) {
+    for (unsigned i = 0; i < n_tl; i++) {
+        unsigned left = map[2 * i];
+        unsigned right = map[2 * i + 1];
+        if (left == 0) printf("_");
+        else printf("%u", left);
+        printf("-");
+        if (right == 0) printf("_");
+        else printf("%u", right);
+        if (i + 1 < n_tl) printf(",");
+    }
+    printf("\n");
+}
+
 // Prints the unifier
 void print_unifier(unsigned *unifier, unsigned m){
     unsigned i;
@@ -1163,7 +1178,7 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     // ----- Calculate unifiers end ----- //
     
     // ----- Perform unification start ----- //
-    printf("Applying all unifiers . . . \n");
+    printf("\tApplying all unifiers . . . \n");
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_unification);
     int *line_A  = (int*) malloc (ob1->c*sizeof(int));
     int *line_B  = (int*) malloc (ob2->c*sizeof(int));
@@ -1196,15 +1211,15 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);
 
-    printf("Applied all unifiers\n");
+    printf("\tApplied all unifiers\n");
     if (verbose) print_result_block(&my_rb,0);
     // ----- Perform unification end ----- //
 
     // ----- Check correctness start ---- //
-    printf("Comparing unification results. . . \n");
+    printf("\tComparing unification results. . . \n");
     int same_int = compare_results(&my_rb,rb,ob1,ob2);
-    if (same_int) printf("Unification is correct :)\n");
-    else printf("Unification is NOT correct :(\n");
+    if (same_int) printf("\tUnification is correct :)\n");
+    else printf("\tUnification is NOT correct :(\n");
     // ----- Check correctness end   ---- //
 
     // Accumulate the times

@@ -22,16 +22,18 @@ typedef struct {
 } matrix_schema;
 
 typedef struct {
-    unsigned n_common;         // Number of columns in common between two main terms
-    unsigned *common_columns;  // 1D array holding the indexes of the common columns
-    unsigned *common_L;        // 1D array holding the indexes of the common columns in the left main term
-    unsigned *common_R;        // 1D array holding the indexes of the common columns in the right main term
-    unsigned n_uncommon_L;     // Number of blocks of columns that the left main term does not have in common with the right main term
-    unsigned n_uncommon_R;     // Number of blocks of columns that the right main term does not have in common with the left main term
-    unsigned tot_n_uncommon_L; // The number of uncommon columns in left term
-    unsigned tot_n_uncommon_R; // The number of uncommon columns in right term
-    unsigned *uncommon_L;      // 1D array of length (2*n_uncommon_L), having the start of a block of columns not in common with right main term and the length of said block
-    unsigned *uncommon_R;      // 1D array of length (2*n_uncommon_R), having the start of a block of columns not in common with left main term and the length of said block
+    unsigned n_common;         // Number of columns in common between two main terms. 
+    unsigned *common_columns;  // 1D array holding the indexes of the common columns. NOTE: Columns will be stored from idx 1
+    unsigned *common_L;        // 1D array holding the indexes of the common columns in the left main term. NOTE: Columns will be stored from idx 1
+    unsigned *common_R;        // 1D array holding the indexes of the common columns in the right main term. NOTE: Columns will be stored from idx 1
+    unsigned n_uncommon_L;     // Number of BLOCKS of columns that the left main term does not have in common with the right main term
+    unsigned *uncommon_L;      // 1D array of length (2*n_uncommon_L), having the start of a block of columns not in common with right main term and the length of said block. NOTE: Columns will be stored from idx 1
+    unsigned n_uncommon_R;     // Number of BLOCKS of columns that the right main term does not have in common with the left main term
+    unsigned *uncommon_R;      // 1D array of length (2*n_uncommon_R), having the start of a block of columns not in common with left main term and the length of said block. NOTE: Columns will be stored from idx 1
+    unsigned tot_n_uncommon_L; // The total number of uncommon columns in left term
+    unsigned *idx_uncommon_L;  // 1D array of length (tot_n_uncommon_L), with the indices of the uncommon columns in left main term. NOTE: Columns will be stored from idx 1. NOTE: If in column j in mapping, we have 'i-_', this will hold only those 'i' values
+    unsigned tot_n_uncommon_R; // The total number of uncommon columns in right term
+    unsigned *idx_uncommon_R;  // 1D array of length (tot_n_uncommon_R), with the indices of the uncommon columns in right main term. NOTE: Columns will be stored from idx 1. NOTE: If in column j in mapping, we have '_-i', this will hold only those 'i' values
     unsigned new;              // Number of '_-_' columns, that is, the number of 'empty' columns that are to be appended at the end
     unsigned *new_indices;     // Array holding the indexes of '_-_' columns, used during the M3 reading process to actually check that these variables are not repeated in the code
 } mgu_schema;

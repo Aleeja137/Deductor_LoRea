@@ -297,17 +297,17 @@ mgu_schema* create_empty_mgu_schema(const unsigned n_common, const unsigned tot_
     ms->n_uncommon_R     = n_uncommon_R;
     ms->new              = new; 
 
-    ms->uncommon_L  = n_uncommon_L ? (unsigned*)malloc(n_uncommon_L*2*sizeof(unsigned)) : NULL;
-    ms->uncommon_R  = n_uncommon_R ? (unsigned*)malloc(n_uncommon_R*2*sizeof(unsigned)) : NULL;
-    ms->new_indices = new ?          (unsigned*)malloc(new*sizeof(unsigned))            : NULL;
+    ms->uncommon_L     = n_uncommon_L ?     (unsigned*)malloc(n_uncommon_L*2*sizeof(unsigned))   : NULL;
+    ms->uncommon_R     = n_uncommon_R ?     (unsigned*)malloc(n_uncommon_R*2*sizeof(unsigned))   : NULL;
+    ms->idx_uncommon_L = tot_n_uncommon_L ? (unsigned*)malloc(tot_n_uncommon_L*sizeof(unsigned)) : NULL;
+    ms->idx_uncommon_R = tot_n_uncommon_R ? (unsigned*)malloc(tot_n_uncommon_R*sizeof(unsigned)) : NULL;
+    ms->new_indices    = new ?              (unsigned*)malloc(new*sizeof(unsigned))              : NULL;
 
     return ms;
 }
 
 // n must be the total number of elements, that is,n_pairs*2, mapping can have '_-_' entry
-mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const unsigned n_L, const unsigned n_R) 
-{
-    // printf("DEBUG - create_mgu_from_mapping input parameters: n: %u, n_L: %u, n_R: %u, ",n,n_L,n_R); // Check
+mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const unsigned n_L, const unsigned n_R) {
     unsigned i;
     unsigned n_common = 0;
     unsigned news = 0;
@@ -342,6 +342,8 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
 
     unsigned last_uncommon_L = 0;
     unsigned last_uncommon_R = 0;
+    unsigned idx_last_uncommon_L = 0;
+    unsigned idx_last_uncommon_R = 0;
     unsigned last_common = 0;
     unsigned last_new = 0;
 
@@ -358,13 +360,17 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
             {
                 // printf("last one was a X-_ pattern too, previous start :%u, previous length: %u\n",ms->uncommon_L[last_uncommon_L-2], ms->uncommon_L[last_uncommon_L-1]); // Check
                 ms->uncommon_L[last_uncommon_L-1]++;
+                ms->idx_uncommon_L[idx_last_uncommon_L] = x;
+                idx_last_uncommon_L++;
             }
             else
             {
                 // printf("Last was not an X-_ pattern, some DEBUG data: last_uncommon_L: %u\n",last_uncommon_L); // Check
-                ms->uncommon_L[last_uncommon_L] = x;
+                ms->uncommon_L[last_uncommon_L] = (i/2) + 1;
                 ms->uncommon_L[last_uncommon_L+1] = 1;
                 last_uncommon_L += 2;
+                ms->idx_uncommon_L[idx_last_uncommon_L] = x;
+                idx_last_uncommon_L++;
                 was_last_uncommon_R = false;
                 was_last_uncommon_L = true;
             }
@@ -377,13 +383,17 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
             {
                 // printf("last one was a _-Y pattern too, previous start :%u, previous length: %u\n",ms->uncommon_R[last_uncommon_R-2],ms->uncommon_R[last_uncommon_R-1]); // Check
                 ms->uncommon_R[last_uncommon_R-1]++;
+                ms->idx_uncommon_R[idx_last_uncommon_R] = y;
+                idx_last_uncommon_R++;
             }
             else
             {
                 // printf("Last was not an _-Y pattern, some DEBUG data: last_uncommon_R: %u\n",last_uncommon_R); // Check
-                ms->uncommon_R[last_uncommon_R] = y;
+                ms->uncommon_R[last_uncommon_R] = (i/2) + 1;
                 ms->uncommon_R[last_uncommon_R+1] = 1;
                 last_uncommon_R += 2;
+                ms->idx_uncommon_R[idx_last_uncommon_R] = y;
+                idx_last_uncommon_R++;
                 was_last_uncommon_R = true;
                 was_last_uncommon_L = false;
             }
@@ -392,7 +402,7 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
         else if (x==0 && y==0) // _-_ pattern
         {
             // printf("_-_ pattern, values are (%u-%u), last_new: %u\n",x,y,last_new); // Check
-            ms->new_indices[last_new]=i;
+            ms->new_indices[last_new] = (i/2) + 1;
             last_new++;
             was_last_uncommon_R = false;
             was_last_uncommon_L = false;
@@ -424,6 +434,8 @@ mgu_schema* deep_copy_mgu_schema(const mgu_schema* ms) {
     memcpy(result->common_R,       ms->common_R,         ms->n_common           * sizeof(unsigned));
     memcpy(result->uncommon_L,     ms->uncommon_L,       2*ms->n_uncommon_L     * sizeof(unsigned));
     memcpy(result->uncommon_R,     ms->uncommon_R,       2*ms->n_uncommon_R     * sizeof(unsigned));
+    memcpy(result->idx_uncommon_L, ms->idx_uncommon_L,   ms->tot_n_uncommon_L   * sizeof(unsigned));
+    memcpy(result->idx_uncommon_R, ms->idx_uncommon_R,   ms->tot_n_uncommon_R   * sizeof(unsigned));
     memcpy(result->new_indices,    ms->new_indices,      ms->new                * sizeof(unsigned));
 
     return result;
@@ -436,6 +448,8 @@ void free_mgu_schema(mgu_schema* ms) {
         if (ms->common_R) free(ms->common_R);
         if (ms->uncommon_L) free(ms->uncommon_L);
         if (ms->uncommon_R) free(ms->uncommon_R);
+        if (ms->idx_uncommon_L) free(ms->idx_uncommon_L);
+        if (ms->idx_uncommon_R) free(ms->idx_uncommon_R);
         if (ms->new_indices) free(ms->new_indices);
         free(ms);
     }
@@ -463,17 +477,31 @@ void print_mgu_schema(mgu_schema* ms) {
     if (ms->n_common > 0) printf("%u", ms->common_R[ms->n_common - 1]);
     printf("]\n");
 
-    printf("%u tot_n_uncommon_L\nuncommon_L:     [",ms->tot_n_uncommon_L);
+    printf("uncommon_L:     [");
     for (unsigned i = 0; i < 2 * ms->n_uncommon_L; i += 2) {
         printf("(%u, %u)", ms->uncommon_L[i], ms->uncommon_L[i + 1]);
         if (i + 2 < 2 * ms->n_uncommon_L) printf(", ");
     }
     printf("]\n");
 
-    printf("%u tot_n_uncommon_R\nuncommon_R:     [",ms->tot_n_uncommon_R);
+    printf("which are:      [");
+    for (unsigned i = 0; i < ms->tot_n_uncommon_L; i++) {
+        if (i==(ms->tot_n_uncommon_L-1)) printf("%u", ms->idx_uncommon_L[i]);
+        else printf("%u, ", ms->idx_uncommon_L[i]);
+    }
+    printf("]\n");
+
+    printf("uncommon_R:     [");
     for (unsigned i = 0; i < 2 * ms->n_uncommon_R; i += 2) {
         printf("(%u, %u)", ms->uncommon_R[i], ms->uncommon_R[i + 1]);
         if (i + 2 < 2 * ms->n_uncommon_R) printf(", ");
+    }
+    printf("]\n");
+
+    printf("which are:      [");
+    for (unsigned i = 0; i < ms->tot_n_uncommon_R; i++) {
+        if (i==(ms->tot_n_uncommon_R-1)) printf("%u", ms->idx_uncommon_R[i]);
+        else printf("%u, ", ms->idx_uncommon_R[i]);
     }
     printf("]\n");
 
@@ -486,14 +514,13 @@ void print_mgu_schema(mgu_schema* ms) {
 }
 
 void print_mgu_compact(mgu_schema *ms, unsigned total_columns) {
+
     // Create a flat mapping array
     unsigned *mapping = calloc(total_columns, sizeof(unsigned));
     if (!mapping) {
         fprintf(stderr, "Memory allocation failed\n");
         return;
     }
-    
-    // print_mgu_schema(ms); // Check
 
     // Fill common entries // X-Y schema
     for (unsigned i = 0; i < ms->n_common; i++) {
@@ -504,32 +531,22 @@ void print_mgu_compact(mgu_schema *ms, unsigned total_columns) {
 
     // Fill uncommon_L blocks // X-_ schema
     unsigned pos = 0;
-    // printf("DEBUG - n_uncommon_L: %u\n",ms->n_uncommon_L); // Check
     for (unsigned i = 0; i < ms->n_uncommon_L; i++) {
-        unsigned start = ms->uncommon_L[2 * i];
+        unsigned start = ms->uncommon_L[2 * i] - 1;
         unsigned length = ms->uncommon_L[2 * i + 1];
-        // printf("DEBUG Filling uncommon_L blocks - start: %u, length: %u\n",start,length); // Check
         for (unsigned j = 0; j < length; j++) {
-            // Find next empty slot, that is, both values are zero
-            while (mapping[2 * pos] || mapping[2 * pos + 1]) {pos++;}
-            mapping[2 * pos] = start + j;
-            // mapping[2 * pos + 1] = 0; // Already zero
+            mapping[2 * start + 2 * j] = ms->idx_uncommon_L[pos];
             pos++;
         }
     }
 
     // Fill uncommon_R blocks // _-Y schema
     pos = 0;
-    // printf("DEBUG - n_uncommon_R: %u\n",ms->n_uncommon_R); // Check
     for (unsigned i = 0; i < ms->n_uncommon_R; i++) {
-        unsigned start = ms->uncommon_R[2 * i];
+        unsigned start = ms->uncommon_R[2 * i] - 1;
         unsigned length = ms->uncommon_R[2 * i + 1];
-        // printf("DEBUG Filling uncommon_R blocks - start: %u, length: %u\n",start,length); // Check
         for (unsigned j = 0; j < length; j++) {
-            // Find next empty slot, that is, both values are zero
-            while (mapping[2 * pos] || mapping[2 * pos + 1]) {pos++;}
-            // mapping[2 * pos] = 0; // Already zero
-            mapping[2 * pos + 1] = start + j;
+            mapping[2 * start + 2 * j + 1] = ms->idx_uncommon_R[pos];
             pos++;
         }
     }
@@ -545,11 +562,8 @@ void print_mgu_compact(mgu_schema *ms, unsigned total_columns) {
     for (unsigned i = 0; i < total_columns/2; i++) {
         unsigned left = mapping[2 * i];
         unsigned right = mapping[2 * i + 1];
-        if (left == 0) printf("_");
-        else printf("%u", left);
-        printf("-");
-        if (right == 0) printf("_");
-        else printf("%u", right);
+        left ? printf("%u-", left) : printf("_-");
+        right ? printf("%u", right) : printf("_");
         if (i + 1 < total_columns/2) printf(",");
     }
     printf("\n");
