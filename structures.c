@@ -303,10 +303,12 @@ mgu_schema* create_empty_mgu_schema(const unsigned n_common, const unsigned tot_
     ms->idx_uncommon_R = tot_n_uncommon_R ? (unsigned*)malloc(tot_n_uncommon_R*sizeof(unsigned)) : NULL;
     ms->new_indices    = new ?              (unsigned*)malloc(new*sizeof(unsigned))              : NULL;
 
+    ms->addition_R =  tot_n_uncommon_R ? (unsigned*)malloc(tot_n_uncommon_R*sizeof(unsigned)) : NULL;
+    ms->addition_L =  tot_n_uncommon_L ? (unsigned*)malloc(tot_n_uncommon_L*sizeof(unsigned)) : NULL;
+
     return ms;
 }
 
-// n must be the total number of elements, that is,n_pairs*2, mapping can have '_-_' entry
 mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const unsigned n_L, const unsigned n_R) {
     unsigned i;
     unsigned n_common = 0;
@@ -421,6 +423,53 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
 
     ms->n_uncommon_L = last_uncommon_L/2;
     ms->n_uncommon_R = last_uncommon_R/2;
+
+    // Calculate ms.addition_L
+    int c_ptr = ms->n_common;         // Common pointer
+    int u_ptr = ms->tot_n_uncommon_L; // Uncommon pointer
+    unsigned addition = 0;            // Number of common columns to the right
+
+    if (u_ptr) {
+    while (u_ptr > 0)
+    {
+        // The current uncommon column has an 'addition' number of common columns to its right
+        if ((c_ptr == 0) || (ms->common_L[c_ptr-1] < ms->idx_uncommon_L[u_ptr-1]))
+        {
+            ms->addition_L[u_ptr-1] = addition;
+            u_ptr--;
+        }
+        else
+        {
+            addition++;
+            c_ptr--;
+        }
+    }
+    // ms->addition_L[0] = addition;
+    }
+
+
+    // Calculate ms.addition_R
+    c_ptr = ms->n_common;         // Common pointer
+    u_ptr = ms->tot_n_uncommon_R; // Uncommon pointer
+    addition = 0;                 // Number of common columns to the right
+
+    if (u_ptr) {
+    while (u_ptr > 0)
+    {
+        // The current uncommon column has an 'addition' number of common columns to its right
+        if ((c_ptr == 0) || (ms->common_R[c_ptr-1] < ms->idx_uncommon_R[u_ptr-1]))
+        {
+            ms->addition_R[u_ptr-1] = addition;
+            u_ptr--;
+        }
+        else
+        {
+            addition++;
+            c_ptr--;
+        }
+    }
+    // ms->addition_R[0] = addition; 
+    }
     return ms;
 }
 
@@ -437,6 +486,8 @@ mgu_schema* deep_copy_mgu_schema(const mgu_schema* ms) {
     memcpy(result->idx_uncommon_L, ms->idx_uncommon_L,   ms->tot_n_uncommon_L   * sizeof(unsigned));
     memcpy(result->idx_uncommon_R, ms->idx_uncommon_R,   ms->tot_n_uncommon_R   * sizeof(unsigned));
     memcpy(result->new_indices,    ms->new_indices,      ms->new                * sizeof(unsigned));
+    memcpy(result->addition_L,     ms->addition_L,       ms->tot_n_uncommon_L   * sizeof(unsigned));
+    memcpy(result->addition_R,     ms->addition_R,       ms->tot_n_uncommon_R   * sizeof(unsigned));
 
     return result;
 }
@@ -451,30 +502,32 @@ void free_mgu_schema(mgu_schema* ms) {
         if (ms->idx_uncommon_L) free(ms->idx_uncommon_L);
         if (ms->idx_uncommon_R) free(ms->idx_uncommon_R);
         if (ms->new_indices) free(ms->new_indices);
+        if (ms->addition_L) free(ms->addition_L);
+        if (ms->addition_R) free(ms->addition_R);
         free(ms);
     }
 }
 
 void print_mgu_schema(mgu_schema* ms) {
     printf("common_columns: [");
-    for (unsigned i = 0; i < ms->n_common - 1; i++) {
-        printf("%u, ", ms->common_columns[i]);
+    for (unsigned i = 0; i < ms->n_common; i++) {
+        if (i==(ms->n_common-1)) printf("%u", ms->common_columns[i]);
+        else printf("%u, ", ms->common_columns[i]);
     }
-    if (ms->n_common > 0) printf("%u", ms->common_columns[ms->n_common - 1]);
     printf("]\n");
 
     printf("common_L:       [");
-    for (unsigned i = 0; i < ms->n_common - 1; i++) {
-        printf("%u, ", ms->common_L[i]);
+    for (unsigned i = 0; i < ms->n_common; i++) {
+        if (i==(ms->n_common-1)) printf("%u", ms->common_L[i]);
+        else printf("%u, ", ms->common_L[i]);
     }
-    if (ms->n_common > 0) printf("%u", ms->common_L[ms->n_common - 1]);
     printf("]\n");
 
     printf("common_R:       [");
-    for (unsigned i = 0; i < ms->n_common - 1; i++) {
-        printf("%u, ", ms->common_R[i]);
+    for (unsigned i = 0; i < ms->n_common; i++) {
+        if (i==(ms->n_common-1)) printf("%u", ms->common_R[i]);
+        else printf("%u, ", ms->common_R[i]);
     }
-    if (ms->n_common > 0) printf("%u", ms->common_R[ms->n_common - 1]);
     printf("]\n");
 
     printf("uncommon_L:     [");
@@ -509,6 +562,20 @@ void print_mgu_schema(mgu_schema* ms) {
     for (unsigned i = 0; i < ms->new; i++) {
         if (i==(ms->new-1)) printf("%u", ms->new_indices[i]);
         else printf("%u, ", ms->new_indices[i]);
+    }
+    printf("]\n");
+
+    printf("addition_L:     [");
+    for (unsigned i = 0; i < ms->tot_n_uncommon_L; i++) {
+        if (i==(ms->tot_n_uncommon_L-1)) printf("%u", ms->addition_L[i]);
+        else printf("%u, ", ms->addition_L[i]);
+    }
+    printf("]\n");
+
+    printf("addition_R:     [");
+    for (unsigned i = 0; i < ms->tot_n_uncommon_R; i++) {
+        if (i==(ms->tot_n_uncommon_R-1)) printf("%u", ms->addition_R[i]);
+        else printf("%u, ", ms->addition_R[i]);
     }
     printf("]\n");
 }

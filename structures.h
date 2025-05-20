@@ -31,11 +31,15 @@ typedef struct {
     unsigned n_uncommon_R;     // Number of BLOCKS of columns that the right main term does not have in common with the left main term
     unsigned *uncommon_R;      // 1D array of length (2*n_uncommon_R), having the start of a block of columns not in common with left main term and the length of said block. NOTE: Columns will be stored from idx 1
     unsigned tot_n_uncommon_L; // The total number of uncommon columns in left term
-    unsigned *idx_uncommon_L;  // 1D array of length (tot_n_uncommon_L), with the indices of the uncommon columns in left main term. NOTE: Columns will be stored from idx 1. NOTE: If in column j in mapping, we have 'i-_', this will hold only those 'i' values
+    unsigned *idx_uncommon_L;  // 1D array of length (tot_n_uncommon_L), with the indices of the uncommon columns in left main term. NOTE: Columns will be stored from idx 1
     unsigned tot_n_uncommon_R; // The total number of uncommon columns in right term
-    unsigned *idx_uncommon_R;  // 1D array of length (tot_n_uncommon_R), with the indices of the uncommon columns in right main term. NOTE: Columns will be stored from idx 1. NOTE: If in column j in mapping, we have '_-i', this will hold only those 'i' values
+    unsigned *idx_uncommon_R;  // 1D array of length (tot_n_uncommon_R), with the indices of the uncommon columns in right main term. NOTE: Columns will be stored from idx 1
     unsigned new;              // Number of '_-_' columns, that is, the number of 'empty' columns that are to be appended at the end
     unsigned *new_indices;     // Array holding the indexes of '_-_' columns, used during the M3 reading process to actually check that these variables are not repeated in the code
+
+    unsigned *addition_R;      // 1D array of length tot_n_uncommon_R that tells me for each uncommon column in right main term, how many common columns are to their right
+    unsigned *addition_L;      // 1D array of length tot_n_uncommon_L that tells me for each uncommon column in left main term, how many common columns are to their right
+
 } mgu_schema;
 
 typedef struct {
