@@ -95,6 +95,12 @@ main_term create_empty_main_term(unsigned c, unsigned e) {
         exit(EXIT_FAILURE);
     }
 
+    for (size_t aux = 0; aux < c; aux++)
+    {
+        mt.row[aux] = 0;
+    }
+    
+
     return mt;
 }
 
@@ -266,12 +272,12 @@ void print_result_block(result_block* rb, int verbosity) {
     if (verbosity) {
         for (unsigned i = 0; i < rb->r; i++) {
             // printf("== Result Term [%u][%u] (valid=%u) ==\n", i / rb->r2, i % rb->r2, rb->valid[i]);
-            if (rb->valid[i]==0) 
+            if (rb->valid[i]<=1) 
             {
+                if (rb->valid[i]==1) printf("Rows %u-%u subsumed by exception\n",i/rb->r2+1, i%rb->r2+1);
                 printf("Row %u-%u: ",i/rb->r2+1, i%rb->r2+1);
                 print_main_term(&rb->terms[i], 3, verbosity - 1);
             }
-            else if (rb->valid[i]==1) printf("Rows %u-%u subsumed by exception\n",i/rb->r2+1, i%rb->r2+1);
             else printf("Rows %u-%u not unifiable\n",i/rb->r2+1, i%rb->r2+1);
         }
     }
@@ -305,6 +311,18 @@ mgu_schema* create_empty_mgu_schema(const unsigned n_common, const unsigned tot_
 
     ms->addition_R =  tot_n_uncommon_R ? (unsigned*)malloc(tot_n_uncommon_R*sizeof(unsigned)) : NULL;
     ms->addition_L =  tot_n_uncommon_L ? (unsigned*)malloc(tot_n_uncommon_L*sizeof(unsigned)) : NULL;
+
+    // Initialize all values
+    if (ms->common_columns) memset(ms->common_columns, 0, n_common         * sizeof(unsigned));
+    if (ms->common_L)       memset(ms->common_L,       0, n_common         * sizeof(unsigned));
+    if (ms->common_R)       memset(ms->common_R,       0, n_common         * sizeof(unsigned));
+    if (ms->uncommon_L)     memset(ms->uncommon_L,     0, n_uncommon_L * 2 * sizeof(unsigned));
+    if (ms->uncommon_R)     memset(ms->uncommon_R,     0, n_uncommon_R * 2 * sizeof(unsigned));
+    if (ms->idx_uncommon_L) memset(ms->idx_uncommon_L, 0, tot_n_uncommon_L * sizeof(unsigned));
+    if (ms->idx_uncommon_R) memset(ms->idx_uncommon_R, 0, tot_n_uncommon_R * sizeof(unsigned));
+    if (ms->addition_L)     memset(ms->addition_L,     0, tot_n_uncommon_L * sizeof(unsigned));
+    if (ms->addition_R)     memset(ms->addition_R,     0, tot_n_uncommon_R * sizeof(unsigned));
+    if (ms->new_indices)    memset(ms->new_indices,    0, new              * sizeof(unsigned));
 
     return ms;
 }

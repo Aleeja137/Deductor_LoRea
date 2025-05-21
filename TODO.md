@@ -60,3 +60,6 @@ TODO
 - Implementar lógica de comparación de resultados
 - Leer nuevo formato de archivos (columnas para comprbar subsums en excepciones)
 - Testear todo y acabar la lista de arriba
+
+
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/
