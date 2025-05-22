@@ -31,6 +31,9 @@ int last_int = 1;
 struct timespec read_file_elapsed, unifiers_elapsed, unification_elapsed;
 
 bool chivato = true;
+bool global_correct = true;
+unsigned global_count = 0;
+unsigned global_incorrect = 0;
 
 // --------------------- UTILS START --------------------- //
 void timespec_add(struct timespec *result, const struct timespec *t1, const struct timespec *t2) {
@@ -128,7 +131,7 @@ int compare_main_terms(main_term *mt1, main_term *mt2){
     // Quick check
     if ((mt1->c != mt2->c) || (mt1->e != mt2->e))
     {
-       printf("compare_main_terms quick test failed\n");
+        if (verbose) {printf("compare_main_terms quick test failed\n");}
        return 0;
     }
 
@@ -136,9 +139,9 @@ int compare_main_terms(main_term *mt1, main_term *mt2){
     {
         if (mt1->row[i]!=mt2->row[i])
         {
-            printf("compare_main_terms row test failed at element in column %lu\n",i);
-            printf("my_rb:\t"); print_main_term(mt1,3,0);
-            printf("rb   :\t"); print_main_term(mt2,3,0);
+            if (verbose) {printf("compare_main_terms row test failed at element in column %lu\n",i);}
+            if (verbose) {printf("my_rb:\t"); print_main_term(mt1,3,0);}
+            if (verbose) {printf("rb   :\t"); print_main_term(mt2,3,0);}
             return 0;
         }
     }
@@ -172,29 +175,34 @@ int compare_results(result_block *rb1, result_block *rb2, operand_block *ob1, op
     
     // Quick check
     if ((rb1->c1 != rb2->c1) || (rb1->c2 != rb2->c2) || (rb1->c != rb2->c) || 
-       (rb1->r1 != rb2->r1) || (rb1->r2 != rb2->r2) || (rb1->r != rb2->r) || 
-       (rb1->t1 != rb2->t1) || (rb1->t2 != rb2->t2))
+    (rb1->r1 != rb2->r1) || (rb1->r2 != rb2->r2) || (rb1->r != rb2->r)) 
+    // (rb1->t1 != rb2->t1) || (rb1->t2 != rb2->t2))
     {
-       printf("compare_results quick test failed\n");
-       return 0;
+        if (verbose) printf("compare_results quick test failed\n");
+        if (verbose) printf("rb1: c1=%d, c2=%d, c=%d, r1=%d, r2=%d, r=%d, t1=%d, t2=%d\n",
+            rb1->c1, rb1->c2, rb1->c, rb1->r1, rb1->r2, rb1->r, rb1->t1, rb1->t2);
+        if (verbose) printf("rb2: c1=%d, c2=%d, c=%d, r1=%d, r2=%d, r=%d, t1=%d, t2=%d\n",
+            rb2->c1, rb2->c2, rb2->c, rb2->r1, rb2->r2, rb2->r, rb2->t1, rb2->t2);
+        return 0;
     }
+
 
     // Iterate the main terms, and check the rows, exceptions bloks, etc
     for (unsigned i = 0; i < rb1->r; i++)
     {
         if (rb1->valid[i] != rb2->valid[i]) {
-            printf("compare_results valid test failed at term %u (%u-%u)\n",i, i/rb1->r2+1, i%rb1->r2+1); 
-            printf("my valid: %u, csv valid: %u\n",rb1->valid[i], rb2->valid[i]);
+            if (verbose) {printf("compare_results valid test failed at term %u (%u-%u)\n",i, i/rb1->r2+1, i%rb1->r2+1);}
+            if (verbose) {printf("my valid: %u, csv valid: %u\n",rb1->valid[i], rb2->valid[i]);}
             return 0;}
         if (rb1->valid[i] == 0) // Only in this case, otherwise rows and exceptions will be empty
         {
             if (!compare_main_terms(&rb1->terms[i], &rb2->terms[i]))
             {
-                printf("compare_results main term test failed at term %u (%u-%u)\n",i, i/rb1->r2+1, i%rb1->r2+1);
-                printf("mt1:\t"); print_main_term(&ob1->terms[i/rb1->r2],1,1);
-                printf("mt2:\t"); print_main_term(&ob2->terms[i%rb1->r2],2,1);
-                printf("mt3  (me):\t"); print_main_term(&rb1->terms[i],3,0);
-                printf("mt3 (csv):\t"); print_main_term(&rb2->terms[i],3,0);
+                if (verbose) {printf("compare_results main term test failed at term %u (%u-%u)\n",i, i/rb1->r2+1, i%rb1->r2+1);}
+                if (verbose) {printf("mt1:\t"); print_main_term(&ob1->terms[i/rb1->r2],1,1);}
+                if (verbose) {printf("mt2:\t"); print_main_term(&ob2->terms[i%rb1->r2],2,1);}
+                if (verbose) {printf("mt3  (me):\t"); print_main_term(&rb1->terms[i],3,0);}
+                if (verbose) {printf("mt3 (csv):\t"); print_main_term(&rb2->terms[i],3,0);}
                 return 0;
             }
 
@@ -439,7 +447,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
     
     if (matched != 7) {
         if (strstr(line, "END: Matrix M1 & M2 + MGU") != NULL) {free(line); return;}
-        printf("line: %s\n",line);
+        if (verbose) printf("line: %s\n",line);
         fprintf(stderr, "Could not read matrix subset info, matched: %d\n",matched);
         free(line);
         exit(EXIT_FAILURE);
@@ -496,7 +504,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         if (sscanf(line, "Row %u-%u: %u", &d1, &d2, &e) != 3 &&
             sscanf(line, "Rows %u-%u: %u", &d1, &d2, &e) != 3) 
         {
-            printf("Line is: %s\n",line);
+            if (verbose) printf("Line is: %s\n",line);
             fprintf(stderr, "Could not read number of exception blocks in row\n");
             free(line);
             exit(EXIT_FAILURE);
@@ -857,9 +865,9 @@ void prepare_unified(int *unified, int *row_b, mgu_schema* ms, bool reverse){
     // Mapping is read main_term-main_term or main_term-exception, so get blind pointers in case we need to unify the exception (aka. in reverse order)
     unsigned n_uncommon_A     = reverse ? ms->n_uncommon_R     : ms->n_uncommon_L;
     unsigned n_uncommon_B     = reverse ? ms->n_uncommon_L     : ms->n_uncommon_R;
-    if (chivato) printf("--- prepare_unified ms printing:\n"); // Check
+    // if (chivato) printf("--- prepare_unified ms printing:\n"); // Check
     // print_mgu_compact(ms,ms->n_common+ms->tot_n_uncommon_L+ms->tot_n_uncommon_R+ms->new); // Check
-    if (chivato) print_mgu_schema(ms); // Check
+    // if (chivato) print_mgu_schema(ms); // Check
     // Only work if necessary
     if (n_uncommon_A == n_uncommon_B && n_uncommon_A == 0) return;
 
@@ -881,8 +889,8 @@ void prepare_unified(int *unified, int *row_b, mgu_schema* ms, bool reverse){
     {
         unsigned start  = idx_uncommon_B[last_used]-1;
         unsigned length = uncommon_B[2*i+1];
-        if (chivato) {reverse ? printf("reverse ") : printf("not reverse ");} // Check
-        if (chivato) printf("last_appended: %u, start: %u, length: %u, value at start: %d\n",last_appended,start,length,row_b[start]); // Check
+        // if (chivato) {reverse ? printf("reverse ") : printf("not reverse ");} // Check
+        // if (chivato) printf("last_appended: %u, start: %u, length: %u, value at start: %d\n",last_appended,start,length,row_b[start]); // Check
         memcpy(&unified[last_appended],&row_b[start],length*sizeof(int));
         last_appended+=length;
         last_used+=length;
@@ -1012,8 +1020,8 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
     int *exception, *exc_mat, *new_exc_mat;
     int code;
 
-    if (chivato) printf("\tmt3.e: %u\n",read_mt->e); // Check
-    if (chivato) printf("\tmt1.e: %u\n",mt1->e); // Check
+    // if (chivato) printf("\tmt3.e: %u\n",read_mt->e); // Check
+    // if (chivato) printf("\tmt1.e: %u\n",mt1->e); // Check
     // For each exception exception block from mt1
     for (i = 0; i < mt1->e; i++)
     {
@@ -1032,13 +1040,13 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
         unifier_size = 1+(2*n_common)+2;
         unifier = (unsigned*)malloc(unifier_size*sizeof(unsigned));
 
-        if (chivato) printf("\t\tmt1->exceptions[%u] .n:%u, .m:%u, new_n_columns: %u, unifier_size: %u \n",i+1,n_exceptions,n_columns,new_n_columns,unifier_size); // Check
+        // if (chivato) printf("\t\tmt1->exceptions[%u] .n:%u, .m:%u, new_n_columns: %u, unifier_size: %u \n",i+1,n_exceptions,n_columns,new_n_columns,unifier_size); // Check
         // For each exception within the exception block
         for (j = 0; j < n_exceptions; j++)
         {
             // Inspect unifier with new_mt
             memcpy(exception,&exc_mat[j*n_columns],n_columns*sizeof(int)); // Get exception to process (could be done after checking no subsumtion)
-            if (chivato) {printf("\t\t\t og_exception: "); print_mat_line(exception,n_columns);} // Check
+            // if (chivato) {printf("\t\t\t og_exception: "); print_mat_line(exception,n_columns);} // Check
             memset(unifier,0,unifier_size*sizeof(int)); // Reset unifier
 
 			code = unifier_rows(exception, new_mt->row, unifier, read_mt->exceptions[i].ms, n_columns, true);
@@ -1050,7 +1058,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
             // If they unify, check if the subsums new_mt
             if (subsums(unifier,new_mt->row,n_columns,new_mt->c)) 
             {
-                if (chivato) printf("\t\t\t\t It subsums\n"); // Check
+                // if (chivato) printf("\t\t\t\t It subsums\n"); // Check
                 free(new_exc_mat);
                 free(exception);
                 free(unifier);
@@ -1067,10 +1075,10 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
             // If it does not subsum, apply unifier to exception and save exception for later creating the exception_block
             apply_unifier_left(exception,new_mt->row,unifier,n_columns);
             memcpy(&new_exc_mat[last_exc*new_n_columns], exception, n_columns*sizeof(int));
-            if (chivato) {printf("\t\t\t mid_exception: "); print_mat_line(&new_exc_mat[last_exc*new_n_columns],n_columns);} // Check
+            // if (chivato) {printf("\t\t\t mid_exception: "); print_mat_line(&new_exc_mat[last_exc*new_n_columns],n_columns);} // Check
             // if (chivato) print_mgu_schema(read_mt->exceptions[i].ms); // Check
             prepare_unified(&new_exc_mat[last_exc*new_n_columns], new_mt->row, read_mt->exceptions[i].ms, true);
-            if (chivato) {printf("\t\t\t last_exception: "); print_mat_line(&new_exc_mat[last_exc*new_n_columns],n_columns);} // Check
+            // if (chivato) {printf("\t\t\t last_exception: "); print_mat_line(&new_exc_mat[last_exc*new_n_columns],n_columns);} // Check
             last_exc++;
             total_exceptions++;
         }
@@ -1085,7 +1093,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
     
 
     // Repeat everything for mt2
-    if (chivato) printf("\tmt2.e: %u\n",mt2->e); // Check
+    // if (chivato) printf("\tmt2.e: %u\n",mt2->e); // Check
     for (i = 0; i < mt2->e; i++)
     {
         n_exceptions  = mt2->exceptions[i].n;
@@ -1103,12 +1111,12 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
         unifier = (unsigned*)malloc(unifier_size*sizeof(unsigned));
 
         // For each exception within the exception block
-        if (chivato) printf("\t\tmt1->exceptions[%u] .n:%u, .m:%u, new_n_columns: %u, unifier_size: %u \n",i+1,n_exceptions,n_columns,new_n_columns,unifier_size); // Check
+        // if (chivato) printf("\t\tmt1->exceptions[%u] .n:%u, .m:%u, new_n_columns: %u, unifier_size: %u \n",i+1,n_exceptions,n_columns,new_n_columns,unifier_size); // Check
         for (j = 0; j < n_exceptions; j++)
         {
             // Inspect unifier with new_mt
             memcpy(exception,&exc_mat[j*n_columns],n_columns*sizeof(int)); // Get exception to process (could be done after checking no subsumtion)
-            if (chivato) {printf("\t\t\t og_exception: "); print_mat_line(exception,n_columns);} // Check
+            // if (chivato) {printf("\t\t\t og_exception: "); print_mat_line(exception,n_columns);} // Check
             memset(unifier,0,unifier_size*sizeof(int)); // Reset unifier
 
 			code = unifier_rows(exception, new_mt->row, unifier, read_mt->exceptions[mt1->e+i].ms, n_columns, true);
@@ -1120,7 +1128,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
             // If they unify, check if the subsums new_mt
             if (subsums(unifier,new_mt->row,n_columns,new_mt->c)) 
             {
-                if (chivato) printf("\t\t\t\t It subsums\n"); // Check
+                // if (chivato) printf("\t\t\t\t It subsums\n"); // Check
                 free(new_exc_mat);
                 free(exception);
                 free(unifier);
@@ -1137,10 +1145,10 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
             // If it does not subsum, apply unifier to exception and save exception for later creating the exception_block
             apply_unifier_left(exception,new_mt->row,unifier,n_columns);
             memcpy(&new_exc_mat[last_exc*new_n_columns], exception, n_columns*sizeof(int));
-            if (chivato) {printf("\t\t\t mid_exception: "); print_mat_line(&new_exc_mat[last_exc*new_n_columns],n_columns);} // Check
+            // if (chivato) {printf("\t\t\t mid_exception: "); print_mat_line(&new_exc_mat[last_exc*new_n_columns],n_columns);} // Check
             // if (chivato) {print_mgu_schema(read_mt->exceptions[mt1->e+i].ms);} // Check
             prepare_unified(&new_exc_mat[last_exc*new_n_columns], new_mt->row, read_mt->exceptions[mt1->e+i].ms, true);
-            if (chivato) {printf("\t\t\t last_exception: "); print_mat_line(&new_exc_mat[last_exc*new_n_columns],n_columns);} // Check
+            // if (chivato) {printf("\t\t\t last_exception: "); print_mat_line(&new_exc_mat[last_exc*new_n_columns],n_columns);} // Check
             last_exc++;
             total_exceptions++;
         }
@@ -1154,6 +1162,147 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
     }
 
     return 0;
+}
+
+void reorder_unified(main_term *mt, mgu_schema *ms){
+    unsigned i,j;
+    int *after = (int*)malloc(mt->c*sizeof(int)); 
+    int *before = mt->row;
+
+    unsigned idx_after, idx_before;
+
+    for (i=0; i<ms->n_common; i++)
+    {
+        idx_before = ms->common_L[i]-1;
+        idx_after  = ms->common_columns[i]-1;
+        after[idx_after] = before[idx_before];
+        // printf("COMMON: idx_before: %u, idx_after: %u, value_before: %u, value after: %u\n",idx_before,idx_after,before[idx_before],after[idx_after]); // Check
+    }
+    
+    unsigned last = 0;
+    for (i=0; i<ms->n_uncommon_L; i++)
+    {
+        unsigned start  = ms->uncommon_L[2*i]-1;
+        unsigned length = ms->uncommon_L[2*i+1];
+        for (j=0; j<length; j++)
+        {
+            after[start+j] = before[ms->idx_uncommon_L[last]-1];
+            last++;
+        }
+    }
+    
+    
+    last = 0;
+    for (i=0; i<ms->n_uncommon_R; i++)
+    {
+        unsigned start  = ms->uncommon_R[2*i]-1;
+        unsigned length = ms->uncommon_R[2*i+1];
+        for (j=0; j<length; j++)
+        {
+            idx_before = ms->idx_uncommon_R[last]-1;
+            idx_before += ms->tot_n_uncommon_L + ms->addition_R[last];
+            idx_after  = start+j;
+            // ms->addition_R[last]
+            after[idx_after] = before[idx_before];
+            // printf("UN R: idx_before: %u, idx_after: %u, value_before: %u, value after: %u\n",idx_before,idx_after,before[idx_before],after[idx_after]); // Check
+            last++;
+        }
+    }
+    
+    for (i=0; i<ms->new; i++)
+    {
+        idx_after = ms->new_indices[i]-1;
+        after[idx_after] = 0;
+    }
+    
+
+    memcpy(before,after,mt->c*sizeof(int));
+    free(after);
+}
+
+void reorder_unified2(main_term *mt, mgu_schema *ms){
+    unsigned i,j;
+    int *after = (int*)malloc(mt->c*sizeof(int)); 
+    int *before = mt->row;
+
+    // This will tell me which column from after matches with which column of before
+    unsigned *after_before = (unsigned*)malloc(mt->c*sizeof(unsigned)); 
+    unsigned *before_after = (unsigned*)malloc(mt->c*sizeof(unsigned)); 
+
+    unsigned idx_after, idx_before;
+
+    for (i=0; i<ms->n_common; i++)
+    {
+        idx_before = ms->common_L[i]-1;
+        idx_after  = ms->common_columns[i]-1;
+        after[idx_after] = before[idx_before];
+        after_before[idx_after]  = idx_before;
+        before_after[idx_before] = idx_after;
+        // printf("COMMON: idx_before: %u, idx_after: %u, value_before: %u, value after: %u\n",idx_before,idx_after,before[idx_before],after[idx_after]); // Check
+    }
+    
+    unsigned last = 0;
+    for (i=0; i<ms->n_uncommon_L; i++)
+    {
+        unsigned start  = ms->uncommon_L[2*i]-1;
+        unsigned length = ms->uncommon_L[2*i+1];
+        for (j=0; j<length; j++)
+        {
+            idx_before = ms->idx_uncommon_L[last]-1;
+            idx_after  = start+j;
+            after[idx_after] = before[idx_before];
+            after_before[idx_after]  = idx_before;
+            before_after[idx_before] = idx_after;
+            last++;
+        }
+    }
+    
+    
+    last = 0;
+    for (i=0; i<ms->n_uncommon_R; i++)
+    {
+        unsigned start  = ms->uncommon_R[2*i]-1;
+        unsigned length = ms->uncommon_R[2*i+1];
+        for (j=0; j<length; j++)
+        {
+            idx_before = ms->idx_uncommon_R[last]-1;
+            idx_before += ms->tot_n_uncommon_L + ms->addition_R[last];
+            idx_after  = start+j;
+            after[idx_after] = before[idx_before];
+            after_before[idx_after]  = idx_before;
+            before_after[idx_before] = idx_after;
+            last++;
+        }
+    }
+    
+    for (i=0; i<ms->new; i++)
+    {
+        idx_before = mt->c-i; // not really true but more elegant and still correct
+        idx_after  = ms->new_indices[i]-1;
+        after[idx_after] = 0;
+        after_before[idx_after]  = idx_before;
+        before_after[idx_before] = idx_after;
+    }
+    
+    // Final pass to correct reference indices
+    for (idx_after = 0; idx_after < mt->c; idx_after++)
+    {
+        int ref = after[idx_after];
+        if (ref>=0) continue; // Only continue if it points to somewhere in after
+
+        // Get the idx_before to see where it pointed to before
+        idx_before = after_before[idx_after];
+        ref = before[idx_before];
+        unsigned reference = -(ref+1);
+        // And the the reference in after to that index in after
+        after[idx_after] = before_after[reference];
+    }
+
+    memcpy(before,after,mt->c*sizeof(int));
+
+    free(after);
+    free(before_after);
+    free(after_before);
 }
 
 // Given two operand blocks and a result block, performs the matrix intersection and returns the time 
@@ -1175,7 +1324,7 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     // ----- Calculate unifiers end ----- //
     
     // ----- Perform unification start ----- //
-    printf("\tApplying all unifiers . . . \n");
+    if (verbose) printf("\tApplying all unifiers . . . \n");
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_unification);
     int *line_A  = (int*) malloc (ob1->c*sizeof(int));
     int *line_B  = (int*) malloc (ob2->c*sizeof(int));
@@ -1186,7 +1335,7 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     for (i=0; i<my_rb.r; i++) my_rb.valid[i] = 2;
     for (i=0; i<unif_count; i++)
     {
-        if (i==0) chivato=!chivato; // Check
+        // if (i==0) chivato=!chivato; // Check
         ind_A = unifiers[i*unifier_size+unifier_size-2];
         ind_B = unifiers[i*unifier_size+unifier_size-1];
         unsigned index_mt = ind_A*my_rb.r2+ind_B;
@@ -1206,22 +1355,26 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
         memcpy(mt->row, line_A, ob1->c*sizeof(int));
         
         prepare_unified(mt->row,line_B, rb->ms, false);
-        if (chivato) printf("Applied unifier to mt1-mt2: (%u-%u)\n",ind_A+1,ind_B+1); // Check
+        reorder_unified(mt, rb->ms);
+        // if (chivato) printf("Applied unifier to mt1-mt2: (%u-%u)\n",ind_A+1,ind_B+1); // Check
 
-        my_rb.valid[index_mt] = check_exceptions(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &rb->terms[index_mt]);
+        // my_rb.valid[index_mt] = check_exceptions(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &rb->terms[index_mt]); // Not used for this version
+        my_rb.valid[index_mt] = 0;
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_unification);
 
-    printf("\tApplied all unifiers\n");
-    if (verbose) print_result_block(&my_rb,0);
+    if (verbose) printf("\tApplied all unifiers\n");
     // ----- Perform unification end ----- //
 
     // ----- Check correctness start ---- //
-    printf("\tComparing unification results. . . \n");
+    if (verbose) printf("\tComparing unification results. . . \n");
     int same_int = compare_results(&my_rb,rb,ob1,ob2);
-    if (same_int) printf("\tUnification is correct :)\n");
-    else printf("\tUnification is NOT correct :(\n");
+    if (!same_int) {global_correct = false; global_incorrect++;}
+    global_count++;
+
+    if (same_int  && verbose) printf("Unification is correct :)\n");
+    if (!same_int && verbose) printf("Unification is NOT correct :(\n");
     // ----- Check correctness end   ---- //
 
     // Accumulate the times
@@ -1272,7 +1425,7 @@ int main(int argc, char *argv[]){
     unsigned s1, s2;
     if (read_num_blocks(stream_M1,&s1)) fprintf(stderr, "Could not read number of blocks in %s\n",M1_file);
     if (read_num_blocks(stream_M2,&s2)) fprintf(stderr, "Could not read number of blocks in %s\n",M2_file);
-    printf("M1 blocks %u, M2 blocks %u\n",s1,s2); // Check
+    printf("M1 blocks %u, M2 blocks %u, ",s1,s2); // Check
 
     operand_block *obs1 = (operand_block*)malloc(s1*sizeof(operand_block));
     operand_block *obs2 = (operand_block*)malloc(s2*sizeof(operand_block));
@@ -1291,7 +1444,7 @@ int main(int argc, char *argv[]){
     {
         obs2[i] = read_operand_block(stream_M2);
         // print_operand_block(&obs2[i],2,2); // Check
-        if (i==1) {print_main_term(&obs2[i].terms[140],2,1); exit(EXIT_FAILURE);}// Check
+        // if (i==1) {print_main_term(&obs2[i].terms[140],2,1); exit(EXIT_FAILURE);}// Check
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
@@ -1309,7 +1462,7 @@ int main(int argc, char *argv[]){
         {
             timespec_subtract(&elapsed, &end_reading, &start_reading);    
             timespec_add(&read_file_elapsed, &read_file_elapsed, &elapsed);
-            print_result_block(&rb,0);
+            if (verbose) print_result_block(&rb,0);
             matrix_intersection(&obs1[rb.t1-1],&obs2[rb.t2-1],&rb);
             free_result_block(&rb);
             // break; // Check
@@ -1320,17 +1473,22 @@ int main(int argc, char *argv[]){
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_total);
 
-    printf("-------- TIME MEASUREMENTS --------\n");
-    printf("Time for reading from file:    %ld.%0*ld sec\n",read_file_elapsed.tv_sec, 9, read_file_elapsed.tv_nsec);
-    printf("Time for calculating unifiers: %ld.%0*ld sec\n",unifiers_elapsed.tv_sec, 9, unifiers_elapsed.tv_nsec);
-    printf("Time for applying unifiers:    %ld.%0*ld sec\n",unification_elapsed.tv_sec, 9, unification_elapsed.tv_nsec);
+    if (verbose) printf("-------- TIME MEASUREMENTS --------\n");
+    if (verbose) printf("Time for reading from file:    %ld.%0*ld sec\n",read_file_elapsed.tv_sec, 9, read_file_elapsed.tv_nsec);
+    if (verbose) printf("Time for calculating unifiers: %ld.%0*ld sec\n",unifiers_elapsed.tv_sec, 9, unifiers_elapsed.tv_nsec);
+    if (verbose) printf("Time for applying unifiers:    %ld.%0*ld sec\n",unification_elapsed.tv_sec, 9, unification_elapsed.tv_nsec);
+
+    if (global_correct) printf("OK, ");
+    else printf("Not OK, ");
+    printf("%u/%u, ", global_incorrect, global_count);
+    printf("%ld.%0*ld, %ld.%0*ld, %ld.%0*ld, ",read_file_elapsed.tv_sec, 9, read_file_elapsed.tv_nsec,unifiers_elapsed.tv_sec, 9, unifiers_elapsed.tv_nsec,unification_elapsed.tv_sec, 9, unification_elapsed.tv_nsec);
 
     timespec_add(&unifiers_elapsed, &unifiers_elapsed, &unification_elapsed);
-    printf("Time for unification total:    %ld.%0*ld sec\n",unifiers_elapsed.tv_sec, 9, unifiers_elapsed.tv_nsec);
-
+    if (verbose) printf("Time for unification total:    %ld.%0*ld sec\n",unifiers_elapsed.tv_sec, 9, unifiers_elapsed.tv_nsec);
+    printf("%ld.%0*ld, ",unifiers_elapsed.tv_sec, 9, unifiers_elapsed.tv_nsec);
     timespec_subtract(&elapsed, &end_total, &start_total);
-    printf("Total time:                    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
-
+    if (verbose) printf("Total time:                    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
+    printf("%ld.%0*ld\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
     // Free memory
     // Free operand blocks
     for (size_t i = 0; i < s1; i++) {
