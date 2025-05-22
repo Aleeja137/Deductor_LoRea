@@ -99,6 +99,10 @@ main_term create_empty_main_term(unsigned c, unsigned e) {
     {
         mt.row[aux] = 0;
     }
+
+    for (unsigned i = 0; i < e; ++i) {
+        mt.exceptions[i] = create_null_exception_block();
+    }
     
 
     return mt;
@@ -235,6 +239,12 @@ result_block create_empty_result_block(unsigned r1, unsigned r2, unsigned c1, un
         fprintf(stderr, "Failed to allocate result_block\n");
         exit(EXIT_FAILURE);
     }
+
+    for (unsigned i = 0; i < rb.r; ++i) {
+        rb.terms[i] = create_null_main_term();  // sets row=NULL, exceptions=NULL
+        rb.valid[i] = 2;                        // so free_result_block will skip it
+    }
+    
 
     return rb;
 }

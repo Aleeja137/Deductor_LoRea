@@ -1277,7 +1277,7 @@ void reorder_unified2(main_term *mt, mgu_schema *ms){
     
     for (i=0; i<ms->new; i++)
     {
-        idx_before = mt->c-i; // not really true but more elegant and still correct
+        idx_before = mt->c-1-i; // not really true but more elegant and still correct
         idx_after  = ms->new_indices[i]-1;
         after[idx_after] = 0;
         after_before[idx_after]  = idx_before;
