@@ -447,7 +447,8 @@ void read_result_matrix(FILE *stream, result_block *rb) {
     
     if (matched != 7) {
         if (strstr(line, "END: Matrix M1 & M2 + MGU") != NULL) {free(line); return;}
-        if (verbose) printf("line: %s\n",line);
+        // if (verbose) 
+        printf("line: %s\n",line);
         fprintf(stderr, "Could not read matrix subset info, matched: %d\n",matched);
         free(line);
         exit(EXIT_FAILURE);
@@ -1164,7 +1165,7 @@ int check_exceptions(main_term *mt1, main_term *mt2, main_term *new_mt, main_ter
     return 0;
 }
 
-void reorder_unified(main_term *mt, mgu_schema *ms){
+void reorder_unified2(main_term *mt, mgu_schema *ms){
     unsigned i,j;
     int *after = (int*)malloc(mt->c*sizeof(int)); 
     int *before = mt->row;
@@ -1220,7 +1221,7 @@ void reorder_unified(main_term *mt, mgu_schema *ms){
     free(after);
 }
 
-void reorder_unified2(main_term *mt, mgu_schema *ms){
+void reorder_unified(main_term *mt, mgu_schema *ms){
     unsigned i,j;
     int *after = (int*)malloc(mt->c*sizeof(int)); 
     int *before = mt->row;
@@ -1277,7 +1278,7 @@ void reorder_unified2(main_term *mt, mgu_schema *ms){
     
     for (i=0; i<ms->new; i++)
     {
-        idx_before = mt->c-i; // not really true but more elegant and still correct
+        idx_before = mt->c-1-i; // not really true but more elegant and still correct
         idx_after  = ms->new_indices[i]-1;
         after[idx_after] = 0;
         after_before[idx_after]  = idx_before;
@@ -1295,7 +1296,7 @@ void reorder_unified2(main_term *mt, mgu_schema *ms){
         ref = before[idx_before];
         unsigned reference = -(ref+1);
         // And the the reference in after to that index in after
-        after[idx_after] = before_after[reference];
+        after[idx_after] = -(before_after[reference]+1);
     }
 
     memcpy(before,after,mt->c*sizeof(int));
