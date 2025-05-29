@@ -193,6 +193,7 @@ int compare_results(result_block *rb1, result_block *rb2, operand_block *ob1, op
         if (rb1->valid[i] != rb2->valid[i]) {
             if (verbose) {printf("compare_results valid test failed at term %u (%u-%u)\n",i, i/rb1->r2+1, i%rb1->r2+1);}
             if (verbose) {printf("my valid: %u, csv valid: %u\n",rb1->valid[i], rb2->valid[i]);}
+            if (verbose) {print_mgu_schema(rb2->ms);print_mgu_compact(rb2->ms,rb2->c*2);}
             return 0;}
         if (rb1->valid[i] == 0) // Only in this case, otherwise rows and exceptions will be empty
         {
@@ -203,6 +204,7 @@ int compare_results(result_block *rb1, result_block *rb2, operand_block *ob1, op
                 if (verbose) {printf("mt2:\t"); print_main_term(&ob2->terms[i%rb1->r2],2,1);}
                 if (verbose) {printf("mt3  (me):\t"); print_main_term(&rb1->terms[i],3,0);}
                 if (verbose) {printf("mt3 (csv):\t"); print_main_term(&rb2->terms[i],3,0);}
+                if (verbose) {print_mgu_schema(rb2->ms);print_mgu_compact(rb2->ms,rb2->c*2);}
                 return 0;
             }
 
@@ -448,7 +450,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
     if (matched != 7) {
         if (strstr(line, "END: Matrix M1 & M2 + MGU") != NULL) {free(line); return;}
         // if (verbose) 
-        printf("line: %s\n",line);
+        printf("line: '%s'\n",line);
         fprintf(stderr, "Could not read matrix subset info, matched: %d\n",matched);
         free(line);
         exit(EXIT_FAILURE);
@@ -1454,6 +1456,9 @@ int main(int argc, char *argv[]){
     // ----- Read file end ----- //
 
     // ----- Matrix intersection start ----- //
+    // int check = 1; // Check - Select the matrix subset I want to work with
+    int check = 0; // Check - Work with all
+    int ind = 0; // Check 
     do {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
             rb = read_result_block(stream_M3);
@@ -1461,12 +1466,16 @@ int main(int argc, char *argv[]){
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
         if (rb.t1)
         {
+            if (ind!=check) {free_result_block(&rb); ind++; continue;} // Check
+            // verbose = true; // Check
             timespec_subtract(&elapsed, &end_reading, &start_reading);    
             timespec_add(&read_file_elapsed, &read_file_elapsed, &elapsed);
             if (verbose) print_result_block(&rb,0);
             matrix_intersection(&obs1[rb.t1-1],&obs2[rb.t2-1],&rb);
             free_result_block(&rb);
             // break; // Check
+            ind++; // Check
+            check++; // Check - use if starting from zero to get all blocks
         }
         else break;
     } while (true);

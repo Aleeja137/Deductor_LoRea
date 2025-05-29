@@ -349,8 +349,8 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
 
     for (i=0; i<n; i+=2)
     {
-        if (mapping[i]>=n_L)   mapping[i]=0;
-        if (mapping[i+1]>=n_R) mapping[i+1]=0;
+        if (mapping[i]>n_L)   mapping[i]=0;
+        if (mapping[i+1]>n_R) mapping[i+1]=0;
         // 0 value in mapping means '_'
         if (mapping[i] && mapping[i+1]) // X-Y
         {
