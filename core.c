@@ -30,12 +30,99 @@ int last_int = 1;
 
 struct timespec read_file_elapsed, unifiers_elapsed, unification_elapsed;
 
-bool chivato = true;
+bool chivato = false;
 bool global_correct = true;
 unsigned global_count = 0;
 unsigned global_incorrect = 0;
 
 // --------------------- UTILS START --------------------- //
+
+void print_L2_lst(L2 *lst, const unsigned n){
+
+    // Chech max depth
+    unsigned max_depth = 0;
+    for (size_t i = 0; i < 2*n; i++)
+    {
+        unsigned depth = 0;
+        L3 *tmp = lst[i].head;
+        while (tmp!=NULL)
+        {
+            depth++;
+            tmp=tmp->next;
+        }
+        if (depth>max_depth) max_depth = depth;
+    }
+
+    // Allocate memory to display L2 list
+    int *ind     = (int*)malloc(2*n*sizeof(int));
+    int *count   = (int*)malloc(2*n*sizeof(int));
+    int *by      = (int*)malloc(2*n*sizeof(int));
+    int *indices = (int*)malloc(max_depth*2*n*sizeof(int));
+    memset(indices, -1, max_depth*2*n*sizeof(int));
+
+    // Fill the spaces
+    for (size_t i = 0; i < 2*n; i++)
+    {
+        ind[i] = lst[i].ind;
+        count[i] = lst[i].count;
+        by[i] = lst[i].by;
+
+        unsigned idx = 0;
+        L3 *tmp = lst[i].head;
+        while (tmp!=NULL)
+        {
+            indices[max_depth*i+idx] = tmp->ind;
+            tmp=tmp->next;
+            idx++;
+        }
+    }
+
+    // Display the L2 list
+    printf("------------\n");
+    printf("ind:\t");
+    for (size_t i = 0; i < 2*n; i++)
+    {
+        printf("%d",ind[i]);
+        if ((i+1)<(2*n)) printf(",");
+    }
+    printf("\n");
+    printf("count:\t");
+    for (size_t i = 0; i < 2*n; i++)
+    {
+        printf("%d",count[i]);
+        if ((i+1)<(2*n)) printf(",");
+    }
+    printf("\n");
+    printf("by:\t");
+    for (size_t i = 0; i < 2*n; i++)
+    {
+        int val = by[i];
+        if (val==-1) printf("X");
+        else         printf("%d",val);
+        if ((i+1)<(2*n)) printf(",");
+    }
+    printf("\n");
+    
+    for (size_t i = 0; i < max_depth; i++)
+    {
+        printf("\t");
+        for (size_t j = 0; j < 2*n; j++)
+        {
+            int val = indices[max_depth*j+i];
+            if (val==-1) printf("X");
+            else         printf("%d",val);
+            if ((j+1)<(2*n)) printf(",");
+        }
+        printf("\n");
+    }
+    
+    // Free all memory:
+    free(ind);
+    free(count);
+    free(by);
+    free(indices);
+}
+
 void timespec_add(struct timespec *result, const struct timespec *t1, const struct timespec *t2) {
     result->tv_sec = t1->tv_sec + t2->tv_sec;
     result->tv_nsec = t1->tv_nsec + t2->tv_nsec;
@@ -74,7 +161,7 @@ void print_mapping(unsigned n_tl, unsigned *map) {
     printf("\n");
 }
 
-// Prints the unifier
+// Prints the unifier, m is the number of columns in the resulting term
 void print_unifier(unsigned *unifier, unsigned m){
     unsigned i;
     unsigned n_elem = unifier[0]*2;
@@ -664,7 +751,7 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
     }
 
     // For each element pair, get indexes and perform (x<-y)
-    for (i=0; i<m; i+=2)
+    for (i=0; i<2*m; i+=2)
     {
         unsigned x = unifier[1+i]; 
         unsigned y = unifier[1+i+1];
@@ -1315,6 +1402,7 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     unifiers = (unsigned*) malloc (ob1->r*ob2->r*unifier_size*sizeof(unsigned));
     unsigned unif_count = unifier_matrices(ob1, ob2, rb, unifiers);
 
+    // print_unifier_list(unifiers,unif_count,rb->ms->n_common); // Check
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_unifiers);
     // ----- Calculate unifiers end ----- //
     
@@ -1433,8 +1521,8 @@ int main(int argc, char *argv[]){
     // ----- Read file end ----- //
 
     // ----- Matrix intersection start ----- //
-    // int check = 1; // Check - Select the matrix subset I want to work with
-    int check = 0; // Check - Work with all
+    int check = 0; // Check - Select the matrix subset I want to work with
+    // int check = 0; // Check - Work with all
     int ind = 0; // Check 
     do {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
