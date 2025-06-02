@@ -171,7 +171,7 @@ void print_unifier(unsigned *unifier, unsigned m){
     printf("%d elements: [",n_elem);
 	for (i = 0; i < n_elem; i+=2)
 	{
-        printf("%u<-%u ", unifier[1+i],unifier[1+i+1]);
+        printf("%u<-%u ", unifier[1+i]+1,unifier[1+i+1]+1);
 	}
     printf("],\t\tidxA: %u, idxB: %u\n",idxA+1, idxB+1);
 }
@@ -190,7 +190,7 @@ void print_mat_line(int *row, int m){
     int j;
     printf("[");
     for (j = 0; j < m; j++)
-        printf("%d ", row[j]);
+        printf("%d,", row[j]);
     printf("]\n");
 }
 
@@ -757,6 +757,7 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
         unsigned y = unifier[1+i+1];
         int val_y;
         int val_x; 
+        if (chivato) printf("---\nSTART - x: %u, y: %u\n",x,y); // Check
 
         if (x == y && x == 0) continue; // Empty case
 
@@ -770,11 +771,15 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
         else if (y >= m && y < c2 && row_b[y-m] < 0)
             y = -row_b[y-m] + m - 1; 
 
+        if (chivato) printf("REAL - x: %u, y: %u\n",x,y); // Check
+
+
         // If any of them was substituted before, get the corresponding elements
         if (lst[x].count > 0) x = lst[x].by;
         if (lst[y].count > 0) y = lst[y].by;
         if (x==y) continue; 
         // No need to get real index again, the substitution is done for the real index
+        if (chivato) printf("BY - x: %u, y: %u\n",x,y); // Check
 
         // Get the value of x and y
         if (x < c1) val_x = row_a[x];
@@ -787,6 +792,8 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
         else if ((y-m) < c2) val_y = row_b[(y-m)];
         else val_y = 0;
 
+        if (chivato) printf("val_x: %d, val_y: %d\n",val_x,val_y); // Check
+
         // If both constants 
         if (val_x > 0 && val_y > 0 && val_x!=val_y) return -1; // And don't match
         else if (val_x > 0 && val_y > 0) continue;             // And match
@@ -798,11 +805,14 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
             lst[y].count = 1;
             lst[y].by    = x;
             lst[y].ind   = y;
+            if (chivato) printf("(y<-x)\n"); // Check
+
 
             // Update all variables replaced by y to be replaced by x
             L3 *current = lst[y].head;
             while (current != NULL)
             {
+                if (chivato) printf("(y<-x) - %d previously replaced by y:%u, now replaced by x: %u\n",current->ind,y,x); // Check
                 lst[current->ind].by = x;
                 current = current->next;
             }
@@ -831,12 +841,13 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
             lst[x].by    = y;
             lst[x].ind   = x;
 
+            if (chivato) printf("(x<-y)\n"); // Check
             // Update all variables replaced by x to be replaced by y
             L3 *current = lst[x].head;
             while (current != NULL)
             {
-                int current_index = current->ind;
-                lst[current_index].by = y;
+                if (chivato) printf("(x<-y) - %d previously replaced by x:%u, now replaced by y: %u\n",current->ind,x,y); // Check
+                lst[current->ind].by = y;
                 current = current->next;
             }
 
@@ -859,6 +870,7 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
         }
     }
 
+    if (chivato) printf("Now reducing it\n"); // Check
     int last_unifier = 0;
     unsigned n_substitutions = 0;
     // For each element, add the substitutions to the unifier
@@ -868,11 +880,13 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
         int x;
         if (lst[y].count == 0 && lst[y].head)
         {
+            if (chivato) printf("y: %u substitutes someone\n",y); // Check
             // Get substitutions (x <- y)
             L3* current = lst[y].head;
             while (current != NULL)
             {
                 x = current->ind;
+                if (chivato) printf("\ty: %u substitutes x: %u\n",y,x); // Check
                 unifier[1+last_unifier]   = x;
                 unifier[1+last_unifier+1] = y;
                 current = current->next;
@@ -882,6 +896,8 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
         }
     }
     unifier[0] = n_substitutions;
+
+    if (chivato) print_L2_lst(lst,m); // Check
 
     // Free lst
     for ( i = 0; i < lst_length; i++)
@@ -911,17 +927,24 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
     {
         for (j=0; j<ob2->r; j++)
         {
+            // if (i==73 && j==1) chivato = true; // Check
             memset(unifier,0,unifier_size*sizeof(unsigned));  
+            if (chivato) {unifier[0]=m; print_unifier(unifier,m);} // Check
             code = unifier_rows(&ob1->terms[i], &ob2->terms[j], rb->ms, unifier);
             if (code != 0) continue; // Rows cannot be unified
 
+            if (chivato) {unifier[0]=m; print_unifier(unifier,m);} // Check
+
             code = correct_unifier(&ob1->terms[i], &ob2->terms[j], rb->ms, unifier);
             if (code != 0) continue; // Rows cannot be unified
+
+            if (chivato) {print_unifier(unifier,m);} // Check
             
             unifier[1+(2*m)]   = i;
             unifier[1+(2*m)+1] = j;
             memcpy(&unifiers[last_unifier*unifier_size],unifier,unifier_size*sizeof(unsigned));
             last_unifier++;
+            chivato=false; // Check
         }
     }
 
@@ -941,6 +964,7 @@ void apply_unifier_left(main_term *mt1, main_term *mt2, main_term *mt3, mgu_sche
     unsigned i, j;
     unsigned x, y; 
     int val_y; // To perform (x<-y), x is ALWAYS a variable
+    bool same_row = false;
 
     // Stuff needed if y is a variable
     int length = (int)log10(2*m) + 2;
@@ -958,15 +982,19 @@ void apply_unifier_left(main_term *mt1, main_term *mt2, main_term *mt3, mgu_sche
         
         if (x < m) // Only apply changes to left row
         {
-            if (y < m) val_y = row_a[y];
+            // if (chivato) printf("%u<-%u,",x,y); // Check
+            if (y < m) {val_y = row_a[y]; same_row=true;}
             // else if (y < m) val_y = 0; // don't need this since row_a now is of size m, with the new columns already set to 0 on creation
             else if ((y-m) < c2) val_y = row_b[y-m];
             else val_y = 0;
 
             if (val_y > 0) // y is a constant, substitute all x references for the constant in y
             {
+                // if (chivato) printf("%u<-%u for x<-y, with y being a constant val_y: %u\n",x,y,val_y); // Check
+                // if (chivato) {printf("before change: \n\t"); print_mat_line(row_a,m);} // Check
                 row_a[x] = val_y;
                 for (j=0;j<m;j++) if (row_a[j]==(int)(-(x+1))) row_a[j] = val_y;
+                // if (chivato) {printf("after change: \n\t"); print_mat_line(row_a,m);} // Check
             }
             else // y is a variable, so it can get tricky
             {
@@ -974,18 +1002,38 @@ void apply_unifier_left(main_term *mt1, main_term *mt2, main_term *mt3, mgu_sche
                 struct nlist *entry = lookup(unif_dict,y_str);
                 if (entry==NULL) // First appearance of y, do not substitute anything, but add appearance of y linked with x
                 {
-                    install(unif_dict,y_str,x);
+                    // If some variable is substituted by a variable previous to itself, need to put it as reference 
+                    if (same_row && x>y) // in this case we interchange x and y
+                    {
+                        row_a[x] = -(y+1); 
+                        same_row=false;
+                        snprintf(y_str, length, "%d", x);
+                        install(unif_dict,y_str,y);
+                    } 
+                    else if (same_row)
+                    {
+                        row_a[y] = -(x+1);
+                        same_row=false;
+                        install(unif_dict,y_str,x);
+                    }
+                    // if (chivato) printf("%u<-%u for x<-y, with y being a first time variable %s\n",x,y,y_str); // Check
+                    else install(unif_dict,y_str,x);
                 }
                 else // Not first appearance: need to point all x references to previous (x<-y) [effectively (x<-(-z))]
                 {
                     int z = entry->defn;
+                    // if (chivato) printf("%u<-%u for x<-y, with y being a * time variable %s, previously replacing z:%u\n",x,y,y_str,z); // Check
+                    // if (chivato) {printf("before change: \n\t"); print_mat_line(row_a,m);} // Check
                     row_a[x] = -(z+1);
                     for (j=0;j<m;j++) if (row_a[j]==(int)(-(x+1))) row_a[j] = -(z+1);
+                // if (chivato) {printf("after change: \n\t"); print_mat_line(row_a,m);} // Check
                 }
             }
         }
     }
 
+
+    // if (chivato) printf("\n"); // Check
     clear(unif_dict); // Clean dictionary
     free(y_str);
 }
@@ -1300,92 +1348,51 @@ void apply_unifier_left(main_term *mt1, main_term *mt2, main_term *mt3, mgu_sche
 //     // return 0;
 // }
 
-// void reorder_unified(main_term *mt, mgu_schema *ms){
-//     return;
+void reorder_unified(main_term *mt, mgu_schema *ms)
+{
+    // This can be handy since the main term needs to be the resulting main term, not the operand. This assertion does not guarantee that though
+    unsigned c = mt->c;
+    assert(c==ms->n_common);
 
-//     // unsigned i,j;
-//     // int *after = (int*)malloc(mt->c*sizeof(int)); 
-//     // int *before = mt->row;
+    // Reordering is needed, taking a look at common_L on ms and updating reference indices
+    int *after = (int*)malloc(c*sizeof(int));
+    int *before = mt->row;
+    unsigned *before_after = (unsigned*)malloc(c*sizeof(unsigned));
 
-//     // // This will tell me which column from after matches with which column of before
-//     // unsigned *after_before = (unsigned*)malloc(mt->c*sizeof(unsigned)); 
-//     // unsigned *before_after = (unsigned*)malloc(mt->c*sizeof(unsigned)); 
-
-//     // unsigned idx_after, idx_before;
-
-//     // for (i=0; i<ms->n_common; i++)
-//     // {
-//     //     idx_before = ms->common_L[i]-1;
-//     //     idx_after  = ms->common_columns[i]-1;
-//     //     after[idx_after] = before[idx_before];
-//     //     after_before[idx_after]  = idx_before;
-//     //     before_after[idx_before] = idx_after;
-//     //     // printf("COMMON: idx_before: %u, idx_after: %u, value_before: %u, value after: %u\n",idx_before,idx_after,before[idx_before],after[idx_after]); // Check
-//     // }
+    for (unsigned i = 0; i < c; i++)
+    {
+        after[i] = before[ms->common_L[i]-1];
+        before_after[ms->common_L[i]-1] = i;
+    }
     
-//     // unsigned last = 0;
-//     // for (i=0; i<ms->n_uncommon_L; i++)
-//     // {
-//     //     unsigned start  = ms->uncommon_L[2*i]-1;
-//     //     unsigned length = ms->uncommon_L[2*i+1];
-//     //     for (j=0; j<length; j++)
-//     //     {
-//     //         idx_before = ms->idx_uncommon_L[last]-1;
-//     //         idx_after  = start+j;
-//     //         after[idx_after] = before[idx_before];
-//     //         after_before[idx_after]  = idx_before;
-//     //         before_after[idx_before] = idx_after;
-//     //         last++;
-//     //     }
-//     // }
-    
-    
-//     // last = 0;
-//     // for (i=0; i<ms->n_uncommon_R; i++)
-//     // {
-//     //     unsigned start  = ms->uncommon_R[2*i]-1;
-//     //     unsigned length = ms->uncommon_R[2*i+1];
-//     //     for (j=0; j<length; j++)
-//     //     {
-//     //         idx_before = ms->idx_uncommon_R[last]-1;
-//     //         idx_before += ms->tot_n_uncommon_L + ms->addition_R[last];
-//     //         idx_after  = start+j;
-//     //         after[idx_after] = before[idx_before];
-//     //         after_before[idx_after]  = idx_before;
-//     //         before_after[idx_before] = idx_after;
-//     //         last++;
-//     //     }
-//     // }
-    
-//     // for (i=0; i<ms->new; i++)
-//     // {
-//     //     idx_before = mt->c-1-i; // not really true but more elegant and still correct
-//     //     idx_after  = ms->new_indices[i]-1;
-//     //     after[idx_after] = 0;
-//     //     after_before[idx_after]  = idx_before;
-//     //     before_after[idx_before] = idx_after;
-//     // }
-    
-//     // // Final pass to correct reference indices
-//     // for (idx_after = 0; idx_after < mt->c; idx_after++)
-//     // {
-//     //     int ref = after[idx_after];
-//     //     if (ref>=0) continue; // Only continue if it points to somewhere in after
+    if (chivato) {printf("before -->\t"); print_mat_line(before,c);} // Check
+    if (chivato) {printf("after  -->\t"); print_mat_line(after,c);} // Check
 
-//     //     // Get the idx_before to see where it pointed to before
-//     //     idx_before = after_before[idx_after];
-//     //     ref = before[idx_before];
-//     //     unsigned reference = -(ref+1);
-//     //     // And the the reference in after to that index in after
-//     //     after[idx_after] = -(before_after[reference]+1);
-//     // }
+    int *after2 = (int*)malloc(c*sizeof(int));
+    memcpy(after2,after,c*sizeof(int));
 
-//     // memcpy(before,after,mt->c*sizeof(int));
+    // Need an additional pass to correct indices
+    for (unsigned i = 0; i < c; i++)
+    {
+        int ref = after[i];
+        if (ref<0)
+        {
+            if (chivato) {printf("updating i:%u\n\t",i); print_mat_line(after2,c);} // Check
+            unsigned reference = -(ref+1); // Get the index it is pointing to, this index is in the before array
+            unsigned current_idx = before_after[reference]; // With this we know the corresponding index in the after array
+            if (current_idx < i) {after2[i] = -(current_idx+1);} // The first appearance is still the first appearance
+            else                 {after2[current_idx] = -(i+1); after2[i] = 0;} // The first appearance became a reference
+            if (chivato) {printf("ref: %d, reference: %u, current_idx: %u, -(current_idx+1): %d, -(i+1): %d\n",ref,reference,current_idx,-(current_idx+1), -(i+1));
+                printf("UPDATED i:%u\n\t",i); print_mat_line(after2,c);printf("\n");} // Check
+        }
+    }
 
-//     // free(after);
-//     // free(before_after);
-//     // free(after_before);
-// }
+    memcpy(before,after2,c*sizeof(int));
+    free(after);
+    free(after2);
+    free(before_after);
+    return;
+}
 
 // Given two operand blocks and a result block, performs the matrix intersection and returns the time 
 void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *rb){
@@ -1423,10 +1430,12 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
 
         main_term *mt = &my_rb.terms[index_mt];
         *mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
+        // if (index_mt==10513) {chivato=true;} // Check
         apply_unifier_left(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, my_rb.ms, &unifiers[i*unifier_size]);
-        
+        if (index_mt==10513) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->ms->n_common);} // Check
         // prepare_unified(mt->row,line_B, rb->ms, false);
-        // reorder_unified(mt, rb->ms);
+        reorder_unified(mt, rb->ms);
+        chivato=false;
         // if (chivato) printf("Applied unifier to mt1-mt2: (%u-%u)\n",ind_A+1,ind_B+1); // Check
         // my_rb.valid[index_mt] = check_exceptions(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &rb->terms[index_mt]); // Not used for this version
         my_rb.valid[index_mt] = 0;
@@ -1521,8 +1530,8 @@ int main(int argc, char *argv[]){
     // ----- Read file end ----- //
 
     // ----- Matrix intersection start ----- //
-    int check = 0; // Check - Select the matrix subset I want to work with
-    // int check = 0; // Check - Work with all
+    // int check = 1; // Check - Select the matrix subset I want to work with
+    int check = 0; // Check - Work with all
     int ind = 0; // Check 
     do {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
