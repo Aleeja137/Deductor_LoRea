@@ -817,19 +817,26 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
                 current = current->next;
             }
 
-            // Add the replacement list of y, and y itself, to replacement list of x
-            if (lst[x].head)
-            {
-                if (!lst[x].tail) lst[x].tail = lst[x].head;
-                lst[x].tail->next = create_L3(y,lst[y].head);
-                if (lst[y].head) lst[x].tail = lst[y].tail;
+            // At end of X's replacement list, add Y and Y's replacement list (if any)
+            L3* newNode = create_L3(y, NULL);
+
+            // Appending it to X’s list (or make it head if empty)
+            if (lst[x].head == NULL) {
+                lst[x].head = newNode;
+                lst[x].tail = newNode;
             }
-            else
-            {
-                lst[x].head = create_L3(y,lst[y].head);
-                lst[x].tail = lst[x].head;
-                if (lst[y].head) lst[x].tail = lst[y].tail;
-            } 
+            else {
+                lst[x].tail->next = newNode;
+                lst[x].tail       = newNode;
+            }
+
+            // Appending Y's chain
+            if (lst[y].head != NULL) {
+                newNode->next = lst[y].head;
+                lst[x].tail   = lst[y].tail;
+            }
+
+            // Clear Y’s list
             lst[y].head = NULL;
             lst[y].tail = NULL;
         }
@@ -851,20 +858,27 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
                 current = current->next;
             }
 
-            // Add the replacement list of x, and x itself, to replacement list of y
-            if (lst[y].head)
-            {
-                if (!lst[y].tail) lst[y].tail = lst[y].head;
-                lst[y].tail->next = create_L3(x,lst[x].head);
-                if (lst[x].head) lst[y].tail = lst[x].tail;
 
+            // At end of Y's replacement list, add X and X's replacement list (if any)
+            L3* newNode = create_L3(x, NULL);
+
+            // Appending it to Y’s list (or make it head if empty)
+            if (lst[y].head == NULL) {
+                lst[y].head = newNode;
+                lst[y].tail = newNode;
             }
-            else
-            {
-                lst[y].head = create_L3(x,lst[x].head);
-                lst[y].tail = lst[y].head;
-                if (lst[x].head) lst[y].tail = lst[x].tail;
+            else {
+                lst[y].tail->next = newNode;
+                lst[y].tail       = newNode;
             }
+
+            // Appending X's chain
+            if (lst[x].head != NULL) {
+                newNode->next = lst[x].head;
+                lst[y].tail   = lst[x].tail;
+            }
+
+            // Clearing X’s list
             lst[x].head = NULL;
             lst[x].tail = NULL;
         }
@@ -1026,6 +1040,7 @@ void apply_unifier_left(main_term *mt1, main_term *mt2, main_term *mt3, mgu_sche
                 // if (chivato) {printf("after change: \n\t"); print_mat_line(row_a,m);} // Check
                 }
             }
+            same_row = false;
         }
     }
 
