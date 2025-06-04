@@ -795,7 +795,7 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
         if (chivato) printf("val_x: %d, val_y: %d\n",val_x,val_y); // Check
 
         // If both constants 
-        if (val_x > 0 && val_y > 0 && val_x!=val_y) return -1; // And don't match
+        if (val_x > 0 && val_y > 0 && val_x!=val_y) {for(size_t aux=0;aux<lst_length;aux++) free_L2(lst[aux]); free(lst);return -1;} // And don't match
         else if (val_x > 0 && val_y > 0) continue;             // And match
 
         // If x is constant and y is variable
@@ -900,10 +900,7 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
     if (chivato) print_L2_lst(lst,m); // Check
 
     // Free lst
-    for ( i = 0; i < lst_length; i++)
-    {
-        free_L2(lst[i]);
-    }
+    for ( i = 0; i < lst_length; i++) free_L2(lst[i]);
     free(lst);
     
     return 0;
@@ -1432,7 +1429,7 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
         *mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
         // if (index_mt==10513) {chivato=true;} // Check
         apply_unifier_left(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, my_rb.ms, &unifiers[i*unifier_size]);
-        if (index_mt==10513) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->ms->n_common);} // Check
+        // if (index_mt==10513) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->ms->n_common);} // Check
         // prepare_unified(mt->row,line_B, rb->ms, false);
         reorder_unified(mt, rb->ms);
         chivato=false;
