@@ -171,7 +171,7 @@ void print_unifier(unsigned *unifier, unsigned m){
     printf("%d elements: [",n_elem);
 	for (i = 0; i < n_elem; i+=2)
 	{
-        printf("%u<-%u ", unifier[1+i]+1,unifier[1+i+1]+1);
+        printf("%u<-%u,", unifier[1+i],unifier[1+i+1]);
 	}
     printf("],\t\tidxA: %u, idxB: %u\n",idxA+1, idxB+1);
 }
@@ -763,14 +763,13 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
 
         // If any of the two elements is a repeated variable, get real index
         if (x < c1 && row_a[x] < 0)
-            x = -row_a[x] - 1;
-        else if (x >= m && x < c2 && row_b[x-m] < 0) 
-            x = -row_b[x-m] + m - 1;
+            x = -(row_a[x]+1);
+        else if (x >= m && (x-m) < c2 && row_b[x-m] < 0) 
+            x = -(row_b[x-m]+1) + m;
         if (y < c1 && row_a[y] < 0) 
-            y = -row_a[y] - 1;
-        else if (y >= m && y < c2 && row_b[y-m] < 0)
-            y = -row_b[y-m] + m - 1; 
-
+            y = -(row_a[y]+1);
+        else if (y >= m && (y-m) < c2 && row_b[y-m] < 0)
+            y = -(row_b[y-m]+1) + m; 
         if (chivato) printf("REAL - x: %u, y: %u\n",x,y); // Check
 
 
@@ -938,7 +937,7 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
     {
         for (j=0; j<ob2->r; j++)
         {
-            // if (i==73 && j==1) chivato = true; // Check
+            if (i==73 && j==0) chivato = true; // Check
             memset(unifier,0,unifier_size*sizeof(unsigned));  
             if (chivato) {unifier[0]=m; print_unifier(unifier,m);} // Check
             code = unifier_rows(&ob1->terms[i], &ob2->terms[j], rb->ms, unifier);
@@ -1442,13 +1441,13 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
 
         main_term *mt = &my_rb.terms[index_mt];
         *mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
-        // if (index_mt==10513) {chivato=true;} // Check
+        if (index_mt==10512) {chivato=true;} // Check
         apply_unifier_left(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, my_rb.ms, &unifiers[i*unifier_size]);
-        // if (index_mt==10513) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->ms->n_common);} // Check
+        if (index_mt==10512) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->ms->n_common);} // Check
         // prepare_unified(mt->row,line_B, rb->ms, false);
         reorder_unified(mt, rb->ms);
         chivato=false;
-        // if (chivato) printf("Applied unifier to mt1-mt2: (%u-%u)\n",ind_A+1,ind_B+1); // Check
+        if (chivato) printf("Applied unifier to mt1-mt2: (%u-%u)\n",ind_A+1,ind_B+1); // Check
         // my_rb.valid[index_mt] = check_exceptions(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &rb->terms[index_mt]); // Not used for this version
         my_rb.valid[index_mt] = 0;
     }
@@ -1542,8 +1541,8 @@ int main(int argc, char *argv[]){
     // ----- Read file end ----- //
 
     // ----- Matrix intersection start ----- //
-    // int check = 1; // Check - Select the matrix subset I want to work with
-    int check = 0; // Check - Work with all
+    int check = 1; // Check - Select the matrix subset I want to work with
+    // int check = 0; // Check - Work with all
     int ind = 0; // Check 
     do {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
@@ -1561,7 +1560,7 @@ int main(int argc, char *argv[]){
             free_result_block(&rb);
             // break; // Check
             ind++; // Check
-            check++; // Check - use if starting from zero to get all blocks
+            // check++; // Check - use if starting from zero to get all blocks
         }
         else break;
     } while (true);
