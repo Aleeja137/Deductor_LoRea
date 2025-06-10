@@ -280,7 +280,7 @@ int compare_results(result_block *rb1, result_block *rb2, operand_block *ob1, op
         if (rb1->valid[i] != rb2->valid[i]) {
             if (verbose) {printf("compare_results valid test failed at term %u (%u-%u)\n",i, i/rb1->r2+1, i%rb1->r2+1);}
             if (verbose) {printf("my valid: %u, csv valid: %u\n",rb1->valid[i], rb2->valid[i]);}
-            if (verbose) {print_mgu_schema(rb2->ms);print_mgu_compact(rb2->ms);}
+            if (verbose) {print_mgu_schema(rb2->terms[i].ms);print_mgu_compact(rb2->terms[i].ms);}
             return 0;}
         if (rb1->valid[i] == 0) // Only in this case, otherwise rows and exceptions will be empty
         {
@@ -291,7 +291,7 @@ int compare_results(result_block *rb1, result_block *rb2, operand_block *ob1, op
                 if (verbose) {printf("mt2:\t"); print_main_term(&ob2->terms[i%rb1->r2],2,1);}
                 if (verbose) {printf("mt3  (me):\t"); print_main_term(&rb1->terms[i],3,0);}
                 if (verbose) {printf("mt3 (csv):\t"); print_main_term(&rb2->terms[i],3,0);}
-                if (verbose) {print_mgu_schema(rb2->ms);print_mgu_compact(rb2->ms);}
+                if (verbose) {print_mgu_schema(rb2->terms[i].ms);print_mgu_compact(rb2->terms[i].ms);}
                 return 0;
             }
 
@@ -543,6 +543,10 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         exit(EXIT_FAILURE);
     }
 
+    bool not_first_subset;
+    if (rb->t1 == rb->t2 && rb->t1 == 1) not_first_subset = false;
+    else                                 not_first_subset = true;
+
     // Info for all possible main terms from the unification of M1 block (r1) and M2 block (r2)
     rb->r = rb->r1*rb->r2;
     rb->terms = (main_term*)malloc(rb->r * sizeof(main_term));
@@ -557,10 +561,13 @@ void read_result_matrix(FILE *stream, result_block *rb) {
     getline(&line, &len, stream);
 
     // Get mapping info
-    getline(&line, &len, stream);
     unsigned *mapping = (unsigned*)malloc(rb->c*2*sizeof(unsigned));
-    get_mapping(line, rb->c, mapping);
-    rb->ms = create_mgu_from_mapping(mapping, rb->c, rb->c1, rb->c2);
+    if (!not_first_subset)
+    {
+        getline(&line, &len, stream);
+        get_mapping(line, rb->c, mapping);
+        rb->ms = create_mgu_from_mapping(mapping, rb->c, rb->c1, rb->c2);
+    }
 
     // Skip flattened schema
     getline(&line, &len, stream);
@@ -569,11 +576,20 @@ void read_result_matrix(FILE *stream, result_block *rb) {
     unsigned row = 0;
     while ((read = getline(&line, &len, stream)) != -1 && row < rb->r) {
         
+        // if (verbose) printf("line: '%s'\n",line); // Check
         // If end of matrix reached, exit
         if (strstr(line, "END") != NULL || strstr(line, "End") != NULL)
             break;
         
-        // Get line indexes from row
+        // Get the mapping for each line, but initialize mgu_schema later
+        if (not_first_subset)
+        {
+            // Make a modifiable copy of the line to trim off the 'Mapping X-Y:'
+            char *line_ptr = line;  
+            line_ptr = strchr(line_ptr, ':') + 2;
+            get_mapping(line_ptr, rb->c, mapping);
+            getline(&line, &len, stream); // For reading line info
+        }
 
         // Inspect if line is unifiable, subsumed or not unifiable
         if (strstr(line, "subsumed by exception") != NULL)
@@ -584,6 +600,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         else if (strstr(line, "not unifiable") != NULL)
         {
             rb->terms[row] = create_null_main_term();
+            rb->terms[row].ms = create_mgu_from_mapping(mapping, rb->c, rb->c1, rb->c2);
             rb->valid[row] = 2;
             row++;
             continue;
@@ -594,7 +611,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         if (sscanf(line, "Row %u-%u: %u", &d1, &d2, &e) != 3 &&
             sscanf(line, "Rows %u-%u: %u", &d1, &d2, &e) != 3) 
         {
-            if (verbose) printf("Line is: %s\n",line);
+            if (verbose) printf("Line is: '%s'\n",line);
             fprintf(stderr, "Could not read number of exception blocks in row\n");
             free(line);
             exit(EXIT_FAILURE);
@@ -615,6 +632,9 @@ void read_result_matrix(FILE *stream, result_block *rb) {
 
         // Read one by one the exception blocks
         if (e) read_exception_blocks(stream, mt, true);
+
+        // Add mapping to main_term // This is VERY inefficient both memory and speed wise, but makes ms treatment homogeneous during unification process
+        mt->ms = create_mgu_from_mapping(mapping, rb->c, rb->c1, rb->c2);
 
         // Increment the row by 1
         row++;
@@ -928,7 +948,7 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
     unsigned last_unifier = 0;
     // const unsigned m1 = ob1->c;
     // const unsigned m2 = ob2->c;
-    const unsigned m  = rb->ms->n_common;
+    const unsigned m  = rb->c;
     const unsigned unifier_size = 1+(2*m)+2;
 
     unifier = (unsigned*) malloc (unifier_size*sizeof(unsigned));
@@ -937,15 +957,16 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
     {
         for (j=0; j<ob2->r; j++)
         {
-            if (i==73 && j==0) chivato = true; // Check
+            // if (i==73 && j==1) chivato = true; // Check
             memset(unifier,0,unifier_size*sizeof(unsigned));  
+            unsigned index_mt = i*rb->r2+j;
             if (chivato) {unifier[0]=m; print_unifier(unifier,m);} // Check
-            code = unifier_rows(&ob1->terms[i], &ob2->terms[j], rb->ms, unifier);
+            code = unifier_rows(&ob1->terms[i], &ob2->terms[j], rb->terms[index_mt].ms, unifier);
             if (code != 0) continue; // Rows cannot be unified
 
             if (chivato) {unifier[0]=m; print_unifier(unifier,m);} // Check
 
-            code = correct_unifier(&ob1->terms[i], &ob2->terms[j], rb->ms, unifier);
+            code = correct_unifier(&ob1->terms[i], &ob2->terms[j], rb->terms[index_mt].ms, unifier);
             if (code != 0) continue; // Rows cannot be unified
 
             if (chivato) {print_unifier(unifier,m);} // Check
@@ -965,12 +986,12 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
 }
 
 // Apply unifier to left term directly on the new main term
-void apply_unifier_left(main_term *mt1, main_term *mt2, main_term *mt3, mgu_schema *ms, unsigned *unifier){
+void apply_unifier_left(main_term *mt1, main_term *mt2, main_term *mt3, unsigned *unifier){
     
     const unsigned n = unifier[0]*2;
     const unsigned c1 = mt1->c;
     const unsigned c2 = mt2->c;
-    const unsigned m  = ms->n_common; 
+    const unsigned m  = mt3->c; 
     unsigned i, j;
     unsigned x, y; 
     int val_y; // To perform (x<-y), x is ALWAYS a variable
@@ -1416,7 +1437,7 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_unifiers);
     
 	unsigned *unifiers = NULL;
-    unsigned unifier_size = 1+(2*rb->ms->n_common)+2;
+    unsigned unifier_size = 1+(2*rb->c)+2;
     unifiers = (unsigned*) malloc (ob1->r*ob2->r*unifier_size*sizeof(unsigned));
     unsigned unif_count = unifier_matrices(ob1, ob2, rb, unifiers);
 
@@ -1441,11 +1462,11 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
 
         main_term *mt = &my_rb.terms[index_mt];
         *mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
-        if (index_mt==10512) {chivato=true;} // Check
-        apply_unifier_left(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, my_rb.ms, &unifiers[i*unifier_size]);
-        if (index_mt==10512) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->ms->n_common);} // Check
+        // if (index_mt==10513) {chivato=true;} // Check
+        apply_unifier_left(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &unifiers[i*unifier_size]);
+        // if (index_mt==10513) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->ms->n_common);} // Check
         // prepare_unified(mt->row,line_B, rb->ms, false);
-        reorder_unified(mt, rb->ms);
+        reorder_unified(mt, rb->terms[index_mt].ms);
         chivato=false;
         if (chivato) printf("Applied unifier to mt1-mt2: (%u-%u)\n",ind_A+1,ind_B+1); // Check
         // my_rb.valid[index_mt] = check_exceptions(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &rb->terms[index_mt]); // Not used for this version
@@ -1460,7 +1481,9 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     // ----- Check correctness start ---- //
     if (verbose) printf("\tComparing unification results. . . \n");
     int same_int = compare_results(&my_rb,rb,ob1,ob2);
-    if (!same_int) {global_correct = false; global_incorrect++;}
+    if (!same_int) {global_correct = false; global_incorrect++;} 
+    // exit(EXIT_FAILURE); // Check
+    // }
     global_count++;
 
     if (same_int  && verbose) printf("Unification is correct :)\n");
@@ -1541,8 +1564,8 @@ int main(int argc, char *argv[]){
     // ----- Read file end ----- //
 
     // ----- Matrix intersection start ----- //
-    int check = 1; // Check - Select the matrix subset I want to work with
-    // int check = 0; // Check - Work with all
+    // int check = 1; // Check - Select the matrix subset I want to work with
+    int check = 0; // Check - Work with all
     int ind = 0; // Check 
     do {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
@@ -1560,7 +1583,7 @@ int main(int argc, char *argv[]){
             free_result_block(&rb);
             // break; // Check
             ind++; // Check
-            // check++; // Check - use if starting from zero to get all blocks
+            check++; // Check - use if starting from zero to get all blocks
         }
         else break;
     } while (true);

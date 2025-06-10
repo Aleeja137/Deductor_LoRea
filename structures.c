@@ -77,6 +77,7 @@ main_term create_null_main_term() {
     mt.e = 0;
     mt.row = NULL;
     mt.exceptions = NULL;
+    mt.ms = NULL;
     return mt;
 }
 
@@ -103,7 +104,8 @@ main_term create_empty_main_term(unsigned c, unsigned e) {
     for (unsigned i = 0; i < e; ++i) {
         mt.exceptions[i] = create_null_exception_block();
     }
-    
+
+    mt.ms = NULL;
 
     return mt;
 }
@@ -130,6 +132,9 @@ void free_main_term(main_term* mt) {
         }
         free(mt->row);
         mt->row = NULL;
+
+        if (mt->ms) free_mgu_schema(mt->ms);
+        mt->ms = NULL;
     }
 }
 
@@ -191,6 +196,7 @@ void free_operand_block(operand_block* ob) {
     }
 }
 
+// Verbosity levels: 0 - Only print basic operand_block info; 1 - Print rows information from each main_term; 2 - Print exceptions from main_term's exception blocks
 void print_operand_block(operand_block* ob, unsigned matrix_idx, int verbosity) {
     printf("Operand Block: %u terms, %u columns\n", ob->r, ob->c);
     if (verbosity)
@@ -275,6 +281,7 @@ void free_result_block(result_block* rb) {
     }
 }
 
+// Verbosity levels: 0 - Only print basic result_block info; 1 - Print rows information from each main_term; 2 - Print exceptions from main_term's exception blocks
 void print_result_block(result_block* rb, int verbosity) {
     printf("Result Block: t1=%u, t2=%u | %u x %u terms (%u unified), c1=%u, c2=%u, c=%u\n",
            rb->t1, rb->t2, rb->r1, rb->r2, rb->r, rb->c1, rb->c2, rb->c);

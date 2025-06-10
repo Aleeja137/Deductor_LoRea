@@ -57,6 +57,7 @@ typedef struct {
     unsigned c;                  // Number of columns in the main term
     int *row;                    // 1D array containing the values of the main term
     unsigned e;                  // Number of exception blocks for the main term
+    mgu_schema *ms;              // Represents the mapping between two operand main terms' columns. Do not alloc nor initialize this in main_term declaration
     exception_block *exceptions; // Array with e exception blocks for the main term
 } main_term;
 
