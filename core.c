@@ -957,7 +957,7 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
     {
         for (j=0; j<ob2->r; j++)
         {
-            // if (i==73 && j==1) chivato = true; // Check
+            // if (i==0 && j==73) chivato=true; // Check
             memset(unifier,0,unifier_size*sizeof(unsigned));  
             unsigned index_mt = i*rb->r2+j;
             if (chivato) {unifier[0]=m; print_unifier(unifier,m);} // Check
@@ -1389,12 +1389,25 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
     // Reordering is needed, taking a look at common_L on ms and updating reference indices
     int *after = (int*)malloc(c*sizeof(int));
     int *before = mt->row;
-    unsigned *before_after = (unsigned*)malloc(c*sizeof(unsigned));
+    int *before_after = (int*)malloc(c*sizeof(int));
+    memset(before_after,-1,c*sizeof(int));
 
-    for (unsigned i = 0; i < c; i++)
+    bool *duplicated = (bool*)malloc(c*sizeof(bool));
+    memset(duplicated,0,c*sizeof(bool));
+
+    for (unsigned i_after = 0; i_after < c; i_after++)
     {
-        after[i] = before[ms->common_L[i]-1];
-        before_after[ms->common_L[i]-1] = i;
+        unsigned i_before = ms->common_L[i_after]-1;
+        if (before_after[i_before] != -1) 
+        {
+            after[i_after] = -(before_after[i_before]+1);
+            duplicated[i_after] = true;
+        }
+        else
+        {
+            after[i_after] = before[i_before];
+            before_after[i_before] = i_after;
+        } 
     }
     
     if (chivato) {printf("before -->\t"); print_mat_line(before,c);} // Check
@@ -1409,13 +1422,14 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
         int ref = after[i];
         if (ref<0)
         {
+            if (duplicated[i]) continue;
             if (chivato) {printf("updating i:%u\n\t",i); print_mat_line(after2,c);} // Check
             unsigned reference = -(ref+1); // Get the index it is pointing to, this index is in the before array
-            unsigned current_idx = before_after[reference]; // With this we know the corresponding index in the after array
+            unsigned current_idx = (unsigned)before_after[reference]; // With this we know the corresponding index in the after array
             if (current_idx < i) {after2[i] = -(current_idx+1);} // The first appearance is still the first appearance
             else                 {after2[current_idx] = -(i+1); after2[i] = 0;} // The first appearance became a reference
             if (chivato) {printf("ref: %d, reference: %u, current_idx: %u, -(current_idx+1): %d, -(i+1): %d\n",ref,reference,current_idx,-(current_idx+1), -(i+1));
-                printf("UPDATED i:%u\n\t",i); print_mat_line(after2,c);printf("\n");} // Check
+                          printf("UPDATED i:%u\n\t",i); print_mat_line(after2,c);printf("\n");} // Check
         }
     }
 
@@ -1423,6 +1437,7 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
     free(after);
     free(after2);
     free(before_after);
+    free(duplicated);
     return;
 }
 
@@ -1462,9 +1477,9 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
 
         main_term *mt = &my_rb.terms[index_mt];
         *mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
-        // if (index_mt==10513) {chivato=true;} // Check
+        // if (index_mt==73) {chivato=true;} // Check
         apply_unifier_left(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &unifiers[i*unifier_size]);
-        // if (index_mt==10513) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->ms->n_common);} // Check
+        // if (index_mt==73) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->terms[index_mt].ms->n_common);} // Check
         // prepare_unified(mt->row,line_B, rb->ms, false);
         reorder_unified(mt, rb->terms[index_mt].ms);
         chivato=false;
@@ -1564,7 +1579,7 @@ int main(int argc, char *argv[]){
     // ----- Read file end ----- //
 
     // ----- Matrix intersection start ----- //
-    // int check = 1; // Check - Select the matrix subset I want to work with
+    // int check = 15; // Check - Select the matrix subset I want to work with
     int check = 0; // Check - Work with all
     int ind = 0; // Check 
     do {
