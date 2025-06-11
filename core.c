@@ -1400,7 +1400,8 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
         unsigned i_before = ms->common_L[i_after]-1;
         if (before_after[i_before] != -1) 
         {
-            after[i_after] = -(before_after[i_before]+1);
+            if (before[i_before]>0) after[i_after] = before[i_before];
+            else                    after[i_after] = -(before_after[i_before]+1);
             duplicated[i_after] = true;
         }
         else
@@ -1496,9 +1497,9 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     // ----- Check correctness start ---- //
     if (verbose) printf("\tComparing unification results. . . \n");
     int same_int = compare_results(&my_rb,rb,ob1,ob2);
-    if (!same_int) {global_correct = false; global_incorrect++;} 
-    // exit(EXIT_FAILURE); // Check
-    // }
+    if (!same_int) {global_correct = false; global_incorrect++; 
+    exit(EXIT_FAILURE); // Check
+    }
     global_count++;
 
     if (same_int  && verbose) printf("Unification is correct :)\n");
