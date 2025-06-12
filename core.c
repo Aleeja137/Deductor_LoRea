@@ -957,7 +957,7 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
     {
         for (j=0; j<ob2->r; j++)
         {
-            // if (i==0 && j==73) chivato=true; // Check
+            // if (i==0 && j==0) chivato=true; // Check
             memset(unifier,0,unifier_size*sizeof(unsigned));  
             unsigned index_mt = i*rb->r2+j;
             if (chivato) {unifier[0]=m; print_unifier(unifier,m);} // Check
@@ -1434,6 +1434,16 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
         }
     }
 
+    for (unsigned i = 0; i < c; i++)
+    {
+        int ref = after2[i];
+        unsigned reference = -(ref+1);
+        if (ref<0 && after2[reference] != 0)
+        {
+            after2[i] = after2[reference];
+        }
+    }
+
     memcpy(before,after2,c*sizeof(int));
     free(after);
     free(after2);
@@ -1478,9 +1488,9 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
 
         main_term *mt = &my_rb.terms[index_mt];
         *mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
-        // if (index_mt==73) {chivato=true;} // Check
+        // if (index_mt==0) {chivato=true;} // Check
         apply_unifier_left(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &unifiers[i*unifier_size]);
-        // if (index_mt==73) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->terms[index_mt].ms->n_common);} // Check
+        // if (index_mt==0) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->terms[index_mt].ms->n_common);} // Check
         // prepare_unified(mt->row,line_B, rb->ms, false);
         reorder_unified(mt, rb->terms[index_mt].ms);
         chivato=false;
@@ -1580,8 +1590,8 @@ int main(int argc, char *argv[]){
     // ----- Read file end ----- //
 
     // ----- Matrix intersection start ----- //
-    // int check = 15; // Check - Select the matrix subset I want to work with
-    int check = 0; // Check - Work with all
+    int check = 6; // Check - Select the matrix subset I want to work with
+    // int check = 0; // Check - Work with all
     int ind = 0; // Check 
     do {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
@@ -1599,7 +1609,7 @@ int main(int argc, char *argv[]){
             free_result_block(&rb);
             // break; // Check
             ind++; // Check
-            check++; // Check - use if starting from zero to get all blocks
+            // check++; // Check - use if starting from zero to get all blocks
         }
         else break;
     } while (true);
