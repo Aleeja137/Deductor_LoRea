@@ -1398,12 +1398,14 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
     for (unsigned i_after = 0; i_after < c; i_after++)
     {
         unsigned i_before = ms->common_L[i_after]-1;
+        // If the before column appears more than once in ms.common_L
         if (before_after[i_before] != -1) 
         {
-            if (before[i_before]>0) after[i_after] = before[i_before];
-            else                    after[i_after] = -(before_after[i_before]+1);
+            if (before[i_before]>0) after[i_after] = before[i_before]; // If the column is a constant, just copy the constant
+            else                    after[i_after] = -(before_after[i_before]+1); // If not, reference first appearance
             duplicated[i_after] = true;
         }
+        // if not, just reorder
         else
         {
             after[i_after] = before[i_before];
@@ -1417,23 +1419,34 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
     int *after2 = (int*)malloc(c*sizeof(int));
     memcpy(after2,after,c*sizeof(int));
 
-    // Need an additional pass to correct indices
+    // Need an additional pass to correct various indices
     for (unsigned i = 0; i < c; i++)
     {
         int ref = after[i];
+        
+        // Only if it is a reference to a variable or constant
         if (ref<0)
         {
+            // If this column was duplicated, it is already correct
             if (duplicated[i]) continue;
             if (chivato) {printf("updating i:%u\n\t",i); print_mat_line(after2,c);} // Check
             unsigned reference = -(ref+1); // Get the index it is pointing to, this index is in the before array
             unsigned current_idx = (unsigned)before_after[reference]; // With this we know the corresponding index in the after array
+            // When reordering, the first appearance can move to the right of a reference
             if (current_idx < i) {after2[i] = -(current_idx+1);} // The first appearance is still the first appearance
-            else                 {after2[current_idx] = -(i+1); after2[i] = 0;} // The first appearance became a reference
+            else // The first appearance became a reference                 
+            {
+                // In this case, the swap happened before (multiple references), point to the first appearance
+                if (after2[current_idx] < 0 ) after2[i] = after2[current_idx];
+                // In this case, it is the first swap, make the reference the first appearance and viceversa
+                else {after2[current_idx] = -(i+1); after2[i] = 0;}
+            }
             if (chivato) {printf("ref: %d, reference: %u, current_idx: %u, -(current_idx+1): %d, -(i+1): %d\n",ref,reference,current_idx,-(current_idx+1), -(i+1));
                           printf("UPDATED i:%u\n\t",i); print_mat_line(after2,c);printf("\n");} // Check
         }
     }
 
+    // Need a last pass to correct indices
     for (unsigned i = 0; i < c; i++)
     {
         int ref = after2[i];
@@ -1507,9 +1520,9 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     // ----- Check correctness start ---- //
     if (verbose) printf("\tComparing unification results. . . \n");
     int same_int = compare_results(&my_rb,rb,ob1,ob2);
-    if (!same_int) {global_correct = false; global_incorrect++; 
-    exit(EXIT_FAILURE); // Check
-    }
+    if (!same_int) {global_correct = false; global_incorrect++; }
+    // exit(EXIT_FAILURE); // Check
+    // }
     global_count++;
 
     if (same_int  && verbose) printf("Unification is correct :)\n");
@@ -1590,8 +1603,8 @@ int main(int argc, char *argv[]){
     // ----- Read file end ----- //
 
     // ----- Matrix intersection start ----- //
-    int check = 6; // Check - Select the matrix subset I want to work with
-    // int check = 0; // Check - Work with all
+    // int check = 10; // Check - Select the matrix subset I want to work with
+    int check = 0; // Check - Work with all
     int ind = 0; // Check 
     do {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
@@ -1609,7 +1622,7 @@ int main(int argc, char *argv[]){
             free_result_block(&rb);
             // break; // Check
             ind++; // Check
-            // check++; // Check - use if starting from zero to get all blocks
+            check++; // Check - use if starting from zero to get all blocks
         }
         else break;
     } while (true);
