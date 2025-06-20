@@ -1,0 +1,98 @@
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0001, M1 blocks 15, M2 blocks 15, OK, 0/105, 14.582963601, 1.565014125, 0.386522660, 1.951536785, 16.658250888
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0170, M1 blocks 264, M2 blocks 264, OK, 0/41418, 67.819156046, 9.469921139, 3.566367834, 13.036288973, 81.199403498
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0003, M1 blocks 12, M2 blocks 12, OK, 0/84, 12.582453509, 0.669690100, 0.339658823, 1.009348923, 13.688849128
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0005, Could not read number of exception blocks in row
+M1 blocks 112, M2 blocks 102, /home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0011, M1 blocks 14, M2 blocks 14, OK, 0/128, 15.173319827, 0.966904523, 0.372123924, 1.339028447, 16.595998778
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0029, M1 blocks 14, M2 blocks 14, OK, 0/128, 14.803290568, 0.875408864, 0.352562651, 1.227971515, 16.105684191
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0051, M1 blocks 6, M2 blocks 27, OK, 0/131, 0.632913946, 0.064618757, 0.071392030, 0.136010787, 0.785242235
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0080, M1 blocks 28, M2 blocks 28, OK, 0/398, 20.680645145, 0.829967533, 0.361593983, 1.191561516, 21.946950118
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0102, M1 blocks 7, M2 blocks 69, OK, 0/362, 1.459900729, 0.064820911, 0.070583029, 0.135403940, 1.696582033
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0131, M1 blocks 57, M2 blocks 61, OK, 0/1047, 31.937513931, 0.905606982, 0.300116562, 1.205723544, 33.361898977
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0052, M1 blocks 13, M2 blocks 27, OK, 0/249, 32.408809076, 1.426460226, 0.726790189, 2.153250415, 34.976763217
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0153, M1 blocks 52, M2 blocks 53, OK, 0/891, 23.409426128, 0.908662654, 0.306721848, 1.215384502, 24.743951942
+Skipping /home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0166: M2 or M3 missing
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0169, M1 blocks 262, M2 blocks 261, OK, 0/40213, 65.188288946, 5.526337187, 3.105194829, 8.631532016, 74.035696708
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0103, M1 blocks 32, M2 blocks 69, OK, 0/1511, 27.313304473, 3.009953049, 0.893767532, 3.903720581, 31.457183488
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0004, M1 blocks 125, M2 blocks 125, OK, 0/14189, 146.120290922, 3.512485457, 1.054951006, 4.567436463, 150.832225473
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0002, M1 blocks 13, M2 blocks 13, OK, 0/87, 13.640475141, 0.719020742, 0.345147482, 1.064168224, 14.778598506
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0032, M1 blocks 13, M2 blocks 13, OK, 0/101, 14.028841792, 0.851790207, 0.357052544, 1.208842751, 15.322199477
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0017, M1 blocks 14, M2 blocks 14, OK, 0/128, 15.227945205, 1.054532052, 0.367296733, 1.421828785, 16.732207864
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0082, M1 blocks 23, M2 blocks 13, OK, 0/135, 15.078251631, 0.858447483, 0.375957620, 1.234405103, 16.392573337
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0154, M1 blocks 53, M2 blocks 53, OK, 0/895, 21.063397355, 1.045780024, 0.386827352, 1.432607376, 22.576430159
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0136, M1 blocks 68, M2 blocks 71, OK, 0/1888, 23.513507333, 1.048946493, 0.321722600, 1.370669093, 24.948042055
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0053, M1 blocks 35, M2 blocks 27, OK, 0/599, 103.324630204, 5.622898299, 2.846260912, 8.469159211, 112.222876383
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0104, M1 blocks 145, M2 blocks 69, OK, 0/5209, 129.620760765, 6.295406192, 1.670524244, 7.965930436, 137.893200590
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0033, M1 blocks 13, M2 blocks 13, OK, 0/101, 17.488677757, 0.738103705, 0.264826870, 1.002930575, 18.551498897
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0020, M1 blocks 13, M2 blocks 13, OK, 0/101, 13.993921662, 0.705140541, 0.248982248, 0.954122789, 15.004922299
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0083, M1 blocks 13, M2 blocks 24, OK, 0/139, 14.778827091, 0.733833766, 0.258305386, 0.992139152, 15.833277777
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0155, M1 blocks 53, M2 blocks 53, OK, 0/895, 19.864742661, 0.887080340, 0.298955519, 1.186035859, 21.134905887
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0035, M1 blocks 14, M2 blocks 14, OK, 0/128, 14.845601617, 0.757085626, 0.261279773, 1.018365399, 15.924347118
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0021, M1 blocks 13, M2 blocks 13, OK, 0/101, 13.939084615, 0.715233677, 0.247998556, 0.963232233, 14.958738099
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0138, M1 blocks 54, M2 blocks 24, OK, 0/554, 18.835928411, 0.829106261, 0.283179075, 1.112285336, 20.004680482
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0084, M1 blocks 24, M2 blocks 24, OK, 0/270, 15.662910186, 0.837703602, 0.262878374, 1.100581976, 16.827130957
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0006, M1 blocks 116, M2 blocks 116, OK, 0/12480, 36.458872043, 0.905346796, 0.327606224, 1.232953020, 37.744112737
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0036, M1 blocks 62, M2 blocks 13, OK, 0/620, 36.119672173, 1.807940627, 0.335500172, 2.143440799, 38.334607949
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0023, M1 blocks 14, M2 blocks 14, OK, 0/128, 15.229738672, 1.777354007, 0.377522302, 2.154876309, 17.481674902
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0158, M1 blocks 22, M2 blocks 77, OK, 0/1067, 0.035177337, 0.007146863, 0.007241046, 0.014387909, 0.063255495
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0159, Could not read number of exception blocks in row
+M1 blocks 28, M2 blocks 77, /home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0087, M1 blocks 75, M2 blocks 24, OK, 0/1189, 38.776043190, 1.519614438, 0.342309788, 1.861924226, 40.709276448
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0139, M1 blocks 24, M2 blocks 53, OK, 0/530, 19.282686504, 1.774270636, 0.396803816, 2.171074452, 21.561361066
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0140, M1 blocks 53, M2 blocks 53, OK, 0/933, 22.697609881, 2.006628573, 0.432581456, 2.439210029, 25.250062333
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0143, M1 blocks 121, M2 blocks 53, OK, 0/3189, 46.352886415, 1.784777799, 0.414264998, 2.199042797, 48.629201302
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0054, M1 blocks 27, M2 blocks 35, OK, 0/599, 138.034493268, 8.661858181, 1.912227313, 10.574085494, 149.196077235
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0007, M1 blocks 13, M2 blocks 12, OK, 0/92, 17.113476170, 0.644359230, 0.207947467, 0.852306697, 18.014014546
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0008, M1 blocks 12, M2 blocks 13, OK, 0/92, 13.101742325, 0.645646318, 0.212577638, 0.858223956, 14.009681650
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0009, M1 blocks 13, M2 blocks 13, OK, 0/101, 13.748367851, 0.679315839, 0.248129736, 0.927445575, 14.729922970
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0105, M1 blocks 69, M2 blocks 145, Not OK, 1/5209, 124.212146727, 6.049277808, 1.857810050, 7.907087858, 132.485017370
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0055, M1 blocks 24, M2 blocks 24, OK, 0/378, 39.528149380, 2.458466930, 1.060006384, 3.518473314, 43.609263296
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0056, M1 blocks 27, M2 blocks 27, OK, 0/495, 38.192289539, 2.473172903, 1.099506561, 3.572679464, 41.909580747
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0106, M1 blocks 66, M2 blocks 66, OK, 0/2652, 38.219731455, 2.733107371, 1.233141607, 3.966248978, 42.326155430
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0062, M1 blocks 5, M2 blocks 27, OK, 0/113, 0.594795464, 0.061472340, 0.071067225, 0.132539565, 0.752898890
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0064, M1 blocks 29, M2 blocks 29, OK, 0/541, 48.344177262, 4.114356741, 1.488228881, 5.602585622, 54.156950268
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0107, M1 blocks 69, M2 blocks 69, OK, 0/2955, 42.865645571, 3.102853967, 1.281955053, 4.384809020, 47.406403060
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0065, M1 blocks 43, M2 blocks 43, OK, 0/1225, 45.261541329, 4.083263993, 1.693496911, 5.776760904, 51.327208915
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0113, M1 blocks 66, M2 blocks 69, OK, 0/2799, 38.968782924, 3.045182493, 1.324116446, 4.369298939, 43.826105821
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0068, M1 blocks 24, M2 blocks 24, OK, 0/256, 15.091318201, 0.763866405, 0.303016811, 1.066883216, 16.215453063
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0075, M1 blocks 23, M2 blocks 23, OK, 0/253, 16.073169286, 0.832988580, 0.258860953, 1.091849533, 17.216358102
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0114, M1 blocks 5, M2 blocks 69, OK, 0/274, 0.549818581, 0.049126494, 0.051305684, 0.100432178, 0.668199519
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0116, M1 blocks 66, M2 blocks 66, OK, 0/2652, 41.111034030, 2.777895410, 1.368164973, 4.146060383, 45.436066937
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0160, Could not read number of exception blocks in row
+M1 blocks 192, M2 blocks 77, /home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0161, Could not read number of exception blocks in row
+M1 blocks 77, M2 blocks 192, /home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0162, M1 blocks 77, M2 blocks 77, OK, 0/3711, 0.200545774, 0.016332248, 0.015348735, 0.031680983, 0.238767120
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0164, M1 blocks 77, M2 blocks 264, OK, 0/13374, 3.617618687, 0.516364084, 0.458166024, 0.974530108, 4.625771163
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0167, M1 blocks 50, M2 blocks 77, OK, 0/3169, 2.277237901, 0.407670944, 0.267157904, 0.674828848, 3.061591318
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0165, M1 blocks 50, M2 blocks 264, OK, 0/7774, 35.005155046, 2.811215285, 1.296059532, 4.107274817, 39.291589374
+Skipping /home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0168: M2 or M3 missing
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0119, M1 blocks 79, M2 blocks 79, OK, 0/3503, 46.299489189, 3.421324642, 1.633465339, 5.054789981, 51.572518720
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0037, M1 blocks 62, M2 blocks 28, OK, 0/1482, 36.963964342, 1.425515185, 0.377277204, 1.802792389, 38.830266981
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0088, M1 blocks 75, M2 blocks 42, OK, 0/2378, 43.652454249, 1.466840392, 0.388104580, 1.854944972, 45.568328680
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0144, M1 blocks 121, M2 blocks 76, OK, 0/5297, 47.724699789, 1.902704722, 0.503806743, 2.406511465, 50.223902179
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0120, M1 blocks 107, M2 blocks 194, Not OK, 6/9618, 126.607227744, 4.721150481, 1.229317641, 5.950468122, 132.773054447
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0038, M1 blocks 28, M2 blocks 62, OK, 0/1482, 38.459082902, 1.081173405, 0.348425391, 1.429598796, 39.948708932
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0089, M1 blocks 42, M2 blocks 75, OK, 0/2378, 44.180955686, 1.154616600, 0.363651549, 1.518268149, 45.759404795
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0145, M1 blocks 76, M2 blocks 121, OK, 0/5297, 50.112476907, 1.268689734, 0.441849858, 1.710539592, 52.395364928
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0039, M1 blocks 73, M2 blocks 73, OK, 0/4417, 118.997728828, 4.346691094, 1.369331305, 5.716022399, 124.919837978
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0090, M1 blocks 104, M2 blocks 104, OK, 0/7952, 133.585389733, 4.281228483, 1.287049397, 5.568277880, 139.335644631
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0146, M1 blocks 173, M2 blocks 173, OK, 0/16125, 184.372502837, 5.359108980, 1.599857027, 6.958966007, 191.546158078
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0121, M1 blocks 107, M2 blocks 107, OK, 0/6477, 51.414786637, 4.217488259, 1.807137158, 6.024625417, 57.638046404
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0040, M1 blocks 62, M2 blocks 62, OK, 0/3372, 29.921274120, 0.924038832, 0.312477469, 1.236516301, 31.211387304
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0124, M1 blocks 58, M2 blocks 62, OK, 0/1056, 20.831659542, 0.942569734, 0.306640828, 1.249210562, 22.135491683
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0091, M1 blocks 75, M2 blocks 75, OK, 0/4453, 31.148843771, 0.759092919, 0.285827153, 1.044920072, 32.243793837
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0042, M1 blocks 12, M2 blocks 12, OK, 0/84, 12.802119712, 0.718243973, 0.242444577, 0.960688550, 13.823269050
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0046, M1 blocks 12, M2 blocks 13, OK, 0/85, 12.744124091, 0.665247572, 0.243914167, 0.909161739, 13.708018783
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0047, M1 blocks 13, M2 blocks 13, OK, 0/87, 12.885805066, 0.825499569, 0.242369557, 1.067869126, 14.012487864
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0093, M1 blocks 23, M2 blocks 23, OK, 0/253, 14.608787096, 0.951662671, 0.274691565, 1.226354236, 15.892530076
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0048, M1 blocks 13, M2 blocks 13, OK, 0/87, 13.270958348, 0.747189391, 0.260043251, 1.007232642, 14.334208306
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0097, M1 blocks 23, M2 blocks 24, OK, 0/254, 14.521553445, 0.876182848, 0.266429408, 1.142612256, 15.723950396
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0147, M1 blocks 121, M2 blocks 121, OK, 0/9161, 39.243134297, 1.272670921, 0.374173230, 1.646844151, 40.941909863
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0098, M1 blocks 24, M2 blocks 24, OK, 0/256, 14.768492493, 0.988300701, 0.268068872, 1.256369573, 16.081170905
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0099, M1 blocks 24, M2 blocks 24, OK, 0/256, 15.084957377, 0.910888643, 0.286230044, 1.197118687, 16.347100184
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0149, M1 blocks 52, M2 blocks 52, OK, 0/888, 20.092975134, 0.950969776, 0.302908485, 1.253878261, 21.406105747
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0176, M1 blocks 259, M2 blocks 264, OK, 0/40363, 57.484070113, 7.394634219, 3.287376057, 10.682010276, 68.481443304
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0177, M1 blocks 9, M2 blocks 264, OK, 0/1688, 0.838116788, 0.072953567, 0.067698242, 0.140651809, 0.993955781
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0179, M1 blocks 259, M2 blocks 259, OK, 0/39333, 61.054581627, 6.063931257, 3.094801833, 9.158733090, 70.443305593
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0182, Could not read number of exception blocks in row
+M1 blocks 6, M2 blocks 264, /home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0183, M1 blocks 338, M2 blocks 486, Not OK, 5/52499, 87.590043548, 6.079366852, 1.803805674, 7.883172526, 95.666393580
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0184, M1 blocks 344, M2 blocks 344, OK, 0/60156, 70.453485579, 11.852643770, 4.187656601, 16.040300371, 86.834522187
+/home/javier/MassiveUnification/Tests/mini-matrices/COM123+1/test0186, Could not read number of exception blocks in row
+M1 blocks 520, M2 blocks 764, 

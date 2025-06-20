@@ -322,6 +322,69 @@ mgu_schema* create_empty_mgu_schema(const unsigned n_common) {
     return ms;
 }
 
+
+void mgu_schema_fix(mgu_schema *ms)
+{
+    unsigned n        = ms->n_common;
+    unsigned left_cols  = n - ms->new_a;
+    unsigned right_cols = n - ms->new_b;
+
+    // These arrays track “old -> new” assignments for fakes
+    unsigned *oldL = malloc(ms->new_a * sizeof *oldL);
+    unsigned *newL = malloc(ms->new_a * sizeof *newL);
+    unsigned *oldR = malloc(ms->new_b * sizeof *oldR);
+    unsigned *newR = malloc(ms->new_b * sizeof *newR);
+    unsigned countL = 0, countR = 0;
+
+    for (unsigned i = 1; i <= n; ++i) {
+        unsigned lx = ms->common_L[i];
+        if (lx > left_cols) {
+            // Fake on left-lookup or assign
+            unsigned j;
+            for (j = 0; j < countL; ++j) {
+                if (oldL[j] == lx) {
+                    ms->common_L[i] = newL[j];
+                    break;
+                }
+            }
+            if (j == countL) {
+                // First time we see this fake
+                unsigned assigned = left_cols + countL + 1;
+                oldL[countL] = lx;
+                newL[countL] = assigned;
+                ms->common_L[i] = assigned;
+                ++countL;
+            }
+        }
+
+        unsigned ry = ms->common_R[i];
+        if (ry > right_cols) {
+            // Fake on right-lookup or assign 
+            unsigned j;
+            for (j = 0; j < countR; ++j) {
+                if (oldR[j] == ry) {
+                    ms->common_R[i] = newR[j];
+                    break;
+                }
+            }
+            if (j == countR) {
+                unsigned assigned = right_cols + countR + 1;
+                oldR[countR] = ry;
+                newR[countR] = assigned;
+                ms->common_R[i] = assigned;
+                ++countR;
+            }
+        }
+    }
+
+    free(oldL);
+    free(newL);
+    free(oldR);
+    free(newR);
+}
+
+
+
 /**
  * Creates a mgu_schema object from a list of 2*n unsigneds, which contains the mapping between columns of left-right terms, in X-Y pairs.
  * Left-Right is the same as A-B in this context
@@ -344,8 +407,11 @@ mgu_schema* create_mgu_from_mapping(unsigned *mapping, const unsigned n, const u
         ms->common_R[i] = y;
     }
 
+    // printf("n: %u, n_L: %u, n_R: %u\n",n,n_L,n_R); // Check
     ms->new_a = n-n_L;
     ms->new_b = n-n_R;
+
+    // mgu_schema_fix(ms);
 
     return ms;
 }
