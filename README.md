@@ -3,30 +3,71 @@ Este proyecto aspira a implementar un deductor lógico de primer orden con contr
 Trabajo desarrollado en colaboración por:  
 - [LoRea EHU](https://www.ehu.eus/es/web/lorea/web-gunea)  
 - [ISG EHU](http://www.sc.ehu.es/ccwbayes/)  
+    
+------  
+  
+This project aims to implement a first-order logic deductor with equality constraints in C, and then optimize and accelerate it on GPUs.  
+Work developed in collaboration by:  
+- LoRea EHU (https://www.ehu.eus/es/web/lorea/web-gunea)  
+- ISG EHU (http://www.sc.ehu.es/ccwbayes/)  
 
-## Branch info  
-Functionalites:  
-    - Unification withou exceptions  
-    - Added basic column matching, M1 and M2 can have different flatenned schemas
+## Functionalites  
+- Unification without exceptions  
+- M1 and M2 can have different number of columns, the mapping on *M3.csv files will indicate relationship between their schemas
   
   
-## Compilación  
-`gcc -o c core.c -Wall -Wextra -g -O0 structures.c -lm`  
-`gcc -o c core.c -Wall -Wextra -O2 structures.c -lm`  
+## Compilation
+`gcc -o c core.c -Wall -Wextra -g -O0 structures.c [COM|AGT]_hash.c -lm`  
+`gcc -o c core.c -Wall -Wextra -O3 structures.c [COM|AGT]_hash.c -lm`  
 
-## Uso  
-`./c secondExamples/test0002.csv` siendo test0002.csv cualquier fichero de la carpeta secondExamples.  
+## Use
+Note that currently there are two types of tests, from COM or AGT. To use the code in each type of test, the binary must be compiled with the correct AGT_hash.c or COM_hash.c  
+`./c /path/to/testXXM1.csv /path/to/testXXM2.csv /path/to/testXXM3.csv [verbose]`
 
-## Uso prolog  
-`swipl -f get_times.pl -g "main('Files/AGT004+1.p/test000X.pl'), halt"`  
+## Extended use  
+Can call execute_triplets to find and execute all M1,M2 and M3 triplets within a given folder. Results will be with no verbose by default (recommended), so times will show in a neat csv style file: 
 
-Para la comprobación de memoria con valgrind:  
-`valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=valgrind-out.txt ./c secondExamples/test0001.csv`  
-Dejará el resultado en valgrind-out.txt en la misma carpeta que el ejecutable.   
+`./execute_triplets.sh /path/to/folder`  
+`nohup [time] ./execute_triplets.sh /path/COM123+1 > res_COM.csv 2>&1 &`  
 
-## Ficheros  
+Output example:  
+```csv
+/path/COM123+1/test0001, M1 blocks 15, M2 blocks 15, OK, 0/105, 14.126102932, 0.705182065, 0.260217489, 0.965399554, 15.149331875
+/path/COM123+1/test0170, M1 blocks 264, M2 blocks 264, OK, 0/41418, 61.534173169, 6.006631036, 3.259907399, 9.266538435, 71.027235948
+/path/COM123+1/test0003, M1 blocks 12, M2 blocks 12, OK, 0/84, 12.780420899, 0.795690496, 0.239054632, 1.034745128, 13.865813695
+
+```  
+
+## Output  
+The expected output for each test triplet includes:  
+- The base path to the test
+- Number of matrix subsets in M1
+- Number of matrix subsets in M2
+- If all computed matrix subsets are OK or Not OK
+- The number of incorrect resulting matrix subsets by the total number of resulting matrix subsets (if OK, should be 0/XXX)
+- The time needed to parse input files (in seg.)
+- Time needed to compute unifiers (in seg.)
+- Time needed to apply unifiers (in seg.)
+- Total combined time for unification (that is, total time minus the file parse and result checking)
+- Total execution time (in seg.)
+
+## For memory checking with Valgrind:  
+```bash
+valgrind --leak-check=full \
+         --show-leak-kinds=all \ 
+         --track-origins=yes --verbose --log-file=valgrind-out.txt \
+         ./c /path/to/testXXM1.csv /path/to/testXXM2.csv \
+         /path/to/testXXM3.csv [verbose]
+```
+
+## Files    
 ### core.c  
-Funciones para manejar el cómputo de matrices, unificadores, etc.  
+Functions for matrix computation, unifier handling, etc   
 ### structures.c  
-Funciones para manejar las estructuras de datos definidas para este proyecto (L1, L2, L3).  
-
+Functions for managing this project’s data structures (L1, L2, L3, operand_block, result_block, main_term, mgu_schema, etc)
+### dictionary.c  
+Simple dictionary functionality for various operations of constant/variable element handling    
+### AGT_hash.c  
+Perfect hash used to read symbols (constants) from AGT test files more efficiently  
+### COM_hash.c  
+Perfect hash used to read symbols (constants) from COM test files more efficiently  
