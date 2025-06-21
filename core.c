@@ -965,7 +965,7 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
     {
         for (j=0; j<ob2->r; j++)
         {
-            // if (i==0 && j==0) chivato=true; // Check
+            // if (i==3 && j==1) chivato=true; // Check
             memset(unifier,0,unifier_size*sizeof(unsigned));  
             unsigned index_mt = i*rb->r2+j;
             if (chivato) {unifier[0]=m; print_unifier(unifier,m);} // Check
@@ -1093,6 +1093,16 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
     bool *duplicated = (bool*)malloc(c*sizeof(bool));
     memset(duplicated,0,c*sizeof(bool));
 
+    for (unsigned i = 0; i < c; i++)
+    {
+        int ref = before[i];
+        unsigned reference = -(ref+1);
+        if (ref<0 && before[reference]!=0)
+        {
+            before[i] = before[reference];
+        }
+    }
+
     for (unsigned i_after = 0; i_after < c; i_after++)
     {
         unsigned i_before = ms->common_L[i_after]-1;
@@ -1111,11 +1121,12 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
         } 
     }
     
-    if (chivato) {printf("before -->\t"); print_mat_line(before,c);} // Check
-    if (chivato) {printf("after  -->\t"); print_mat_line(after,c);} // Check
+    if (chivato) {printf("before  -->\t"); print_mat_line(before,c);} // Check
+    if (chivato) {printf("after   -->\t"); print_mat_line(after,c);} // Check
 
     int *after2 = (int*)malloc(c*sizeof(int));
     memcpy(after2,after,c*sizeof(int));
+    
 
     // Need an additional pass to correct various indices
     for (unsigned i = 0; i < c; i++)
@@ -1199,9 +1210,9 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
 
         main_term *mt = &my_rb.terms[index_mt];
         *mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
-        // if (index_mt==0) {chivato=true;} // Check
+        // if (index_mt==174) {chivato=true;} // Check
         apply_unifier_left(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &unifiers[i*unifier_size]);
-        // if (index_mt==0) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->terms[index_mt].ms->n_common);} // Check
+        // if (index_mt==174) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->terms[index_mt].ms->n_common);} // Check
         // prepare_unified(mt->row,line_B, rb->ms, false);
         reorder_unified(mt, rb->terms[index_mt].ms);
         chivato=false;
@@ -1301,7 +1312,7 @@ int main(int argc, char *argv[]){
     // ----- Read file end ----- //
 
     // ----- Matrix intersection start ----- //
-    // int check = 10; // Check - Select the matrix subset I want to work with
+    // int check = 1015; // Check - Select the matrix subset I want to work with
     int check = 0; // Check - Work with all
     int ind = 0; // Check 
     do {
