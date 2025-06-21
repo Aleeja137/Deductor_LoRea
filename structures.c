@@ -479,68 +479,6 @@ void print_mgu_compact(mgu_schema *ms) {
 
 // ===<<< END MGU SCHEMA >>>=== //
 
-// ===<<< BEGIN MATRIX SCHEMA >>>=== //
-matrix_schema* create_empty_matrix_schema(const unsigned m) {
-    matrix_schema *ms = malloc(sizeof(matrix_schema));
-    if (!ms) {fprintf(stderr, "Unable to allocate memory for matrix_schema\n"); exit(EXIT_FAILURE); }
-    ms->m = m;
-    ms->columns = (unsigned*)malloc(m*sizeof(unsigned));
-    ms->mapping = (unsigned*)malloc(m*sizeof(unsigned));
-
-    if (!ms->columns || !ms->mapping) {
-        fprintf(stderr, "Unable to allocate memory inside matrix_schema\n"); 
-        free(ms->columns); free(ms->mapping); free(ms);
-        exit(EXIT_FAILURE);
-    }
-
-    return ms;
-}
-
-// Assumes input arrays are not null and have appropiate size
-matrix_schema* create_matrix_schema(const unsigned m, unsigned* columns, unsigned* mappings) {
-    matrix_schema *ms = malloc(sizeof(matrix_schema));
-    if (!ms) {fprintf(stderr, "Unable to allocate memory for matrix_schema\n"); exit(EXIT_FAILURE); }
-    ms->m = m;
-    ms->columns = (unsigned*)malloc(m*sizeof(unsigned));
-    ms->mapping = (unsigned*)malloc(m*sizeof(unsigned));
-
-    if (!ms->columns || !ms->mapping) {
-        fprintf(stderr, "Unable to allocate memory inside matrix_schema\n"); 
-        free(ms->columns); free(ms->mapping); free(ms);
-        exit(EXIT_FAILURE);
-    }
-
-    for (unsigned i = 0; i<m; i++){
-        ms->columns[i]=columns[i]; 
-        ms->mapping[i]=mappings[i];
-    }
-
-    return ms;
-}
-
-void free_matrix_schema(matrix_schema* ms) {
-    if (ms) {
-        free(ms->mapping);
-        free(ms->columns);
-        free(ms);
-    }
-}
-
-void print_matrix_schema(matrix_schema* ms){
-    printf("columns: [");
-    for (unsigned i = 0; i<ms->m-1; i++){
-        printf("%d, ",ms->columns[i]);
-    }    
-    printf("%d]\n",ms->columns[ms->m-1]);
-
-    printf("mapping: [");
-    for (unsigned i = 0; i<ms->m-1; i++){
-        printf("%d, ",ms->mapping[i]);
-    }    
-    printf("%d]\n",ms->mapping[ms->m-1]);
-}
-// ===<<< END MATRIX SCHEMA >>>=== //
-
 // ===<<< BEGIN L2, L3 >>>=== //
 L2 create_L2_empty(){
     L2 node;

@@ -12,31 +12,56 @@
 
 #include "dictionary.h"
 #include "structures.h"
-// #include "AGT_hash.h"
+// #include "AGT_hash.h" // The header files are the same for COM and AGT, so just pass the correct .c when compiling and that's it
 #include "COM_hash.h"
 
-#define ROW_STR_SIZE (snprintf(NULL, 0, "%d", INT_MAX) + 1)
-Dictionary *var_dict;
-Dictionary *unif_dict;
-bool first_rb = true;
+// Buffer size for row-string conversion, enough for INT_MAX digits plus null terminator
+#define ROW_STR_SIZE (snprintf(NULL, 0, "%d", INT_MAX) + 1)  
 
-struct nlist *dict;
-int verbose = 0;
+// Global dictionary mapping variables in the csv file to their indices during parsing
+Dictionary *var_dict;  
 
-// read_mat_row is necessary to prevent 'tok' from two matrices taking the same 'tok+row_str' 
-// but row still needs to start from 0 each read_matrix call, so additional variable
-int read_mat_row = 0; 
-int last_int = 1;
+// Global dictionary for tracking variable–variable substitutions when applying unifier
+Dictionary *unif_dict;  
 
-struct timespec read_file_elapsed, unifiers_elapsed, unification_elapsed;
+// Flag to skip header check only on the first read_result_block call
+bool first_rb = true;  
 
-bool chivato = false;
-bool global_correct = true;
-unsigned global_count = 0;
-unsigned global_incorrect = 0;
+// Verbosity flag: if nonzero, print debugging and timing information
+int verbose = 0;  
+
+// Accumulated timers for file I/O, unifier computation, and unification application
+struct timespec read_file_elapsed, unifiers_elapsed, unification_elapsed;  
+
+// Internal flag for tracing events or logging extra diagnostics if enabled, only used during development
+bool chivato = false;  
+
+// Tracks if all unified matrix subsets from M3 file are correct
+bool global_correct = true;  
+
+// Total number of matrix intersections performed
+unsigned global_count = 0;  
+
+// Count of intersections that failed correctness checks
+unsigned global_incorrect = 0;  
+
 
 // --------------------- UTILS START --------------------- //
 
+/**
+ * @brief Prints the internal L2 substitution list for debugging
+ * @param lst   Array of L2 entries of length 2*n
+ * @param n     Number of variable pairs
+ *
+ * Computes maximum list depth across all entries
+ * Allocates temporary arrays to collect ind, count, by, and chained indices
+ * Prints:
+ *   ind:    original index for each entry
+ *   count:  substitution count flag
+ *   by:     target index or X if none
+ *   chained rows of subsequent substitutions or X
+ * Frees all temporaries before return
+ */
 void print_L2_lst(L2 *lst, const unsigned n){
 
     // Chech max depth
@@ -123,6 +148,14 @@ void print_L2_lst(L2 *lst, const unsigned n){
     free(indices);
 }
 
+/**
+ * @brief Adds two timespec values
+ * @param result  Pointer to timespec to receive sum
+ * @param t1      First timespec to add
+ * @param t2      Second timespec to add
+ *
+ * Computes result = t1 + t2, normalizing tv_nsec to <1e9
+ */
 void timespec_add(struct timespec *result, const struct timespec *t1, const struct timespec *t2) {
     result->tv_sec = t1->tv_sec + t2->tv_sec;
     result->tv_nsec = t1->tv_nsec + t2->tv_nsec;
@@ -132,7 +165,14 @@ void timespec_add(struct timespec *result, const struct timespec *t1, const stru
     }
 }
 
-// Prints the matrix elements, not the metadata nor the unifiers
+/**
+ * @brief Prints a row from a 2D integer matrix, used for debugging
+ * @param mat  Pointer to int array of size n*m
+ * @param n    Number of rows
+ * @param m    Number of columns
+ *
+ * Each row printed as “[x0 x1 … x(m-1)]”.
+ */
 void print_mat_values(int *mat, int n, int m){
     int i, j;
     int line_len = m;
@@ -146,7 +186,13 @@ void print_mat_values(int *mat, int n, int m){
 	}
 }
 
-// Print the mapping in a pretty way, taken from print_mgu_compact
+/**
+ * @brief Prints mapping pairs in “X-Y” format, for debugging
+ * @param n_tl  Number of X-Y pairs
+ * @param map   Array of length 2*n_tl: [X0,Y0,X1,Y1,...,X(n_tl-1),Y(n_tl-1)]
+ *
+ * Prints “[X0-Y0,X1-Y1,...,X(n_tl-1)-Y(n_tl-1)]”, using “_” for X=0|Y=0
+ */
 void print_mapping(unsigned n_tl, unsigned *map) {
     for (unsigned i = 0; i < n_tl; i++) {
         unsigned left = map[2 * i];
@@ -161,7 +207,13 @@ void print_mapping(unsigned n_tl, unsigned *map) {
     printf("\n");
 }
 
-// Prints the unifier, m is the number of columns in the resulting term
+/**
+ * @brief Prints a unifier
+ * @param unifier  Array with format [n_elem, x1,y1, …, xi,yi, idxA, idxB]
+ * @param m        Number of columns in resulting term
+ *
+ * Prints [n_elem,x<-y,...,idxA,idxB], x<-y being 0-based and idxA and idxB being 1-based
+ */
 void print_unifier(unsigned *unifier, unsigned m){
     unsigned i;
     unsigned n_elem = unifier[0]*2;
@@ -176,6 +228,14 @@ void print_unifier(unsigned *unifier, unsigned m){
     printf("],\t\tidxA: %u, idxB: %u\n",idxA+1, idxB+1);
 }
 
+/**
+ * @brief Prints a list of unifiers, for debugging
+ * @param unifiers    Array of unifier vectors concatenated
+ * @param unif_count  Number of unifiers in the array
+ * @param m           Number of columns in resulting term
+ *
+ * Iterates and calls print_unifier for each entry, then prints total count
+ */
 void print_unifier_list(unsigned *unifiers, unsigned unif_count, unsigned m){
 
     unsigned i, unifier_size = 1+(2*m)+2;
@@ -186,6 +246,11 @@ void print_unifier_list(unsigned *unifiers, unsigned unif_count, unsigned m){
     printf("Number of unifiers: %d\n",unif_count);
 }
 
+/**
+ * @brief Prints one row of a matrix as “[x0,x1,…]”, for debugging
+ * @param row  Pointer to int array of length m
+ * @param m    Number of columns
+ */
 void print_mat_line(int *row, int m){
     int j;
     printf("[");
@@ -194,6 +259,15 @@ void print_mat_line(int *row, int m){
     printf("]\n");
 }
 
+
+/**
+ * @brief Compares two MGU matrices for equality
+ * @param my_mgu     Pointer to first matrix array of size n*m
+ * @param other_mgu  Pointer to second matrix array of size n*m
+ * @param n          Number of rows.
+ * @param m          Number of columns
+ * @return 1 if all entries match; 0 if any differ plus printing context for debugging
+ */
 int compare_mgus(int *my_mgu, int *other_mgu, int n, int m){
     int same = 1;
     int n_elems = n*m;
@@ -214,6 +288,12 @@ int compare_mgus(int *my_mgu, int *other_mgu, int n, int m){
     return same; 
 }
 
+/**
+ * @brief Compares two main_term structures for equality
+ * @param mt1  First main_term
+ * @param mt2  Second main_term
+ * @return 1 if column count, exception count, row values, and exception blocks all match; 0 otherwise plus printing context for debugging
+ */
 int compare_main_terms(main_term *mt1, main_term *mt2){
     // Quick check
     if ((mt1->c != mt2->c) || (mt1->e != mt2->e))
@@ -257,13 +337,19 @@ int compare_main_terms(main_term *mt1, main_term *mt2){
     return 1;
 }
 
-// Return 0 if they are not the same
+/**
+ * @brief Compares two result_block contents against expected operand_blocks
+ * @param rb1   First result_block, the one computed
+ * @param rb2   Second result_block, the one read from csv
+ * @param ob1   First operand_block used in comparison context
+ * @param ob2   Second operand_block used in comparison context
+ * @return 1 if all metadata (dimensions, counts) and each valid main_term (rows and exceptions) match; 0 otherwise plus printing context for debugging
+ */
 int compare_results(result_block *rb1, result_block *rb2, operand_block *ob1, operand_block *ob2){
     
     // Quick check
     if ((rb1->c1 != rb2->c1) || (rb1->c2 != rb2->c2) || (rb1->c != rb2->c) || 
     (rb1->r1 != rb2->r1) || (rb1->r2 != rb2->r2) || (rb1->r != rb2->r)) 
-    // (rb1->t1 != rb2->t1) || (rb1->t2 != rb2->t2))
     {
         if (verbose) printf("compare_results quick test failed\n");
         if (verbose) printf("rb1: c1=%d, c2=%d, c=%d, r1=%d, r2=%d, r=%d, t1=%d, t2=%d\n",
@@ -303,6 +389,14 @@ int compare_results(result_block *rb1, result_block *rb2, operand_block *ob1, op
 
 
 // --------------------- READING FILE START --------------------- //
+/**
+ * @brief Reads the number of blocks from the first line containing “%%% BEGIN: Matrix MX (S) %%%”.
+ * @param stream  Pointer to input FILE
+ * @param s       Pointer to unsigned where parsed number is stored
+ * @return 0 on success; 1 on failure
+ * 
+ * Reads one line via getline(). On any error (EOF, missing tokens, parse failure), returns 1
+ */
 int read_num_blocks(FILE *stream, unsigned *s) {
     char *line = NULL;
     size_t len = 0;
@@ -312,45 +406,22 @@ int read_num_blocks(FILE *stream, unsigned *s) {
 
     char *endptr;
     char *e = strchr(line, '(');
-    if (!e) {free(line); return 0;} // Not the correct line
+    if (!e) {free(line); return 1;} // Not the correct line
     int num = strtol(e + 1, &endptr, 10);
-    if (endptr == e + 1) {free(line); return 0;}
+    if (endptr == e + 1) {free(line); return 1;}
 
     *s = (unsigned)num;
     free(line);
     return 0;
 }
 
-matrix_schema* read_matrix_schema_from_csv(const char* line, int m) {
-
-    unsigned* columns = malloc(m * sizeof(unsigned));
-    unsigned* mapping = malloc(m * sizeof(unsigned));
-
-    // Parse the line
-    char* line_copy = strdup(line);
-    char* tok = strtok(line_copy, ",");
-    int i = 0;
-    while (tok && i < m) {
-        columns[i] = (unsigned)atoi(tok);
-        mapping[i] = (unsigned)i;
-        tok = strtok(NULL, ",");
-        i++;
-    }
-    free(line_copy);
-
-    if (i != m) {
-        fprintf(stderr, "Mismatch in number of parsed columns\n");
-        free(columns);
-        free(mapping);
-        exit(EXIT_FAILURE);
-    }
-
-    matrix_schema* ms = create_matrix_schema(m, columns, mapping);
-    free(columns);
-    free(mapping);
-    return ms;
-}
-
+/**
+ * @brief Reads two unsigned dimensions (n, m) from a “% BEGIN: Matrix subsetX.Y (n,m)
+ * @param stream  Pointer to input FILE
+ * @param n       Pointer to unsigned to receive first number
+ * @param m       Pointer to unsigned to receive second number
+ * @return void  Exits on any parse error or missing tokens
+ */
 void read_dimensions(FILE *stream, unsigned *n, unsigned *m) {
     char *line = NULL;
     size_t len = 0;
@@ -392,6 +463,19 @@ void read_dimensions(FILE *stream, unsigned *n, unsigned *m) {
     free(line);
 }
 
+/**
+ * @brief Parses one CSV data line into integer row values, handling constants and variables
+ * @param line        Modifiable string containing comma-separated tokens
+ * @param row         Pointer to int array where parsed values are stored
+ * @param skip_first  If true, skip first token before parsing row entries (for exceptions or not)
+ * @return void
+ * 
+ * Tokenizes input on commas/newlines. If token begins with uppercase letter, treats as variable:
+ *   - If unseen, installs in var_dict with current column index, row[col]=0
+ *   - If seen, row[col]= –(definition index)
+ * If token begins lowercase/digit, looks up constant value in symbol table and writes s->value
+ * Clears var_dict before iteration, because variables are independent from row to row
+ */
 void read_line(char *line, int *row, bool skip_first) {
     char *tok = strtok(line, ",");
     if (skip_first) tok = strtok(NULL, ",\n");
@@ -415,6 +499,17 @@ void read_line(char *line, int *row, bool skip_first) {
     }
 }
 
+/**
+ * @brief Parses mapping pairs from a “X-Y” list into an array
+ * @param line      Modifiable string containing pairs separated by commas
+ * @param n_pairs   Number of expected pairs
+ * @param mapping   Pointer to unsigned array of length n_pairs*2 to fill with parsed ints
+ * @return void
+ * 
+ * Tokenizes on space/comma/newline. For each token containing ‘-’, splits into first/second
+ * Converts each side to unsigned via atoi, treating “_” as zero, although with last format of test files no "_" should happen
+ * Stores sequentially in mapping[]
+ */
 void get_mapping(char *line, unsigned n_pairs, unsigned *mapping){
     char *tok = strtok(line, " ,\n");
     unsigned count = 0;
@@ -432,6 +527,24 @@ void get_mapping(char *line, unsigned n_pairs, unsigned *mapping){
     }
 }
 
+/**
+ * @brief Reads exception blocks from stream into main_term structures. NOT USED FOR NOW, OUTDATED
+ * @param stream  Pointer to input FILE
+ * @param mt      Pointer to main_term containing e exception count and exception pointers
+ * @param result  If true, input follows result-file format (skips extra unifier lines)
+ * @return void  Exits on any parse error
+ * 
+ * For each exception 0..e-1:
+ *   - read_dimensions n,m
+ *   - allocate empty exception_block of size n×m
+ *   - skip unflatened schema line
+ *   - read mapping line, build mgu schema
+ *   - optionally skip flattened schema
+ *   - for each of n rows:
+ *       read line, adjust pointer if result format, call read_line
+ *       if result format, skip unifier line
+ *   - skip “END” line
+ */
 void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
     unsigned n, m;
     unsigned e = mt->e;
@@ -479,12 +592,18 @@ void read_exception_blocks(FILE *stream, main_term *mt, const bool result) {
     free(line);
 }
 
+/**
+ * @brief Reads one operand matrix (with exception blocks) from stream
+ * @param stream  Pointer to input FILE
+ * @param ob      Pointer to operand_block to populate (r rows, c columns)
+ * @return void  Exits on EOF or parse error
+ * 
+ */
 void read_operand_matrix(FILE *stream, operand_block *ob) {
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
     unsigned row = 0;
-    // unsigned col;
 
     // Skip unflatened schema
     getline(&line, &len, stream);
@@ -524,6 +643,16 @@ void read_operand_matrix(FILE *stream, operand_block *ob) {
     free(line);
 }
 
+/**
+ * @brief Reads result matrix subsets and their unification terms from stream
+ * @param stream  Pointer to input FILE
+ * @param rb      Pointer to result_block to fill: indices, dimension, terms, valid flag
+ * @return void  Exits on parse error
+ * 
+ * Reads header “% BEGIN: Matrix subset t1-t2 (r1-r2,c1-c2,c)”
+ * Result matrix subsets that combine two lineal operand matrix subsets have one unique mapping common to all unified rows
+ * For convenience, it is red once but copied to each result_block.main_term's struct. Not memory efficient, but makes treatment later homogeneous 
+ */
 void read_result_matrix(FILE *stream, result_block *rb) {
     char *line = NULL;
     size_t len = 0;
@@ -584,7 +713,6 @@ void read_result_matrix(FILE *stream, result_block *rb) {
     unsigned row = 0;
     while ((read = getline(&line, &len, stream)) != -1 && row < rb->r) {
         
-        // if (verbose) printf("line: '%s'\n",line); // Check
         // If end of matrix reached, exit
         if (strstr(line, "END") != NULL || strstr(line, "End") != NULL)
             break;
@@ -654,10 +782,11 @@ void read_result_matrix(FILE *stream, result_block *rb) {
 }
 
 /**
- * Reads an operand block from a csv
+ * @brief Reads an operand block from a CSV-formatted stream
+ * @param stream   FILE pointer positioned at the first line of an operand block header
+ *                 Header format: “% BEGIN: Matrix subsetX.Y (n,m)”
+ * @return         Populated operand_block containing r*c main terms, each with exception blocks
  *
- * @param stream   Input file stream to operand block from, must point to the first line of the block, of form '% BEGIN: Matrix subsetX.Y (n,m)'
- * @return         Operand block that contains all main terms, their number of exception blocks and all the exceptions
  */
  operand_block read_operand_block(FILE *stream) {
 
@@ -675,11 +804,14 @@ void read_result_matrix(FILE *stream, result_block *rb) {
 }
 
 /**
- * Reads a result block from a csv
- * TODO: Update documentation
+ * @brief Reads a result block from a CSV-formatted stream
+ * @param stream   FILE pointer positioned at the first line of a result block
+ *                 May begin with “END: Matrix M1 & M2 + MGU” if first_rb flag set
+ * @return         Populated result_block containing subset indices, term count, mappings, and exception data
  *
- * @param stream   Input file stream to operand block from, must point to the first line of the block, of form '% BEGIN: Matrix subsetX.Y (n,m)'
- * @return         Operand block that contains all main terms, their number of exception blocks and all the exceptions
+ * On first invocation (first_rb==true), reads and skips the matrix header line
+ * Detects early “END” marker and returns a null result_block if present
+ * Delegates content parsing to read_result_matrix()
  */
 result_block read_result_block(FILE *stream) {
 
@@ -706,7 +838,26 @@ result_block read_result_block(FILE *stream) {
 // ---------------------- READING FILE END ---------------------- //
 
 // --------------------- CORE START --------------------- //
-// Update the unifier of two elements from different rows, unifier pointer must be pointing to row_a's unifier (for now)
+/**
+ * @brief Treats one variable-to-variable or constant-to-variable binding entry for unification, 'dumb' half of unifier calculation
+ * @param row_a         Integer array for row A
+ * @param indexA        Zero-based column index in row_a
+ * @param row_b         Integer array for row B
+ * @param indexB        Zero-based column index in row_b
+ * @param unifier       Unsigned array to record binding pairs; entries start at unifier[1+indexUnifier] (first element is the number of substitutions)
+ * @param indexUnifier  Offset into unifier array (pairs occupy two slots each)
+ * @param cA            Number of original columns in row_a
+ * @param n_cA          Number of newly added columns in row_a
+ * @param cB            Number of original columns in row_b
+ * @return 0 if substitution added or constants match; 1 if both entries constant and unequal (not-unifiable)
+ *
+ * If indexA refers to a new-variable column in row_a, adds (A←B) substitution
+ * Else if indexB refers to a new-variable column in row_b, adds (B←A)
+ * Otherwise retrieves a=row_a[indexA], b=row_b[indexB]
+ *   - If both positive and unequal, returns 1 (not unifiable)
+ *   - If a>0, b≤0, records (b←a)
+ *   - If a≤0, records (a←b) (this could be changed for unification speed-up, will be studied later)
+ */
 int unifier_a_b(int *row_a, const unsigned indexA, int *row_b, const unsigned indexB, unsigned *unifier, const unsigned indexUnifier, const unsigned cA, const unsigned n_cA, const unsigned cB){
 
     const unsigned m1 = cA + n_cA; // The number of columns in row_a is the old number of columns plus the new columns
@@ -747,24 +898,43 @@ int unifier_a_b(int *row_a, const unsigned indexA, int *row_b, const unsigned in
 	return 0;
 }
 
-// Return the unifier of two rows (naive) or 1 if not unificable
+/**
+ * @brief Builds a full unifier for two main_term rows based on a mgu_schema
+ * @param mt1       Pointer to first main_term 
+ * @param mt2       Pointer to second main_term
+ * @param ms        Pointer to mgu_schema listing common column pairs (in this version, all columns are common)
+ * @param unifier   Unsigned array sized at least 2*ms->n_common to receive bindings (worst-case that is the max number of substitutions)
+ * @return 0 if rows are unifiable; 1 upon first constant mismatch (easiest tell for not-unifiable)
+ *
+ * Iterates over each common column index pair in ms->common_L and common_R
+ * Calls unifier_a_b() to handle individual binding or detect conflict
+ * Halts and returns 1 on any non-unifiable pair; returns 0 otherwise
+ */
 int unifier_rows(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *unifier){
-    int result;
     const unsigned m = ms->n_common;
     for (unsigned i = 0; i < m; i++)
     {
-        result = unifier_a_b(mt1->row, ms->common_L[i]-1, mt2->row, ms->common_R[i]-1, unifier, 2*i, mt1->c, ms->new_a, mt2->c);
-        if (result) return result; // If it is not unifiable already, do not bother continuing
+        if (unifier_a_b(mt1->row, ms->common_L[i]-1, mt2->row, ms->common_R[i]-1, unifier, 2*i, mt1->c, ms->new_a, mt2->c)) return 1; // If it is not unifiable already, do not bother continuing
     }
     
 	return 0;
 }
 
-// Correct/reduce/verify the unifier. The unifier has 1+2*m+2 elements, for n_substitutions + 2*m (max number of substitutions) and 2 for index of mt1 and mt2 in M1 and M2 respectively
+/**
+ * @brief Verifies and simplifies a raw unifier array for two rows
+ * @param mt1       First main_term
+ * @param mt2       Second main_term
+ * @param ms        Schema defining common and new columns
+ * @param unifier   Array of length 1+2*m where m = ms->n_common, containing the 'raw' unifier (produced by first dumb step)
+ * @return 0 if unifier is valid; -1 else
+ *
+ * Builds temporary lists to track variable substitutions
+ * Normalizes repeated-variable indices
+ * Merges constant-to-variable and variable-to-variable bindings
+ * Removes redundant bindings, writes final substitution count at unifier[0]
+ */
 int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *unifier){
     
-    // const unsigned m1 = mt1->c + ms->new_a;
-    // const unsigned m2 = mt2->c + ms->new_b;
     const unsigned c1 = mt1->c;
     const unsigned c2 = mt2->c;
     const unsigned m  = ms->n_common;
@@ -785,7 +955,6 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
         unsigned y = unifier[1+i+1];
         int val_y;
         int val_x; 
-        if (chivato) printf("---\nSTART - x: %u, y: %u\n",x,y); // Check
 
         if (x == y && x == 0) continue; // Empty case
 
@@ -798,7 +967,6 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
             y = -(row_a[y]+1);
         else if (y >= m && (y-m) < c2 && row_b[y-m] < 0)
             y = -(row_b[y-m]+1) + m; 
-        if (chivato) printf("REAL - x: %u, y: %u\n",x,y); // Check
 
 
         // If any of them was substituted before, get the corresponding elements
@@ -806,7 +974,6 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
         if (lst[y].count > 0) y = lst[y].by;
         if (x==y) continue; 
         // No need to get real index again, the substitution is done for the real index
-        if (chivato) printf("BY - x: %u, y: %u\n",x,y); // Check
 
         // Get the value of x and y
         if (x < c1) val_x = row_a[x];
@@ -819,7 +986,6 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
         else if ((y-m) < c2) val_y = row_b[(y-m)];
         else val_y = 0;
 
-        if (chivato) printf("val_x: %d, val_y: %d\n",val_x,val_y); // Check
 
         // If both constants 
         if (val_x > 0 && val_y > 0 && val_x!=val_y) {for(size_t aux=0;aux<lst_length;aux++) free_L2(lst[aux]); free(lst);return -1;} // And don't match
@@ -832,14 +998,12 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
             lst[y].count = 1;
             lst[y].by    = x;
             lst[y].ind   = y;
-            if (chivato) printf("(y<-x)\n"); // Check
 
 
             // Update all variables replaced by y to be replaced by x
             L3 *current = lst[y].head;
             while (current != NULL)
             {
-                if (chivato) printf("(y<-x) - %d previously replaced by y:%u, now replaced by x: %u\n",current->ind,y,x); // Check
                 lst[current->ind].by = x;
                 current = current->next;
             }
@@ -875,12 +1039,10 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
             lst[x].by    = y;
             lst[x].ind   = x;
 
-            if (chivato) printf("(x<-y)\n"); // Check
             // Update all variables replaced by x to be replaced by y
             L3 *current = lst[x].head;
             while (current != NULL)
             {
-                if (chivato) printf("(x<-y) - %d previously replaced by x:%u, now replaced by y: %u\n",current->ind,x,y); // Check
                 lst[current->ind].by = y;
                 current = current->next;
             }
@@ -911,9 +1073,9 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
         }
     }
 
-    if (chivato) printf("Now reducing it\n"); // Check
     int last_unifier = 0;
     unsigned n_substitutions = 0;
+
     // For each element, add the substitutions to the unifier
     for (i=0; i<lst_length; i++)
     {
@@ -921,13 +1083,11 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
         int x;
         if (lst[y].count == 0 && lst[y].head)
         {
-            if (chivato) printf("y: %u substitutes someone\n",y); // Check
             // Get substitutions (x <- y)
             L3* current = lst[y].head;
             while (current != NULL)
             {
                 x = current->ind;
-                if (chivato) printf("\ty: %u substitutes x: %u\n",y,x); // Check
                 unifier[1+last_unifier]   = x;
                 unifier[1+last_unifier+1] = y;
                 current = current->next;
@@ -938,7 +1098,6 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
     }
     unifier[0] = n_substitutions;
 
-    if (chivato) print_L2_lst(lst,m); // Check
 
     // Free lst
     for ( i = 0; i < lst_length; i++) free_L2(lst[i]);
@@ -947,15 +1106,26 @@ int correct_unifier(main_term *mt1, main_term *mt2, mgu_schema *ms, unsigned *un
     return 0;
 }
 
-// Return the unifiers for two given matrices. Must have same width, and unifiers must be initialized to n0*n1 before calling function
+
+/**
+ * @brief Computes all valid unifiers between two operand matrices
+ * @param ob1        Pointer to first operand_block
+ * @param ob2        Pointer to second operand_block
+ * @param rb         Pointer to result_block with schemas for each pair
+ * @param unifiers   Preallocated array to receive unifier vectors. Size for worst-case (ob1.r*ob2.r), could resize for memory optimization
+ * @return Number of unifiers found
+ *
+ * Allocates a temporary unifier buffer of size 1+2*m+2
+ * Iterates over all row pairs (i,j)
+ * Calls unifier_rows and correct_unifier for each pair
+ * On success, appends unifier plus row indices (i,j) into unifiers
+ */
 unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *rb, unsigned *unifiers){
 
     unsigned i, j, *unifier;
     int code;
 
     unsigned last_unifier = 0;
-    // const unsigned m1 = ob1->c;
-    // const unsigned m2 = ob2->c;
     const unsigned m  = rb->c;
     const unsigned unifier_size = 1+(2*m)+2;
 
@@ -965,25 +1135,20 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
     {
         for (j=0; j<ob2->r; j++)
         {
-            // if (i==3 && j==1) chivato=true; // Check
             memset(unifier,0,unifier_size*sizeof(unsigned));  
             unsigned index_mt = i*rb->r2+j;
-            if (chivato) {unifier[0]=m; print_unifier(unifier,m);} // Check
             code = unifier_rows(&ob1->terms[i], &ob2->terms[j], rb->terms[index_mt].ms, unifier);
             if (code != 0) continue; // Rows cannot be unified
 
-            if (chivato) {unifier[0]=m; print_unifier(unifier,m);} // Check
 
             code = correct_unifier(&ob1->terms[i], &ob2->terms[j], rb->terms[index_mt].ms, unifier);
             if (code != 0) continue; // Rows cannot be unified
 
-            if (chivato) {print_unifier(unifier,m);} // Check
             
             unifier[1+(2*m)]   = i;
             unifier[1+(2*m)+1] = j;
             memcpy(&unifiers[last_unifier*unifier_size],unifier,unifier_size*sizeof(unsigned));
             last_unifier++;
-            chivato=false; // Check
         }
     }
 
@@ -993,7 +1158,23 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
     return last_unifier;
 }
 
-// Apply unifier to left term directly on the new main term
+
+
+/**
+ * @brief Applies a unifier to merge left and right main_terms into a resulting main_term
+ * @param mt1       Left main_term
+ * @param mt2       Right main_term
+ * @param mt3       Destination main_term to fill
+ * @param unifier   Array with format [n_subs, x1,y1, x2,y2, …]
+ * @return void
+ *
+ * Copies mt1->row into mt3->row. By the nature of unification, applying the unifier to any row gives same result
+ * This is optimal to handle new 'fake' columns
+ * Iterates each binding (x←y):
+ *   - If y is constant, replaces all x references with y
+ *   - If y is variable, updates variable occurrences using a dictionary
+ * Clears dictionary after application
+ */
 void apply_unifier_left(main_term *mt1, main_term *mt2, main_term *mt3, unsigned *unifier){
     
     const unsigned n = unifier[0]*2;
@@ -1021,7 +1202,6 @@ void apply_unifier_left(main_term *mt1, main_term *mt2, main_term *mt3, unsigned
         
         if (x < m) // Only apply changes to left row
         {
-            // if (chivato) printf("%u<-%u,",x,y); // Check
             if (y < m) {val_y = row_a[y]; same_row=true;}
             // else if (y < m) val_y = 0; // don't need this since row_a now is of size m, with the new columns already set to 0 on creation
             else if ((y-m) < c2) val_y = row_b[y-m];
@@ -1029,11 +1209,8 @@ void apply_unifier_left(main_term *mt1, main_term *mt2, main_term *mt3, unsigned
 
             if (val_y > 0) // y is a constant, substitute all x references for the constant in y
             {
-                // if (chivato) printf("%u<-%u for x<-y, with y being a constant val_y: %u\n",x,y,val_y); // Check
-                // if (chivato) {printf("before change: \n\t"); print_mat_line(row_a,m);} // Check
                 row_a[x] = val_y;
                 for (j=0;j<m;j++) if (row_a[j]==(int)(-(x+1))) row_a[j] = val_y;
-                // if (chivato) {printf("after change: \n\t"); print_mat_line(row_a,m);} // Check
             }
             else // y is a variable, so it can get tricky
             {
@@ -1055,29 +1232,34 @@ void apply_unifier_left(main_term *mt1, main_term *mt2, main_term *mt3, unsigned
                         same_row=false;
                         install(unif_dict,y_str,x);
                     }
-                    // if (chivato) printf("%u<-%u for x<-y, with y being a first time variable %s\n",x,y,y_str); // Check
                     else install(unif_dict,y_str,x);
                 }
                 else // Not first appearance: need to point all x references to previous (x<-y) [effectively (x<-(-z))]
                 {
                     int z = entry->defn;
-                    // if (chivato) printf("%u<-%u for x<-y, with y being a * time variable %s, previously replacing z:%u\n",x,y,y_str,z); // Check
-                    // if (chivato) {printf("before change: \n\t"); print_mat_line(row_a,m);} // Check
                     row_a[x] = -(z+1);
                     for (j=0;j<m;j++) if (row_a[j]==(int)(-(x+1))) row_a[j] = -(z+1);
-                // if (chivato) {printf("after change: \n\t"); print_mat_line(row_a,m);} // Check
                 }
             }
             same_row = false;
         }
     }
 
-
-    // if (chivato) printf("\n"); // Check
     clear(unif_dict); // Clean dictionary
     free(y_str);
 }
 
+
+/**
+ * @brief Reorders variables in a unified main_term to 'canonical' column order, same order as the test file one
+ * @param mt        Pointer to unified main_term
+ * @param ms        Schema containing common_L mapping
+ * @return void
+ *
+ * Detects duplicates, adjusts backward references.
+ * Performs necesary passes to correct chained references
+ * Writes reordered values back into mt->row
+ */
 void reorder_unified(main_term *mt, mgu_schema *ms)
 {
     // This can be handy since the main term needs to be the resulting main term, not the operand. This assertion does not guarantee that though
@@ -1093,6 +1275,7 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
     bool *duplicated = (bool*)malloc(c*sizeof(bool));
     memset(duplicated,0,c*sizeof(bool));
 
+    // Need a first pass to correct the state that apply_unifier_left ended in
     for (unsigned i = 0; i < c; i++)
     {
         int ref = before[i];
@@ -1121,14 +1304,11 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
         } 
     }
     
-    if (chivato) {printf("before  -->\t"); print_mat_line(before,c);} // Check
-    if (chivato) {printf("after   -->\t"); print_mat_line(after,c);} // Check
-
     int *after2 = (int*)malloc(c*sizeof(int));
     memcpy(after2,after,c*sizeof(int));
     
 
-    // Need an additional pass to correct various indices
+    // Need an additional pass to correct new reference index positions
     for (unsigned i = 0; i < c; i++)
     {
         int ref = after[i];
@@ -1138,7 +1318,6 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
         {
             // If this column was duplicated, it is already correct
             if (duplicated[i]) continue;
-            if (chivato) {printf("updating i:%u\n\t",i); print_mat_line(after2,c);} // Check
             unsigned reference = -(ref+1); // Get the index it is pointing to, this index is in the before array
             unsigned current_idx = (unsigned)before_after[reference]; // With this we know the corresponding index in the after array
             // When reordering, the first appearance can move to the right of a reference
@@ -1150,12 +1329,10 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
                 // In this case, it is the first swap, make the reference the first appearance and viceversa
                 else {after2[current_idx] = -(i+1); after2[i] = 0;}
             }
-            if (chivato) {printf("ref: %d, reference: %u, current_idx: %u, -(current_idx+1): %d, -(i+1): %d\n",ref,reference,current_idx,-(current_idx+1), -(i+1));
-                          printf("UPDATED i:%u\n\t",i); print_mat_line(after2,c);printf("\n");} // Check
         }
     }
 
-    // Need a last pass to correct indices
+    // Need a last pass to correct indices, same logic as the first pass, but now with the corrected reference indices
     for (unsigned i = 0; i < c; i++)
     {
         int ref = after2[i];
@@ -1174,7 +1351,30 @@ void reorder_unified(main_term *mt, mgu_schema *ms)
     return;
 }
 
-// Given two operand blocks and a result block, performs the matrix intersection and returns the time 
+/**
+ * @brief Performs intersection of two operand blocks against a reference result block, measures timing
+ * @param ob1       Pointer to first operand_block
+ * @param ob2       Pointer to second operand_block
+ * @param rb        Pointer to reference result_block containing expected results
+ * @return void     Prints timing and correctness to stdout/stderr if verbose; updates global timing counters
+ *
+ * Steps:
+ *   1. Record start time for unifier computation
+ *   2. Allocate buffer for all unifiers: size = ob1->r * ob2->r * (1+2*rb->c+2)
+ *   3. Call unifier_matrices() to populate unifiers and count
+ *   4. Record end time for unifier computation
+ *   5. Record start time for unification application
+ *   6. Create an empty result_block my_rb sized ob1->r×ob2->r (worst-case)
+ *   7. For each computed unifier:
+ *        a. Extract operand indices i,j
+ *        b. Initialize a new main_term in my_rb at index i*my_rb.r2+j
+ *        c. apply_unifier_left() then reorder_unified() to build unified term
+ *        d. Mark my_rb.valid for that position as unified
+ *   8. Record end time for unification application
+ *   9. Compare my_rb against rb via compare_results(); update global_correct counts
+ *  10. Accumulate elapsed times into global timing variables
+ *  11. Free allocated temporary result_block
+ */
 void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *rb){
 
     struct timespec start_unifiers, start_unification;
@@ -1189,7 +1389,6 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     unifiers = (unsigned*) malloc (ob1->r*ob2->r*unifier_size*sizeof(unsigned));
     unsigned unif_count = unifier_matrices(ob1, ob2, rb, unifiers);
 
-    // print_unifier_list(unifiers,unif_count,rb->ms->n_common); // Check
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_unifiers);
     // ----- Calculate unifiers end ----- //
     
@@ -1203,21 +1402,14 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     for (i=0; i<my_rb.r; i++) my_rb.valid[i] = 2;
     for (i=0; i<unif_count; i++)
     {
-        // if (i==0) chivato=!chivato; // Check
         ind_A = unifiers[i*unifier_size+unifier_size-2];
         ind_B = unifiers[i*unifier_size+unifier_size-1];
         unsigned index_mt = ind_A*my_rb.r2+ind_B;
 
         main_term *mt = &my_rb.terms[index_mt];
         *mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
-        // if (index_mt==174) {chivato=true;} // Check
         apply_unifier_left(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &unifiers[i*unifier_size]);
-        // if (index_mt==174) {printf("i: %u\n",i); print_unifier(&unifiers[i*unifier_size],rb->terms[index_mt].ms->n_common);} // Check
-        // prepare_unified(mt->row,line_B, rb->ms, false);
         reorder_unified(mt, rb->terms[index_mt].ms);
-        chivato=false;
-        if (chivato) printf("Applied unifier to mt1-mt2: (%u-%u)\n",ind_A+1,ind_B+1); // Check
-        // my_rb.valid[index_mt] = check_exceptions(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &rb->terms[index_mt]); // Not used for this version
         my_rb.valid[index_mt] = 0;
     }
 
@@ -1230,8 +1422,6 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
     if (verbose) printf("\tComparing unification results. . . \n");
     int same_int = compare_results(&my_rb,rb,ob1,ob2);
     if (!same_int) {global_correct = false; global_incorrect++; }
-    // exit(EXIT_FAILURE); // Check
-    // }
     global_count++;
 
     if (same_int  && verbose) printf("Unification is correct :)\n");
@@ -1252,6 +1442,27 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
 }
 // --------------------- CORE END --------------------- //
 
+/**
+ * @brief Entry point: reads three matrix CSVs, performs intersection tests, reports timing and correctness
+ * @param argc      Argument count; expects 4 or 5 (any more than 5 will be irrelevant, but no error)
+ * @param argv      Argument array: argv[1]=M1 file, argv[2]=M2 file, argv[3]=M3 file, optional argv[4] enables verbose
+ * @return int      Exit code: 0 on normal completion; exits on file errors or parsing failures
+ *
+ * Sequence:
+ *   1. Initialize global timing and dictionaries
+ *   2. Open input files
+ *   3. Read block counts s1,s2 via read_num_blocks() and print if verbose
+ *   4. Allocate arrays obs1[s1], obs2[s2]
+ *   5. Measure and invoke read_operand_block() to populate obs1 and obs2
+ *   6. Loop: read_result_block() to obtain rb; break on t1==0 (meaning no more result_blocks. Computing how many in the CSV beforehand is expensive)
+ *        a. Measure read time
+ *        b. print rb if verbose
+ *        c. Call matrix_intersection() on selected operand blocks and rb
+ *        d. free_result_block(rb)
+ *   7. Record total end time
+ *   8. Print verbose timing breakdown if enabled
+ *   9. Print summary: global_correct status, counts, timing metrics
+ */
 int main(int argc, char *argv[]){
     struct timespec start_total, start_reading;
     struct timespec end_total, end_reading;     
@@ -1296,14 +1507,11 @@ int main(int argc, char *argv[]){
     for (size_t i = 0; i < s1; i++)
     {
         obs1[i] = read_operand_block(stream_M1);
-        // print_operand_block(&obs1[i],1,2); // Check
     }
 
     for (size_t i = 0; i < s2; i++)
     {
         obs2[i] = read_operand_block(stream_M2);
-        // print_operand_block(&obs2[i],2,2); // Check
-        // if (i==1) {print_main_term(&obs2[i].terms[140],2,1); exit(EXIT_FAILURE);}// Check
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
@@ -1312,29 +1520,22 @@ int main(int argc, char *argv[]){
     // ----- Read file end ----- //
 
     // ----- Matrix intersection start ----- //
-    // int check = 1015; // Check - Select the matrix subset I want to work with
-    int check = 0; // Check - Work with all
-    int ind = 0; // Check 
     do {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
             rb = read_result_block(stream_M3);
-            // print_result_block(&rb,2); // Check
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
         if (rb.t1)
         {
-            if (ind!=check) {free_result_block(&rb); ind++; continue;} // Check
             // verbose = true; // Check
             timespec_subtract(&elapsed, &end_reading, &start_reading);    
             timespec_add(&read_file_elapsed, &read_file_elapsed, &elapsed);
             if (verbose) print_result_block(&rb,0);
             matrix_intersection(&obs1[rb.t1-1],&obs2[rb.t2-1],&rb);
             free_result_block(&rb);
-            // break; // Check
-            ind++; // Check
-            check++; // Check - use if starting from zero to get all blocks
         }
         else break;
     } while (true);
+
     // ----- Matrix intersection end ----- //
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_total);
@@ -1355,14 +1556,15 @@ int main(int argc, char *argv[]){
     timespec_subtract(&elapsed, &end_total, &start_total);
     if (verbose) printf("Total time:                    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
     printf("%ld.%0*ld\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
+
     // Free memory
-    // Free operand blocks
-    for (size_t i = 0; i < s1; i++) {
-        free_operand_block(&obs1[i]);
-    }
-    for (size_t i = 0; i < s2; i++) {
-        free_operand_block(&obs2[i]);
-    }
+        // Free operand blocks
+        for (size_t i = 0; i < s1; i++) {
+            free_operand_block(&obs1[i]);
+        }
+        for (size_t i = 0; i < s2; i++) {
+            free_operand_block(&obs2[i]);
+        }
     free(obs1);
     free(obs2);
 

@@ -2,18 +2,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct nlist { /* table entry: */
-    struct nlist *next; /* next entry in chain */
-    char *name; /* defined name */
-    int defn; /* replacement value */
+struct nlist { // Table entry
+    struct nlist *next; // Next entry in chain
+    char *name; // Defined name
+    int defn; // Replacement value
 };
 
 typedef struct {
-    struct nlist **hashtab; /* pointer table */
-    unsigned size;          /* size of the hash table */
+    struct nlist **hashtab; // Pointer table
+    unsigned size;          // Size of the hash table
 } Dictionary;
 
-/* Create a new dictionary */
+// Create a new dictionary
 Dictionary *create_dictionary(unsigned size) {
     Dictionary *dict = malloc(sizeof(Dictionary));
     dict->hashtab = calloc(size, sizeof(struct nlist *));
@@ -21,7 +21,7 @@ Dictionary *create_dictionary(unsigned size) {
     return dict;
 }
 
-/* Free the dictionary */
+// Free the dictionary
 void free_dictionary(Dictionary *dict) {
     struct nlist *current, *temp;
     for (unsigned i = 0; i < dict->size; i++) {
@@ -37,7 +37,7 @@ void free_dictionary(Dictionary *dict) {
     free(dict);
 }
 
-/* hash: form hash value for string s */
+// Form hash value for string s
 unsigned hash(Dictionary *dict, char *s) {
     unsigned hashval;
     for (hashval = 0; *s != '\0'; s++)
@@ -45,16 +45,16 @@ unsigned hash(Dictionary *dict, char *s) {
     return hashval % dict->size;
 }
 
-/* lookup: look for s in dictionary */
+// Look for s in dictionary
 struct nlist *lookup(Dictionary *dict, char *s) {
     struct nlist *np;
     for (np = dict->hashtab[hash(dict, s)]; np != NULL; np = np->next)
         if (strcmp(s, np->name) == 0)
-            return np; /* found */
-    return NULL; /* not found */
+            return np; // Found
+    return NULL; // Not found
 }
 
-/* install: put (name, defn) in dictionary */
+// Put (name, defn) in dictionary
 struct nlist *install(Dictionary *dict, char *name, int defn) {
     struct nlist *np;
     unsigned hashval;
@@ -70,7 +70,7 @@ struct nlist *install(Dictionary *dict, char *name, int defn) {
     return np;
 }
 
-/* clear: clear all entries in the dictionary */
+// Clear all entries in the dictionary
 void clear(Dictionary *dict) {
     struct nlist *current, *temp;
     for (unsigned i = 0; i < dict->size; i++) {
