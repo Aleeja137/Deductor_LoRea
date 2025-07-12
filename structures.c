@@ -251,7 +251,8 @@ result_block create_empty_result_block(unsigned r1, unsigned r2, unsigned c1, un
         rb.valid[i] = 2;                        // so free_result_block will skip it
     }
     
-
+    rb.lineal_lineal = false; // False by default
+    
     return rb;
 }
 

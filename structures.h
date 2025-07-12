@@ -47,17 +47,18 @@ typedef struct {
 } operand_block;
 
 typedef struct {
-    unsigned t1;       // ID of the operand block of M1
-    unsigned t2;       // ID of the operand block of M2
-    unsigned r1;       // Number of main terms in t1
-    unsigned r2;       // Number of main terms in t2
-    unsigned r;        // Number of unified main terms (not in csv file header, computed after the file is read)
-    unsigned c1;       // Number of columns for main terms in t1 
-    unsigned c2;       // Number of columns for main terms in t2 
-    unsigned c;        // Number of columns for all main terms within the result block
-    main_term *terms;  // r1*r2 main_term array, represents a block within an operand matrix
-    unsigned *valid;   // 1D array of r1*r2 elements that give info about the main terms, 0 for unified, 1 for subsumed by exception, and 2 for not unifiable
-    mgu_schema *ms;    // Represents the mapping between two operand main terms' columns
+    unsigned t1;        // ID of the operand block of M1
+    unsigned t2;        // ID of the operand block of M2
+    unsigned r1;        // Number of main terms in t1
+    unsigned r2;        // Number of main terms in t2
+    unsigned r;         // Number of unified main terms (not in csv file header, computed after the file is read)
+    unsigned c1;        // Number of columns for main terms in t1 
+    unsigned c2;        // Number of columns for main terms in t2 
+    unsigned c;         // Number of columns for all main terms within the result block
+    main_term *terms;   // r1*r2 main_term array, represents a block within an operand matrix
+    unsigned *valid;    // 1D array of r1*r2 elements that give info about the main terms, 0 for unified, 1 for subsumed by exception, and 2 for not unifiable
+    mgu_schema *ms;     // Represents the mapping between two operand main terms' columns
+    bool lineal_lineal; // Indicates if a result block is composed of two lineal operant matrix blocks, so that all main terms in the resulting block can share the mgu_schema and save a lot of memory 
 } result_block;
 
 /* Functions */

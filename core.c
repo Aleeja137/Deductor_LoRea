@@ -698,6 +698,7 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         if (strchr(line, '-') == NULL) {
             not_first_subset = true;
             first_is_non_lineal = true;
+            rb->lineal_lineal = true;
         }
         else
         {
@@ -769,8 +770,8 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         // Read one by one the exception blocks
         if (e) read_exception_blocks(stream, mt, true);
 
-        // Add mapping to main_term // This is VERY inefficient both memory and speed wise, but makes ms treatment homogeneous during unification process
-        mt->ms = create_mgu_from_mapping(mapping, rb->c, rb->c1, rb->c2);
+        // Add mapping to main_term only if the result_block is not formed between two lineal matrix subset operands, so mgu_schema cannot be reused
+        if (!rb->lineal_lineal) mt->ms = create_mgu_from_mapping(mapping, rb->c, rb->c1, rb->c2);
 
         // Increment the row by 1
         row++;
@@ -1137,11 +1138,12 @@ unsigned unifier_matrices(operand_block *ob1, operand_block *ob2, result_block *
         {
             memset(unifier,0,unifier_size*sizeof(unsigned));  
             unsigned index_mt = i*rb->r2+j;
-            code = unifier_rows(&ob1->terms[i], &ob2->terms[j], rb->terms[index_mt].ms, unifier);
+            mgu_schema *schema_holder = rb->lineal_lineal ? rb->ms : rb->terms[index_mt].ms;
+            code = unifier_rows(&ob1->terms[i], &ob2->terms[j], schema_holder, unifier);
             if (code != 0) continue; // Rows cannot be unified
 
 
-            code = correct_unifier(&ob1->terms[i], &ob2->terms[j], rb->terms[index_mt].ms, unifier);
+            code = correct_unifier(&ob1->terms[i], &ob2->terms[j], schema_holder, unifier);
             if (code != 0) continue; // Rows cannot be unified
 
             
@@ -1409,7 +1411,8 @@ void matrix_intersection(operand_block *ob1, operand_block *ob2, result_block *r
         main_term *mt = &my_rb.terms[index_mt];
         *mt = create_empty_main_term(my_rb.c, ob1->terms[ind_A].e + ob2->terms[ind_B].e);
         apply_unifier_left(&ob1->terms[ind_A], &ob2->terms[ind_B], mt, &unifiers[i*unifier_size]);
-        reorder_unified(mt, rb->terms[index_mt].ms);
+        mgu_schema *schema_holder = rb->lineal_lineal ? rb->ms : rb->terms[index_mt].ms;
+        reorder_unified(mt, schema_holder);
         my_rb.valid[index_mt] = 0;
     }
 
