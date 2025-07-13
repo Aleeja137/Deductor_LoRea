@@ -692,18 +692,15 @@ void read_result_matrix(FILE *stream, result_block *rb) {
     // Get mapping info
     bool first_is_non_lineal = false;
     unsigned *mapping = (unsigned*)malloc(rb->c*2*sizeof(unsigned));
-    if (!not_first_subset)
-    {
+    if (!not_first_subset) {
         getline(&line, &len, stream);
         if (strchr(line, '-') == NULL) {
-            not_first_subset = true;
+            not_first_subset   = true;
             first_is_non_lineal = true;
-            rb->lineal_lineal = true;
-        }
-        else
-        {
+        } else {
             get_mapping(line, rb->c, mapping);
             rb->ms = create_mgu_from_mapping(mapping, rb->c, rb->c1, rb->c2);
+            rb->lineal_lineal = true;
         }
     }
 
@@ -771,7 +768,11 @@ void read_result_matrix(FILE *stream, result_block *rb) {
         if (e) read_exception_blocks(stream, mt, true);
 
         // Add mapping to main_term only if the result_block is not formed between two lineal matrix subset operands, so mgu_schema cannot be reused
-        if (!rb->lineal_lineal) mt->ms = create_mgu_from_mapping(mapping, rb->c, rb->c1, rb->c2);
+        if (rb->lineal_lineal) {
+            mt->ms = NULL;
+        } else {
+            mt->ms = create_mgu_from_mapping(mapping, rb->c, rb->c1, rb->c2);
+        }
 
         // Increment the row by 1
         row++;
