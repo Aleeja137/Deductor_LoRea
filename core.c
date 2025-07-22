@@ -12,8 +12,7 @@
 
 #include "dictionary.h"
 #include "structures.h"
-// #include "AGT_hash.h" // The header files are the same for COM and AGT, so just pass the correct .c when compiling and that's it
-#include "COM_hash.h"
+#include "perf_hash.h"
 
 // Buffer size for row-string conversion, enough for INT_MAX digits plus null terminator
 #define ROW_STR_SIZE (snprintf(NULL, 0, "%d", INT_MAX) + 1)  
@@ -1507,15 +1506,22 @@ int main(int argc, char *argv[]){
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
 
+    unsigned max_col_obs1 = 0;
+    unsigned max_col_obs2 = 0;
+    unsigned max_col_rbs  = 0;
+    unsigned *col_per_rbs = (unsigned*)malloc(s1*s2*sizeof(unsigned)); // Worst case
+
     // ----- Read file start ----- //
     for (size_t i = 0; i < s1; i++)
     {
         obs1[i] = read_operand_block(stream_M1);
+        max_col_obs1 = (unsigned)fmax(max_col_obs1,obs1[i].c);
     }
 
     for (size_t i = 0; i < s2; i++)
     {
         obs2[i] = read_operand_block(stream_M2);
+        max_col_obs2 = (unsigned)fmax(max_col_obs2,obs2[i].c);
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
@@ -1524,17 +1530,20 @@ int main(int argc, char *argv[]){
     // ----- Read file end ----- //
 
     // ----- Matrix intersection start ----- //
+    unsigned rb_idx = 0;
     do {
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_reading);
             rb = read_result_block(stream_M3);
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_reading);
         if (rb.t1)
         {
-            // verbose = true; // Check
             timespec_subtract(&elapsed, &end_reading, &start_reading);    
             timespec_add(&read_file_elapsed, &read_file_elapsed, &elapsed);
             if (verbose) print_result_block(&rb,0);
             matrix_intersection(&obs1[rb.t1-1],&obs2[rb.t2-1],&rb);
+            max_col_rbs = (unsigned)fmax(max_col_rbs,rb.c);
+            col_per_rbs[rb_idx] = rb.c;
+            rb_idx++;
             free_result_block(&rb);
         }
         else break;
@@ -1561,6 +1570,26 @@ int main(int argc, char *argv[]){
     if (verbose) printf("Total time:                    %ld.%0*ld sec\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
     printf("%ld.%0*ld\n",elapsed.tv_sec, 9, elapsed.tv_nsec);
 
+    printf("max columns operand matrix 1: %u; operand matrix 2: %u, result matrix: %u\n",max_col_obs1,max_col_obs2,max_col_rbs);
+
+    printf("Operand matrix 1 has %u matrix subsets, the number of columns for each is:\n\t[",s1);
+    for (unsigned obs_idx = 0; obs_idx < s1; obs_idx++)
+    {
+        obs_idx < (s1-1) ? printf("%u,",obs1[obs_idx].c) : printf("%u]\n",obs1[obs_idx].c);
+    }
+    
+    printf("Operand matrix 2 has %u matrix subsets, the number of columns for each is:\n\t[",s2);
+    for (unsigned obs_idx = 0; obs_idx < s2; obs_idx++)
+    {
+        obs_idx < (s2-1) ? printf("%u,",obs2[obs_idx].c) : printf("%u]\n",obs2[obs_idx].c);
+    }
+
+    printf("Result matrix has %u matrix subsets, the number of columns for each is:\n\t[",global_count);
+    for (unsigned obs_idx = 0; obs_idx < global_count; obs_idx++)
+    {
+        obs_idx < (global_count-1) ? printf("%u,",col_per_rbs[obs_idx]) : printf("%u]\n",col_per_rbs[obs_idx]);
+    }
+
     // Free memory
         // Free operand blocks
         for (size_t i = 0; i < s1; i++) {
@@ -1571,7 +1600,8 @@ int main(int argc, char *argv[]){
         }
     free(obs1);
     free(obs2);
-
+    free(col_per_rbs);
+    
     // Free dictionaries
     free_dictionary(var_dict);
     free_dictionary(unif_dict);
