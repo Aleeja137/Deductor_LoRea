@@ -3,7 +3,8 @@ Este proyecto aspira a implementar un deductor lógico de primer orden con contr
 Trabajo desarrollado en colaboración por:  
 - [LoRea EHU](https://www.ehu.eus/es/web/lorea/web-gunea)  
 - [ISG EHU](http://www.sc.ehu.es/ccwbayes/)  
-    
+
+Contact: javier.alvez@ehu.eus (Javier Álvez), alejandro.perezc@ehu.eus (Alejandro Pérez), montserrat.hermo@ehu.eus (Montserrat Hermo), joseantonio.pascual@ehu.eus (Jose A. Pascual)  
 ------  
   
 This project aims to implement a first-order logic deductor with equality constraints in C, and then optimize and accelerate it on GPUs.  
@@ -11,17 +12,19 @@ Work developed in collaboration by:
 - LoRea EHU (https://www.ehu.eus/es/web/lorea/web-gunea)  
 - ISG EHU (http://www.sc.ehu.es/ccwbayes/)  
 
+Contact: javier.alvez@ehu.eus (Javier Álvez), alejandro.perezc@ehu.eus (Alejandro Pérez), montserrat.hermo@ehu.eus (Montserrat Hermo), joseantonio.pascual@ehu.eus (Jose A. Pascual)  
+
 ## Functionalites  
 - Unification without exceptions  
 - M1 and M2 can have different number of columns, the mapping on *M3.csv files will indicate relationship between their schemas
   
   
 ## Compilation
-`gcc -o c core.c -Wall -Wextra -g -O0 structures.c [COM|AGT]_hash.c -lm`  
-`gcc -o c core.c -Wall -Wextra -O3 structures.c [COM|AGT]_hash.c -lm`  
+`gcc -o c core.c -Wall -Wextra -g -O0 structures.c perf_hash.c -D[COM|AGT] -lm`  
+`gcc -o c core.c -Wall -Wextra -O3 structures.c perf_hash.c -D[COM|AGT] -lm`  
 
 ## Use
-Note that currently there are two types of tests, from COM or AGT. To use the code in each type of test, the binary must be compiled with the correct AGT_hash.c or COM_hash.c  
+Note that currently there are two types of tests, from COM or AGT. To use the code in each type of test, the binary must be compiled with the correct flag declared (-DAGT or -DCOM)    
 `./c /path/to/testXXM1.csv /path/to/testXXM2.csv /path/to/testXXM3.csv [verbose]`
 
 ## Extended use  
@@ -67,7 +70,5 @@ Functions for matrix computation, unifier handling, etc
 Functions for managing this project’s data structures (L1, L2, L3, operand_block, result_block, main_term, mgu_schema, etc)
 ### dictionary.c  
 Simple dictionary functionality for various operations of constant/variable element handling    
-### AGT_hash.c  
-Perfect hash used to read symbols (constants) from AGT test files more efficiently  
-### COM_hash.c  
-Perfect hash used to read symbols (constants) from COM test files more efficiently  
+### perf_hash.c  
+Perfect hash used to read symbols (constants) from AGT and COM test files more efficiently  
