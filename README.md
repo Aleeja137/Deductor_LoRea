@@ -3,8 +3,9 @@ Este proyecto aspira a implementar un deductor lógico de primer orden con contr
 Trabajo desarrollado en colaboración por:  
 - [LoRea EHU](https://www.ehu.eus/es/web/lorea/web-gunea)  
 - [ISG EHU](http://www.sc.ehu.es/ccwbayes/)  
-
+  
 Contact: javier.alvez@ehu.eus (Javier Álvez), alejandro.perezc@ehu.eus (Alejandro Pérez), montserrat.hermo@ehu.eus (Montserrat Hermo), joseantonio.pascual@ehu.eus (Jose A. Pascual)  
+
 ------  
   
 This project aims to implement a first-order logic deductor with equality constraints in C, and then optimize and accelerate it on GPUs.  
