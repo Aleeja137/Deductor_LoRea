@@ -12,8 +12,7 @@
 
 #include "dictionary.h"
 #include "structures.h"
-// #include "AGT_hash.h" // The header files are the same for COM and AGT, so just pass the correct .c when compiling and that's it
-#include "COM_hash.h"
+#include "perf_hash.h"
 
 // Buffer size for row-string conversion, enough for INT_MAX digits plus null terminator
 #define ROW_STR_SIZE (snprintf(NULL, 0, "%d", INT_MAX) + 1)  
