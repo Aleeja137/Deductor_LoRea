@@ -1,5 +1,6 @@
-# Deductor LoRea
-Este proyecto aspira a implementar un deductor lógico de primer orden con contraints de igualdad en C, y después optimizarlo y acelerarlo en GPUs.  
+# Massive unification
+En este proyecto se implementa un sistema preliminar de unificación masivo para restricciones de igualdad sobre términos finitos. Este sistema se puede optimizar y acelerar mediante el uso de GPUs. En un futuro, se aspira a que una versión evolucionada de este sistema sirva de base para la implementación de un demostrador de teoremas automático para lógica de primer orden.
+
 Trabajo desarrollado en colaboración por:  
 - [LoRea EHU](https://www.ehu.eus/es/web/lorea/web-gunea)  
 - [ISG EHU](http://www.sc.ehu.es/ccwbayes/)  
@@ -8,7 +9,8 @@ Contact: javier.alvez@ehu.eus (Javier Álvez), alejandro.perezc@ehu.eus (Alejand
 
 ------  
   
-This project aims to implement a first-order logic deductor with equality constraints in C, and then optimize and accelerate it on GPUs.  
+In this project, we develop a preliminary massive unification system for equality constraints over finite trees. This system can be optimized and accelerated using GPUs. As future work, we plan to use an evolved version of this system as the basis of a general automated theorem prover for first-order logic.  
+
 Work developed in collaboration by:  
 - LoRea EHU (https://www.ehu.eus/es/web/lorea/web-gunea)  
 - ISG EHU (http://www.sc.ehu.es/ccwbayes/)  
@@ -16,20 +18,20 @@ Work developed in collaboration by:
 Contact: javier.alvez@ehu.eus (Javier Álvez), alejandro.perezc@ehu.eus (Alejandro Pérez), montserrat.hermo@ehu.eus (Montserrat Hermo), joseantonio.pascual@ehu.eus (Jose A. Pascual)  
 
 ## Functionalites  
-- Unification without exceptions  
-- M1 and M2 can have different number of columns, the mapping on *M3.csv files will indicate relationship between their schemas
+- Unification of pairs of equality constraints represented as matrices (M1 and M2) created from the domains COM (problem 123) and AGT (problem 007) of TPTP (www.tptp.org). 
+- Checking the result (against M3).
   
   
-## Compilation
+## Compilation  
 `gcc -o c core.c -Wall -Wextra -g -O0 structures.c perf_hash.c -D[COM|AGT] -lm`  
 `gcc -o c core.c -Wall -Wextra -O3 structures.c perf_hash.c -D[COM|AGT] -lm`  
 
 ## Use
-Note that currently there are two types of tests, from COM or AGT. To use the code in each type of test, the binary must be compiled with the correct flag declared (-DAGT or -DCOM)    
+Note that currently there are two types of tests, from COM or AGT. To use the code in each type of test, the binary must be compiled with the correct flag declared (-DAGT or -DCOM). This is because in order to speed up the problem reading from files, a perfect hash is used, and that hash is built from COM or AGT symbol signature respectively.  
 `./c /path/to/testXXM1.csv /path/to/testXXM2.csv /path/to/testXXM3.csv [verbose]`
 
 ## Extended use  
-Can call execute_triplets to find and execute all M1,M2 and M3 triplets within a given folder. Results will be with no verbose by default (recommended), so times will show in a neat csv style file: 
+The `execute_triplets.sh` script provides and easy way to execute all tests composed by M1,M2 and M3 triplets within a folder. Results will be with no verbose by default (recommended), so times will show in a neat csv style file: 
 
 `./execute_triplets.sh /path/to/folder`  
 `nohup [time] ./execute_triplets.sh /path/COM123+1 > res_COM.csv 2>&1 &`  
